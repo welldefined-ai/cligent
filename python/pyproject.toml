@@ -1,0 +1,48 @@
+[project]
+name = "cligent"
+version = "0.1.0"
+description = "Chat Parser Library for parsing AI agent conversation logs"
+readme = "README.md"
+license = { text = "MIT" }
+authors = [
+    { name = "Jinglei Ren", email = "jinglei@merico.ai" }
+]
+requires-python = ">=3.8"
+dependencies = []
+keywords = ["chat", "parser", "ai", "agent", "conversation", "logs"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+[project.urls]
+Homepage = "https://github.com/sublang-ai/cligent"
+Issues = "https://github.com/sublang-ai/cligent/issues"
+Repository = "https://github.com/sublang-ai/cligent.git"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "ruff>=0.1.0",
+    "mypy>=1.0.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel.force-include]
+"src" = "cligent"
+
+[tool.hatch.build.targets.sdist]
+only-include = ["src", "pyproject.toml", "README.md"]
