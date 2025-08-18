@@ -14,4 +14,5 @@
 - Package name: `cligent`
 - Package manager: `uv`
 - Registry: PyPI
-- Source layout: `python/src/` (no `cligent` subdirectory)
+- Source layout: `python/src/` (no nested `src/cligent/` directory)
+
