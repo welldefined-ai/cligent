@@ -183,8 +183,7 @@ class ChatParser:
             # For file-based implementations, log_uri might be a file path
             from pathlib import Path
             session = Session(file_path=Path(log_uri))
-            # For now, assume content is already parsed
-            # In real implementation, would parse JSONL content
+            session.load()  # Actually load the content
             return session.to_chat()
         else:
             raise ValueError(f"Unsupported agent: {self.agent_name}")

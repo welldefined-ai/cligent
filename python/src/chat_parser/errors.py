@@ -122,7 +122,25 @@ class ErrorCollector:
         Returns:
             Formatted error report
         """
-        raise NotImplementedError
+        if not self.errors:
+            return "No errors occurred."
+        
+        lines = []
+        lines.append(f"Error Summary: {len(self.errors)} total errors")
+        lines.append(f"  - Recovered: {self.recovered_count}")
+        lines.append(f"  - Fatal: {self.lost_count}")
+        lines.append("")
+        
+        for i, error in enumerate(self.errors, 1):
+            status = "✓ Recovered" if error.recoverable else "✗ Fatal"
+            lines.append(f"{i}. {status}: {error.message}")
+            if error.location:
+                lines.append(f"   Location: {error.location}")
+            if error.context:
+                lines.append(f"   Context: {error.context}")
+            lines.append("")
+        
+        return "\n".join(lines)
     
     def to_dict(self) -> dict:
         """Convert error collection to dictionary.
@@ -130,4 +148,18 @@ class ErrorCollector:
         Returns:
             Dictionary with error statistics and details
         """
-        raise NotImplementedError
+        return {
+            "total_errors": len(self.errors),
+            "recovered_count": self.recovered_count,
+            "fatal_count": self.lost_count,
+            "has_fatal_errors": self.has_fatal_errors(),
+            "errors": [
+                {
+                    "message": error.message,
+                    "location": error.location,
+                    "context": error.context,
+                    "recoverable": error.recoverable
+                }
+                for error in self.errors
+            ]
+        }
