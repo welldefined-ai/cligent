@@ -8,7 +8,9 @@ authors = [
     { name = "Jinglei Ren", email = "jinglei@merico.ai" }
 ]
 requires-python = ">=3.8"
-dependencies = []
+dependencies = [
+    "PyYAML>=6.0",
+]
 keywords = ["chat", "parser", "ai", "agent", "conversation", "logs"]
 classifiers = [
     "Development Status :: 3 - Alpha",
