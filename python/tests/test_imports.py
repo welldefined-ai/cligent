@@ -1,0 +1,65 @@
+"""Test that all public imports work correctly."""
+
+def test_main_package_imports():
+    """Test that main package imports work."""
+    import cligent
+    assert hasattr(cligent, '__version__')
+    assert hasattr(cligent, 'chat_parser')
+    assert hasattr(cligent, 'ChatParser')
+    assert hasattr(cligent, 'Chat')
+    assert hasattr(cligent, 'Message')
+
+
+def test_chat_parser_subpackage_imports():
+    """Test that chat_parser subpackage imports work."""
+    from cligent.chat_parser import (
+        ChatParser, 
+        Chat, 
+        Message, 
+        Role,
+        LogStore
+    )
+    
+    # Verify classes can be instantiated
+    msg = Message(role=Role.USER, content="test")
+    assert msg.content == "test"
+    
+    chat = Chat()
+    assert chat.messages == []
+
+
+def test_convenience_imports():
+    """Test convenience imports from main package."""
+    from cligent import ChatParser, Chat, Message
+    
+    # Should be able to create parser
+    parser = ChatParser("claude-code")
+    assert parser.agent_name == "claude-code"
+
+
+def test_error_imports():
+    """Test error classes can be imported."""
+    from cligent.chat_parser import (
+        ChatParserError,
+        ParseError,
+        LogAccessError,
+        LogCorruptionError,
+        InvalidFormatError
+    )
+    
+    # Should be able to create exceptions
+    error = ChatParserError("test error")
+    assert str(error) == "test error"
+
+
+def test_private_modules_not_exposed():
+    """Test that internal modules are not exposed in public API."""
+    import cligent.chat_parser
+    
+    # These should not be in __all__
+    public_api = cligent.chat_parser.__all__
+    
+    # Internal Claude implementation should not be public
+    assert "ClaudeStore" not in public_api
+    assert "Record" not in public_api
+    assert "Session" not in public_api
