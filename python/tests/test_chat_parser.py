@@ -330,13 +330,13 @@ class TestMessageAndChatMethods:
         assert "messages" in tigs_data
         assert len(tigs_data["messages"]) == 3
         
-        # Check message content
+        # Check message content (strip trailing newlines from literal block style)
         assert tigs_data["messages"][0]["role"] == "system"
-        assert tigs_data["messages"][0]["content"] == "System prompt"
+        assert tigs_data["messages"][0]["content"].rstrip() == "System prompt"
         assert tigs_data["messages"][1]["role"] == "user"
-        assert tigs_data["messages"][1]["content"] == "User question"
+        assert tigs_data["messages"][1]["content"].rstrip() == "User question"
         assert tigs_data["messages"][2]["role"] == "assistant"
-        assert tigs_data["messages"][2]["content"] == "Assistant response"
+        assert tigs_data["messages"][2]["content"].rstrip() == "Assistant response"
 
 
 if __name__ == "__main__":

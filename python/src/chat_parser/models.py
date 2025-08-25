@@ -73,34 +73,37 @@ class Chat:
         return Chat(messages=merged_messages)
     
     def export(self) -> str:
-        """Output as Tigs YAML format."""
-        import yaml
+        """Output as Tigs YAML format with human-readable content blocks."""
         from datetime import datetime
         
-        # Build Tigs YAML structure
-        tigs_data = {
-            "schema": "tigs.chat/v1",
-            "messages": []
-        }
+        # Build the YAML manually for better control over formatting
+        lines = []
+        lines.append("schema: tigs.chat/v1")
+        lines.append("messages:")
         
         for message in self.messages:
-            msg_data = {
-                "role": message.role.value,
-                "content": message.content
-            }
+            lines.append(f"- role: {message.role.value}")
+            
+            # Always use literal block style for content
+            lines.append("  content: |")
+            # Split content by any line ending style (cross-platform)
+            content_lines = message.content.splitlines()
+            if content_lines:
+                for content_line in content_lines:
+                    lines.append(f"    {content_line}")
+            else:
+                # Handle empty content
+                lines.append(f"    {message.content}")
             
             # Add timestamp if available
             if message.timestamp:
-                msg_data["timestamp"] = message.timestamp.strftime("%Y-%m-%dT%H:%M:%SZ")
+                lines.append(f"  timestamp: '{message.timestamp.strftime('%Y-%m-%dT%H:%M:%SZ')}'")
             
             # Add model from metadata if available
             if "model" in message.metadata:
-                msg_data["model"] = message.metadata["model"]
-                
-            tigs_data["messages"].append(msg_data)
+                lines.append(f"  model: {message.metadata['model']}")
         
-        # Convert to YAML with proper formatting
-        return yaml.dump(tigs_data, default_flow_style=False, allow_unicode=True, sort_keys=False)
+        return '\n'.join(lines)
 
 
 @dataclass
