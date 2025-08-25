@@ -21,7 +21,7 @@ class TestChatParserReal:
         """Path to test data directory."""
         return Path(__file__).parent / "test_data"
     
-    @pytest.fixture 
+    @pytest.fixture
     def parser(self, test_data_path):
         """ChatParser instance using test data."""
         return ChatParser("claude-code", location=str(test_data_path))
@@ -218,6 +218,57 @@ class TestClaudeImplementation:
         live_uri = store.live()
         assert live_uri is not None
         assert live_uri in [uri for uri, _ in logs]
+    
+    def test_tool_message_filtering(self, test_data_path: Path) -> None:
+        """Test that tool use messages are filtered out correctly."""
+        from cligent import ChatParser
+        
+        parser = ChatParser("claude-code", location=str(test_data_path))
+        tool_log = (
+            test_data_path / "test_project" / "tool_filtering_chat.jsonl"
+        )
+        
+        chat = parser.parse(str(tool_log))
+        
+        # Should have only text messages, no tool messages
+        expected_text_messages = [
+            "Create a Python function",
+            "I'll help you create a Python function.",
+            "Perfect! The function has been created. Here's what it does:",
+            "The function is ready to use!",
+        ]
+        
+        assert len(chat.messages) == len(expected_text_messages)
+        
+        # Verify content matches expected text messages
+        for i, expected_content in enumerate(expected_text_messages):
+            assert expected_content in chat.messages[i].content
+            # Ensure no tool JSON artifacts remain
+            assert not chat.messages[i].content.strip().startswith('[{')
+    
+    def test_mixed_content_messages(self) -> None:
+        """Test messages with both text and tool content extract only text."""
+        from cligent.chat_parser.claude.claude_code import Record
+        
+        # Simulate a message with both text and tool_use blocks
+        mixed_data = {
+            'type': 'assistant',
+            'message': {
+                'content': [
+                    {'type': 'text', 'text': 'Let me help you with that.'},
+                    {'type': 'tool_use', 'id': 'test', 'name': 'Bash'},
+                ]
+            },
+            'uuid': 'test',
+        }
+        
+        record = Record(type='assistant', uuid='test', raw_data=mixed_data)
+        message = record.extract_message()
+        
+        # Should extract only the text part
+        assert message is not None
+        assert message.content == "Let me help you with that."
+        assert 'tool_use' not in message.content
 
 
 class TestErrorHandling:

@@ -40,7 +40,7 @@ class Record:
         """Get a Message from this record, if applicable."""
         if not self.is_message():
             return None
-        
+
         # Map Claude types to our Role enum
         role_mapping = {
             'user': Role.USER,
@@ -56,14 +56,27 @@ class Record:
         
         # Handle content that might be a list (Claude API format)
         if isinstance(content, list) and content:
-            # Extract text from content blocks
+            # Extract only text blocks - ignore everything else
             content_parts = []
             for block in content:
                 if isinstance(block, dict) and block.get('type') == 'text':
-                    content_parts.append(block.get('text', ''))
-            content = '\n'.join(content_parts) if content_parts else str(content)
-        elif not isinstance(content, str):
-            content = str(content)
+                    text = block.get('text', '').strip()
+                    if text:  # Only include non-empty text
+                        content_parts.append(text)
+            
+            # If no text content found, skip this message
+            if not content_parts:
+                return None
+                
+            content = '\n'.join(content_parts)
+        elif isinstance(content, str):
+            content = content.strip()
+            # If it's just whitespace or empty, skip
+            if not content:
+                return None
+        else:
+            # Skip non-string, non-list content
+            return None
         
         # Parse timestamp if available
         timestamp = None
