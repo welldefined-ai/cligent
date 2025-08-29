@@ -4,15 +4,14 @@ def test_main_package_imports():
     """Test that main package imports work."""
     import cligent
     assert hasattr(cligent, '__version__')
-    assert hasattr(cligent, 'chat_parser')
     assert hasattr(cligent, 'ChatParser')
     assert hasattr(cligent, 'Chat')
     assert hasattr(cligent, 'Message')
 
 
-def test_chat_parser_subpackage_imports():
-    """Test that chat_parser subpackage imports work."""
-    from cligent.chat_parser import (
+def test_cligent_direct_imports():
+    """Test that cligent direct imports work."""
+    from cligent import (
         ChatParser, 
         Chat, 
         Message, 
@@ -39,7 +38,7 @@ def test_convenience_imports():
 
 def test_error_imports():
     """Test error classes can be imported."""
-    from cligent.chat_parser import (
+    from cligent import (
         ChatParserError,
         ParseError,
         LogAccessError,
@@ -54,10 +53,10 @@ def test_error_imports():
 
 def test_private_modules_not_exposed():
     """Test that internal modules are not exposed in public API."""
-    import cligent.chat_parser
+    import cligent
     
     # These should not be in __all__
-    public_api = cligent.chat_parser.__all__
+    public_api = cligent.__all__
     
     # Internal Claude implementation should not be public
     assert "ClaudeStore" not in public_api
