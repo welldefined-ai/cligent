@@ -1,6 +1,6 @@
 [project]
 name = "cligent"
-version = "0.1.0"
+version = "0.1.1"
 description = "Chat Parser Library for parsing AI agent conversation logs"
 readme = "README.md"
 license = { text = "AGPL-3.0" }
