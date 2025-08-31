@@ -1,6 +1,6 @@
 """Cligent: Chat Parser Library for parsing AI agent conversation logs."""
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 
 from .chat_parser import (
     ChatParser, Chat, Message, Role, LogStore,

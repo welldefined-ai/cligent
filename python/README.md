@@ -21,20 +21,20 @@ pip install cligent
 
 ### Basic Usage - Parse Claude Code Logs
 
-If you're working in a git repository where you've used Claude Code, you can easily access all your conversation logs:
+If you're working in a directory where you've used Claude Code, you can easily access all your conversation logs for that specific project:
 
 ```python
 from cligent import ChatParser
 
-# Initialize parser for Claude Code (uses current directory by default)
+# Initialize parser for Claude Code (uses current working directory)
 parser = ChatParser("claude-code")
 
-# List all available conversation logs
+# List all conversation logs for the current project only
 logs = parser.list_logs()
 for log_uri, metadata in logs:
-    print(f"Log: {log_uri}")
-    print(f"  Project: {metadata['project']}")
+    print(f"Session ID: {log_uri}")  # Returns session ID, not full path
     print(f"  Size: {metadata['size']} bytes")
+    print(f"  Modified: {metadata['modified']}")
 
 # Parse the most recent conversation
 latest_chat = parser.parse()  # Gets live/most recent log
@@ -52,13 +52,13 @@ from cligent import ChatParser
 
 parser = ChatParser("claude-code")
 
-# List logs and pick one
+# List logs and pick one (log_uri is now a session ID)
 logs = parser.list_logs()
 if logs:
-    log_uri, metadata = logs[0]  # First available log
+    session_id, metadata = logs[0]  # First available log
     
-    # Parse specific conversation
-    chat = parser.parse(log_uri)
+    # Parse specific conversation using session ID
+    chat = parser.parse(session_id)
     print(f"Chat has {len(chat.messages)} messages")
     
     # Access individual messages
@@ -66,17 +66,14 @@ if logs:
         print(f"{message.role.value}: {message.content}")
 ```
 
-### Working with Custom Log Locations
+### Working with Different Project Directories
 
 ```python
 from cligent import ChatParser
 
-# Specify custom location for logs
-parser = ChatParser("claude-code", location="/path/to/custom/logs")
-
-# Or parse logs from a different project directory
-parser = ChatParser("claude-code", location="/path/to/other/project")
-logs = parser.list_logs()
+# Parse logs from a different project directory
+parser = ChatParser("claude-code", location="/home/user/projects/my-app")
+logs = parser.list_logs()  # Returns logs for my-app project
 ```
 
 ## Advanced Usage
@@ -161,7 +158,7 @@ from cligent import ChatParser, ChatParserError, LogCorruptionError
 
 try:
     parser = ChatParser("claude-code")
-    chat = parser.parse("/path/to/specific/log.jsonl")
+    chat = parser.parse("some-session-id")  # Parse using session ID
 except FileNotFoundError:
     print("Log file not found")
 except LogCorruptionError as e:
