@@ -1,0 +1,5 @@
+{"type":"summary","summary":"Simple test chat about Python","leafUuid":"test-leaf-uuid"}
+{"parentUuid":null,"sessionId":"test-session-1","type":"user","message":{"role":"user","content":"How do I create a list in Python?"},"uuid":"user-msg-1","timestamp":"2024-01-01T12:00:00.000Z"}
+{"parentUuid":"user-msg-1","sessionId":"test-session-1","type":"assistant","message":{"role":"assistant","content":"You can create a list in Python using square brackets: `my_list = [1, 2, 3]`"},"uuid":"assistant-msg-1","timestamp":"2024-01-01T12:00:05.000Z"}
+{"parentUuid":"assistant-msg-1","sessionId":"test-session-1","type":"user","message":{"role":"user","content":"Can I add items to it?"},"uuid":"user-msg-2","timestamp":"2024-01-01T12:00:10.000Z"}
+{"parentUuid":"user-msg-2","sessionId":"test-session-1","type":"assistant","message":{"role":"assistant","content":"Yes! Use `my_list.append(item)` to add items to the end of the list."},"uuid":"assistant-msg-2","timestamp":"2024-01-01T12:00:15.000Z"}

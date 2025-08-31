@@ -44,25 +44,3 @@ def safe_json_loads(json_str: str) -> Optional[Dict[str, Any]]:
         return None
 
 
-def sanitize_project_name(name: str) -> str:
-    """Sanitize Claude Code project name for use in paths.
-    
-    Args:
-        name: Project name to sanitize
-        
-    Returns:
-        Sanitized name safe for file paths
-    """
-    # Replace problematic characters commonly found in Claude Code project paths
-    replacements = {
-        "/": "-",
-        "\\": "-", 
-        " ": "_",
-        ":": "-",
-    }
-    
-    result = name
-    for old, new in replacements.items():
-        result = result.replace(old, new)
-    
-    return result

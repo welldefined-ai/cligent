@@ -1,0 +1,4 @@
+{"type":"summary","summary":"Chat with system message","leafUuid":"system-leaf-uuid"}
+{"parentUuid":null,"sessionId":"test-session-2","type":"system","message":{"role":"system","content":"You are a helpful coding assistant."},"uuid":"system-msg-1","timestamp":"2024-01-01T13:00:00.000Z"}
+{"parentUuid":"system-msg-1","sessionId":"test-session-2","type":"user","message":{"role":"user","content":"Write a hello world program"},"uuid":"user-msg-3","timestamp":"2024-01-01T13:00:05.000Z"}
+{"parentUuid":"user-msg-3","sessionId":"test-session-2","type":"assistant","message":{"role":"assistant","content":"Here's a simple hello world program:\n\n```python\nprint(\"Hello, World!\")\n```"},"uuid":"assistant-msg-3","timestamp":"2024-01-01T13:00:10.000Z"}
