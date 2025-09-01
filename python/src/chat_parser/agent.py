@@ -2,6 +2,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Dict, Any, Optional, List, Tuple
 from pathlib import Path
+from .store import LogStore
+from .models import Chat
 
 @dataclass
 class AgentConfig:
