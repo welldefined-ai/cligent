@@ -17,7 +17,6 @@ class ChatParser:
         Args:
            agent_name: Name of the agent (None for auto-detection)
             location: Optional custom location for logs
-            auto_detect: Whether to auto-detect agent from log files
         """
         self.location = location
         self.error_collector = ErrorCollector()

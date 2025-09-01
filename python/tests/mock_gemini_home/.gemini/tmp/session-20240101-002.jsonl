@@ -1,0 +1,2 @@
+{"type": "user", "role": "user", "content": "Hello from mock session 2", "timestamp": "2024-01-01T11:00:00Z", "session_id": "session-20240101-002"}
+{"type": "assistant", "role": "model", "content": "Greetings! This is mock session 2 speaking.", "timestamp": "2024-01-01T11:00:10Z", "session_id": "session-20240101-002"}

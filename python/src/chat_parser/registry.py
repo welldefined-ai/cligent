@@ -34,13 +34,5 @@ class AgentRegistry:
         """List all registered agents."""
         return [agent_class().config for agent_class in self._agents.values()]
 
-    def auto_detect(self, log_path: Path) -> Optional[str]:
-        """Auto-detect agent from log file."""
-        for name, agent_class in self._agents.items():
-            agent = agent_class()
-            if agent.detect_agent(log_path):
-                return name
-        return None
-
 # Global registry instance
 registry = AgentRegistry()

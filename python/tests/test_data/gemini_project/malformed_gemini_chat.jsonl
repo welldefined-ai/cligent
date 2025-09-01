@@ -1,0 +1,5 @@
+{"type": "user", "role": "user", "content": "This is a valid line", "session_id": "test-malformed"}
+invalid json line that should be skipped
+{"type": "assistant", "role": "model", "content": "This line should be parsed correctly", "session_id": "test-malformed"}
+{"incomplete": "json without closing brace", "session_id": "test-malformed"
+{"type": "user", "role": "user", "content": "Another valid line after malformed ones", "session_id": "test-malformed"}
