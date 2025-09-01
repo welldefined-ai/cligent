@@ -250,3 +250,59 @@ class ClaudeStore(LogStore):
         sorted_logs = sorted(logs, key=lambda x: x[1].get('modified', ''), reverse=True)
         # Return session ID of most recent log
         return sorted_logs[0][0] if sorted_logs else None
+
+class ClaudeCodeAgent(AgentBackend):
+    """Claude Code agent implementation."""
+
+    @property
+    def config(self) -> AgentConfig:
+        return AgentConfig(
+            name="claude-code",
+            display_name="Claude Code",
+            log_extensions=[".jsonl"],
+            requires_session_id=True,
+            metadata={
+                "log_format": "jsonl",
+                "project_based": True,
+                "base_dir": "~/.claude/projects/"
+            }
+        )
+
+    def create_store(self, location: Optional[str] = None) -> LogStore:
+        from .claude_code_store import ClaudeStore
+        return ClaudeStore(location=location)
+
+    def parse_content(self, content: str, log_uri: str, store: LogStore) -> Chat:
+        from .claude_code_parser import Session
+        from pathlib import Path
+
+        # 使用现有的Session逻辑
+        if "/" in log_uri or "\\" in log_uri:
+            file_path = Path(log_uri)
+        else:
+            file_path = store._project_dir / f"{log_uri}.jsonl"
+
+        session = Session(file_path=file_path)
+        session.load()
+        return session.to_chat()
+
+    def detect_agent(self, log_path: Path) -> bool:
+        """Detect Claude Code logs by checking JSON structure."""
+        if log_path.suffix != ".jsonl":
+            return False
+
+        try:
+            with open(log_path, 'r', encoding='utf-8') as f:
+                # Check first few lines
+                for i, line in enumerate(f):
+                    if i >= 3:  # Only check first 3 lines
+                        break
+                    if line.strip():
+                        data = json.loads(line.strip())
+                        # Claude Code specific fields
+                        if 'type' in data and 'uuid' in data and data['type'] in ['user', 'assistant', 'tool_use']:
+                           return True
+        except:
+            pass
+
+        return False
