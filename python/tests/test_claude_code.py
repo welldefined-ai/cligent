@@ -21,8 +21,8 @@ class TestChatParserReal:
 
     @pytest.fixture
     def mock_home(self):
-        """Path to mock user home directory."""
-        return Path(__file__).parent / "mock_user_home"
+        """Path to mock Claude home directory."""
+        return Path(__file__).parent / "mock_claude_home"
 
     @pytest.fixture
     def parser(self, test_data_path):
@@ -57,7 +57,7 @@ class TestChatParserReal:
 
     def test_parse_simple_chat(self, parser, test_data_path):
         """Test parsing a simple chat log."""
-        simple_log = test_data_path / "test_project" / "simple_chat.jsonl"
+        simple_log = test_data_path / "claude_code_project" / "simple_chat.jsonl"
         chat = parser.parse(str(simple_log))
 
         assert isinstance(chat, Chat)
@@ -76,7 +76,7 @@ class TestChatParserReal:
 
     def test_parse_system_message_chat(self, parser, test_data_path):
         """Test parsing a chat with system messages."""
-        system_log = test_data_path / "test_project" / "system_chat.jsonl"
+        system_log = test_data_path / "claude_code_project" / "system_chat.jsonl"
         chat = parser.parse(str(system_log))
 
         assert len(chat.messages) == 3
@@ -92,7 +92,7 @@ class TestChatParserReal:
 
     def test_parse_empty_chat(self, parser, test_data_path):
         """Test parsing an empty chat (summary only)."""
-        empty_log = test_data_path / "test_project" / "empty_chat.jsonl"
+        empty_log = test_data_path / "claude_code_project" / "empty_chat.jsonl"
         chat = parser.parse(str(empty_log))
 
         assert isinstance(chat, Chat)
@@ -100,7 +100,7 @@ class TestChatParserReal:
 
     def test_parse_malformed_chat(self, parser, test_data_path):
         """Test parsing a chat with malformed records."""
-        malformed_log = test_data_path / "test_project" / "malformed_chat.jsonl"
+        malformed_log = test_data_path / "claude_code_project" / "malformed_chat.jsonl"
         chat = parser.parse(str(malformed_log))
 
         # Should skip malformed records but parse valid ones
@@ -126,7 +126,7 @@ class TestChatParserReal:
 
     def test_message_selection_and_composition(self, parser, test_data_path):
         """Test selecting messages and composing output."""
-        simple_log = test_data_path / "test_project" / "simple_chat.jsonl"
+        simple_log = test_data_path / "claude_code_project" / "simple_chat.jsonl"
 
         # Select specific messages
         parser.select(str(simple_log), [0, 2])  # First and third messages
@@ -151,7 +151,7 @@ class TestChatParserReal:
 
     def test_unselect_messages(self, parser, test_data_path):
         """Test unselecting specific messages."""
-        simple_log = str(test_data_path / "test_project" / "simple_chat.jsonl")
+        simple_log = str(test_data_path / "claude_code_project" / "simple_chat.jsonl")
 
         # Select all messages
         parser.select(simple_log)
@@ -167,8 +167,8 @@ class TestChatParserReal:
 
     def test_multiple_log_composition(self, parser, test_data_path):
         """Test composing from multiple logs."""
-        simple_log = str(test_data_path / "test_project" / "simple_chat.jsonl")
-        system_log = str(test_data_path / "test_project" / "system_chat.jsonl")
+        simple_log = str(test_data_path / "claude_code_project" / "simple_chat.jsonl")
+        system_log = str(test_data_path / "claude_code_project" / "system_chat.jsonl")
 
         # Select from multiple logs
         parser.select(simple_log, [0])  # First message from simple
@@ -222,7 +222,7 @@ class TestSessionIDFunctionality:
         from cligent import ChatParser
         from pathlib import Path
 
-        mock_home = Path(__file__).parent / "mock_user_home"
+        mock_home = Path(__file__).parent / "mock_claude_home"
         
         # Test with different project directories
         with patch.object(Path, 'home', return_value=mock_home):
@@ -250,8 +250,8 @@ class TestClaudeImplementation:
 
     @pytest.fixture
     def mock_home(self):
-        """Path to mock user home directory."""
-        return Path(__file__).parent / "mock_user_home"
+        """Path to mock Claude home directory."""
+        return Path(__file__).parent / "mock_claude_home"
 
     def test_record_parsing(self):
         """Test parsing individual JSONL records."""
@@ -270,7 +270,7 @@ class TestClaudeImplementation:
 
     def test_session_loading(self, test_data_path):
         """Test loading a complete session."""
-        session_file = test_data_path / "test_project" / "simple_chat.jsonl"
+        session_file = test_data_path / "claude_code_project" / "simple_chat.jsonl"
         session = Session(file_path=session_file)
         session.load()
 
@@ -309,7 +309,7 @@ class TestClaudeImplementation:
 
         parser = ChatParser("claude-code", location=str(test_data_path))
         tool_log = (
-            test_data_path / "test_project" / "tool_filtering_chat.jsonl"
+            test_data_path / "claude_code_project" / "tool_filtering_chat.jsonl"
         )
 
         chat = parser.parse(str(tool_log))

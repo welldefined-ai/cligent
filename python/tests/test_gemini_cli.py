@@ -562,6 +562,55 @@ class TestGeminiIntegration:
     """Integration tests for Gemini CLI components."""
 
     @pytest.fixture
+    def test_data_path(self):
+        """Path to test data directory."""
+        return Path(__file__).parent / "test_data"
+
+    @pytest.fixture
+    def gemini_test_data_path(self, test_data_path):
+        """Path to Gemini test data directory."""
+        return test_data_path / "gemini_project"
+
+    @pytest.fixture
+    def mock_gemini_home(self):
+        """Path to mock Gemini home directory."""
+        return Path(__file__).parent / "mock_gemini_home"
+
+    @pytest.fixture
+    def gemini_parser(self, mock_gemini_home):
+        """ChatParser instance using mock Gemini environment."""
+        with patch('pathlib.Path.home', return_value=mock_gemini_home):
+            from cligent import ChatParser
+            return ChatParser("gemini-cli")
+
+    @pytest.fixture
+    def gemini_parser_with_test_data(self, gemini_test_data_path):
+        """ChatParser instance using test data files."""
+        import tempfile
+        import shutil
+        
+        # Create temporary home directory structure
+        temp_home = Path(tempfile.mkdtemp())
+        gemini_dir = temp_home / ".gemini" / "tmp"
+        gemini_dir.mkdir(parents=True)
+        
+        try:
+            # Copy test data files to the temporary structure
+            for test_file in gemini_test_data_path.glob("*.jsonl"):
+                if test_file.name != "empty_gemini_chat.jsonl":  # Skip empty file
+                    # Use test file name as session name
+                    session_name = test_file.stem.replace("_gemini_chat", "")
+                    dest_file = gemini_dir / f"{session_name}.jsonl"
+                    shutil.copy2(test_file, dest_file)
+            
+            with patch('pathlib.Path.home', return_value=temp_home):
+                from cligent import ChatParser
+                yield ChatParser("gemini-cli")
+        finally:
+            # Cleanup
+            shutil.rmtree(temp_home, ignore_errors=True)
+
+    @pytest.fixture
     def sample_gemini_data(self, tmp_path):
         """Create sample Gemini CLI data structure."""
         home_dir = tmp_path / "home"
@@ -654,3 +703,148 @@ class TestGeminiIntegration:
         
         agent = GeminiCliAgent()
         assert agent.detect_agent(log_file) is True
+
+    def test_list_logs_with_test_data(self, gemini_parser_with_test_data):
+        """Test listing logs using test data files."""
+        logs = gemini_parser_with_test_data.list_logs()
+        
+        # Should find our test data files (excluding empty file)
+        assert len(logs) >= 2
+        
+        log_uris = [log[0] for log in logs]
+        assert "simple" in log_uris
+        assert "complex" in log_uris
+        
+        # Check metadata structure
+        for log_uri, metadata in logs:
+            assert isinstance(log_uri, str)
+            assert isinstance(metadata, dict)
+            assert "size" in metadata
+            assert "modified" in metadata
+            assert "accessible" in metadata
+
+    def test_parse_simple_gemini_chat(self, gemini_test_data_path, gemini_parser_with_test_data):
+        """Test parsing simple Gemini chat from test data."""
+        chat = gemini_parser_with_test_data.parse("simple")
+        
+        assert chat is not None
+        assert hasattr(chat, 'messages')
+        assert len(chat.messages) == 4
+        
+        # Check first message
+        assert chat.messages[0].role.value == "user"
+        assert "Hello, Gemini! Can you help me with Python?" in chat.messages[0].content
+        
+        # Check assistant response
+        assert chat.messages[1].role.value == "assistant"
+        assert "I'd be happy to help you with Python" in chat.messages[1].content
+        
+        # Check list comprehension question
+        assert chat.messages[2].role.value == "user"
+        assert "How do I create a list comprehension?" in chat.messages[2].content
+        
+        # Check assistant response with list content
+        assert chat.messages[3].role.value == "assistant"
+        assert "List comprehensions in Python provide a concise way" in chat.messages[3].content
+        assert "[expression for item in iterable if condition]" in chat.messages[3].content
+
+    def test_parse_complex_gemini_chat(self, gemini_parser_with_test_data):
+        """Test parsing complex Gemini chat with various field formats."""
+        chat = gemini_parser_with_test_data.parse("complex")
+        
+        assert chat is not None
+        assert hasattr(chat, 'messages')
+        assert len(chat.messages) >= 3  # At least 3 non-system messages
+        
+        # Should handle different role names and timestamp formats
+        role_values = {msg.role.value for msg in chat.messages}
+        assert "user" in role_values
+        assert "assistant" in role_values
+        
+        # Check content from different field names (text, content, message)
+        contents = [msg.content for msg in chat.messages]
+        assert any("machine learning" in content.lower() for content in contents)
+        assert any("main types" in content.lower() for content in contents)
+
+    def test_parse_malformed_gemini_chat(self, gemini_parser_with_test_data, capsys):
+        """Test parsing malformed Gemini chat handles errors gracefully."""
+        # This should not crash, but may produce warnings
+        chat = gemini_parser_with_test_data.parse("malformed")
+        
+        assert chat is not None
+        assert hasattr(chat, 'messages')
+        # Should have some valid messages despite malformed lines
+        assert len(chat.messages) >= 2
+        
+        # Check that we got valid messages
+        assert chat.messages[0].content == "This is a valid line"
+        assert "Another valid line after malformed ones" in [msg.content for msg in chat.messages]
+
+    def test_direct_file_parsing(self, gemini_test_data_path):
+        """Test parsing Gemini files directly using file paths."""
+        simple_file = gemini_test_data_path / "simple_gemini_chat.jsonl"
+        
+        # Test agent detection
+        agent = GeminiCliAgent()
+        assert agent.detect_agent(simple_file) is True
+        
+        # Test session parsing
+        session = GeminiSession(file_path=simple_file)
+        session.load()
+        
+        assert len(session.records) == 4
+        assert session.session_id == "gemini-session-001"
+        
+        # Test chat conversion
+        chat = session.to_chat()
+        assert len(chat.messages) == 4
+        assert all(msg.content.strip() for msg in chat.messages)  # All messages have content
+
+    def test_empty_file_handling(self, gemini_test_data_path):
+        """Test handling of empty Gemini chat file."""
+        empty_file = gemini_test_data_path / "empty_gemini_chat.jsonl"
+        
+        session = GeminiSession(file_path=empty_file)
+        session.load()
+        
+        assert len(session.records) == 0
+        
+        chat = session.to_chat()
+        assert len(chat.messages) == 0
+
+    def test_composition_with_test_data(self, gemini_parser_with_test_data):
+        """Test message selection and composition with test data."""
+        # Select messages from simple chat
+        gemini_parser_with_test_data.select("simple", [0, 1])  # First two messages
+        
+        # Create composition
+        composition = gemini_parser_with_test_data.compose()
+        
+        assert "Hello, Gemini! Can you help me with Python?" in composition
+        assert "I'd be happy to help you with Python" in composition
+        
+        # Clear and select different messages
+        gemini_parser_with_test_data.clear_selection()
+        gemini_parser_with_test_data.select("complex", [0])  # First message from complex chat
+        
+        composition2 = gemini_parser_with_test_data.compose()
+        assert "machine learning" in composition2.lower()
+
+    def test_multiple_files_integration(self, gemini_parser_with_test_data):
+        """Test working with multiple Gemini chat files."""
+        logs = gemini_parser_with_test_data.list_logs()
+        
+        # Parse all available logs
+        all_chats = []
+        for log_uri, _ in logs:
+            chat = gemini_parser_with_test_data.parse(log_uri)
+            all_chats.append(chat)
+        
+        # Should have parsed multiple chats
+        assert len(all_chats) >= 2
+        
+        # All should be valid Chat objects
+        for chat in all_chats:
+            assert chat is not None
+            assert hasattr(chat, 'messages')
+            assert len(chat.messages) >= 1
