@@ -10,6 +10,8 @@ from datetime import datetime
 from ..models import Message, Chat, ErrorReport, Role
 from ..store import LogStore
 
+from ..agent import AgentBackend, AgentConfig
+
 
 @dataclass
 class Record:
@@ -269,11 +271,11 @@ class ClaudeCodeAgent(AgentBackend):
         )
 
     def create_store(self, location: Optional[str] = None) -> LogStore:
-        from .claude_code_store import ClaudeStore
+        from .claude_code import ClaudeStore
         return ClaudeStore(location=location)
 
     def parse_content(self, content: str, log_uri: str, store: LogStore) -> Chat:
-        from .claude_code_parser import Session
+        from .claude_code import Session
         from pathlib import Path
 
         # 使用现有的Session逻辑

@@ -11,7 +11,7 @@ from .agent import AgentBackend
 class ChatParser:
     """Main interface for parsing and composing agent chats."""
 
-    def __init__(self, agent_name: str = None, location: str = None, auto_detect: bool = False):
+    def __init__(self, agent_name: str = None, location: str = None):
         """Initialize parser for a specific agent.
 
         Args:
@@ -23,14 +23,6 @@ class ChatParser:
         self.error_collector = ErrorCollector()
         self.selected_messages: List[Message] = []
         self._chat_cache: Dict[str, Chat] = {}
-
-        if auto_detect and location:
-            # Auto-detect from location
-            detected_agent = self._auto_detect_agent(Path(location))
-            if detected_agent:
-                agent_name = detected_agent
-            else:
-                raise ValueError(f"Cannot detect agent type from location: {location}")
 
         if not agent_name:
             agent_name = "claude-code"  # Default
@@ -49,22 +41,6 @@ class ChatParser:
             raise ValueError(f"Unsupported agent: {agent_name}. Available: {available}")
 
         return agent_class()
-
-    def _auto_detect_agent(self, location: Path) -> Optional[str]:
-        """Auto-detect agent from log files in location."""
-        from .registry import registry
-
-        if location.is_file():
-            return registry.auto_detect(location)
-
-        # Scan directory for log files
-        for log_file in location.rglob("*"):
-            if log_file.is_file():
-                detected = registry.auto_detect(log_file)
-                if detected:
-                    return detected
-
-        return None
 
     def _parse_content(self, content: str, log_uri: str) -> Chat:
         """Parse raw log content using agent backend."""

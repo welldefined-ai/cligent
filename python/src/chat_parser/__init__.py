@@ -12,6 +12,7 @@ from .errors import (
 )
 from .registry import registry
 from .claude.claude_code import ClaudeCodeAgent
+from .gemini.gemini_cli import GeminiCliAgent
 
 
 __all__ = [
@@ -39,3 +40,4 @@ __all__ = [
 
 # 自动注册所有agent
 registry.register(ClaudeCodeAgent, aliases=["claude"])
+registry.register(GeminiCliAgent, aliases=["gemini", "gemini-cli"])
