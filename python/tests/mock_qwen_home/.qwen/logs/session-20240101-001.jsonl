@@ -1,0 +1,2 @@
+{"type": "user", "role": "user", "content": "Hello from mock Qwen session 1", "timestamp": "2024-01-01T09:00:00Z", "session_id": "session-20240101-001", "model": "qwen-coder"}
+{"type": "assistant", "role": "qwen", "content": "Hello! This is a response from mock Qwen session 1.", "timestamp": "2024-01-01T09:00:05Z", "session_id": "session-20240101-001", "model": "qwen-coder"}
