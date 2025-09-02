@@ -313,10 +313,9 @@ class TestGeminiStore:
         store = GeminiStore()
         assert store.agent == "gemini-cli"
 
-    def test_init_with_custom_location(self):
-        """Test initializing store with custom location."""
-        custom_path = Path("/custom/path")
-        store = GeminiStore(location=custom_path)
+    def test_init_without_location(self):
+        """Test initializing store (location not supported for Gemini)."""
+        store = GeminiStore()
         assert store.agent == "gemini-cli"
 
     def test_list_logs(self, mock_home_dir):

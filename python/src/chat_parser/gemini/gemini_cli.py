@@ -182,19 +182,11 @@ class GeminiSession:
 class GeminiStore(LogStore):
     """Gemini CLI log store implementation."""
 
-    def __init__(self, location: Path = None):
+    def __init__(self):
         """Initialize with base path for Gemini CLI logs.
-
-        Args:
-            location: Working directory to find Gemini logs for
-                     (default: current working directory)
+        
+        Note: Gemini CLI stores logs globally in ~/.gemini/, not per-project.
         """
-        # Determine the working directory
-        if location is None:
-            working_dir = Path.cwd()
-        else:
-            working_dir = Path(location)
-
         # Gemini CLI typically stores logs in ~/.gemini/tmp or ~/.gemini/logs
         gemini_base = Path.home() / ".gemini"
         self._logs_dir = gemini_base / "tmp"
@@ -207,7 +199,8 @@ class GeminiStore(LogStore):
         if not self._logs_dir.exists():
             self._logs_dir = gemini_base / "logs" / "sessions"
 
-        super().__init__("gemini-cli", str(working_dir))
+        # Use current directory for LogStore base class compatibility
+        super().__init__("gemini-cli", str(Path.cwd()))
         self.session_pattern = "*.jsonl"  # Pattern for session file names
 
     def list(self) -> List[Tuple[str, Dict[str, Any]]]:
@@ -289,7 +282,7 @@ class GeminiCliAgent(AgentBackend):
         )
 
     def create_store(self, location: Optional[str] = None) -> LogStore:
-        return GeminiStore(location=location)
+        return GeminiStore()
 
     def parse_content(self, content: str, log_uri: str, store: LogStore) -> Chat:
         # Handle both session IDs and full paths
