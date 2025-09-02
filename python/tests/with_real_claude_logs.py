@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Parse all Claude Code logs and export to single Tigs YAML file.
+Test with real Claude Code logs and export to single Tigs YAML file.
 """
 
 from pathlib import Path
@@ -37,7 +37,7 @@ def main():
         combined_chat = Chat(messages=all_messages)
         from datetime import datetime
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_file = f"all_claude_logs_{timestamp}.yaml"
+        output_file = f"real_claude_logs_{timestamp}.yaml"
         
         yaml_content = combined_chat.export()
         output_path = Path(output_file)
