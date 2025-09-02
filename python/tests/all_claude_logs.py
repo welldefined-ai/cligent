@@ -40,9 +40,10 @@ def main():
         output_file = f"all_claude_logs_{timestamp}.yaml"
         
         yaml_content = combined_chat.export()
-        Path(output_file).write_text(yaml_content)
+        output_path = Path(output_file)
+        output_path.write_text(yaml_content)
         
-        print(f"\nExported {len(all_messages)} messages to {output_file}")
+        print(f"\nExported {len(all_messages)} messages to {output_path.absolute()}")
         
         # Verify YAML syntax by parsing it back
         import yaml
