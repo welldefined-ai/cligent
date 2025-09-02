@@ -207,19 +207,11 @@ class QwenSession:
 class QwenStore(LogStore):
     """Qwen Code log store implementation."""
 
-    def __init__(self, location: Path = None):
+    def __init__(self):
         """Initialize with base path for Qwen Code logs.
-
-        Args:
-            location: Working directory to find Qwen logs for
-                     (default: current working directory)
+        
+        Note: Qwen Code stores logs globally in ~/.qwen/, not per-project.
         """
-        # Determine the working directory
-        if location is None:
-            working_dir = Path.cwd()
-        else:
-            working_dir = Path(location)
-
         # Qwen Code stores logs in ~/.qwen/ directory
         qwen_base = Path.home() / ".qwen"
         
@@ -242,7 +234,8 @@ class QwenStore(LogStore):
         if self._logs_dir is None:
             self._logs_dir = qwen_base / "logs"
 
-        super().__init__("qwen-code", str(working_dir))
+        # Use current directory for LogStore base class compatibility
+        super().__init__("qwen-code", str(Path.cwd()))
         self.session_pattern = "*.jsonl"
 
     def list(self) -> List[Tuple[str, Dict[str, Any]]]:
@@ -326,7 +319,7 @@ class QwenCodeAgent(AgentBackend):
         )
 
     def create_store(self, location: Optional[str] = None) -> LogStore:
-        return QwenStore(location=location)
+        return QwenStore()
 
     def parse_content(self, content: str, log_uri: str, store: LogStore) -> Chat:
         # Handle both session IDs and full paths

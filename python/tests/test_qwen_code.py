@@ -349,10 +349,9 @@ class TestQwenStore:
         store = QwenStore()
         assert store.agent == "qwen-code"
 
-    def test_init_with_custom_location(self):
-        """Test initializing store with custom location."""
-        custom_path = Path("/custom/path")
-        store = QwenStore(location=custom_path)
+    def test_init_without_location(self):
+        """Test initializing store (location not supported for Qwen)."""
+        store = QwenStore()
         assert store.agent == "qwen-code"
 
     def test_list_logs(self, mock_home_dir):
