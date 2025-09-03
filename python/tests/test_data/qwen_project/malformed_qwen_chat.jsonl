@@ -1,0 +1,6 @@
+{"type": "user", "role": "user", "content": "This is a valid line", "session_id": "test-malformed-qwen"}
+invalid json line that should be skipped
+{"type": "assistant", "role": "qwen", "content": "This line should be parsed correctly", "session_id": "test-malformed-qwen"}
+{"incomplete": "json without closing brace", "session_id": "test-malformed-qwen"
+{"type": "checkpoint", "checkpoint_tag": "recovery_point", "session_id": "test-malformed-qwen"}
+{"type": "user", "role": "user", "content": "Another valid line after malformed ones", "session_id": "test-malformed-qwen"}

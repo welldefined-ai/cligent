@@ -10,6 +10,11 @@ from .errors import (
     LogCorruptionError,
     InvalidFormatError,
 )
+from .registry import registry
+from .claude.claude_code import ClaudeCodeAgent
+from .gemini.gemini_cli import GeminiCliAgent
+from .qwen.qwen_code import QwenCodeAgent
+
 
 __all__ = [
     # Core models
@@ -32,3 +37,9 @@ __all__ = [
     "LogCorruptionError",
     "InvalidFormatError",
 ]
+
+
+# 自动注册所有agent
+registry.register(ClaudeCodeAgent, aliases=["claude"])
+registry.register(GeminiCliAgent, aliases=["gemini", "gemini-cli"])
+registry.register(QwenCodeAgent, aliases=["qwen", "qwen-code"])

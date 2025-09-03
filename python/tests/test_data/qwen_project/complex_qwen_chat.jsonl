@@ -1,0 +1,7 @@
+{"messageType": "user", "from": "human", "text": "Explain machine learning concepts", "time": "1704103200", "conversationId": "ml-discussion-002", "modelName": "qwen-turbo"}
+{"type": "checkpoint", "checkpoint_tag": "ml_basics", "timestamp": "2024-01-01T10:00:10Z", "session_id": "ml-discussion-002"}
+{"type": "assistant", "sender": "model", "content": [{"type": "text", "text": "Machine learning is a subset of artificial intelligence that enables computers to learn and improve from experience."}, {"type": "text", "text": "There are three main types: supervised, unsupervised, and reinforcement learning."}], "created_at": "2024-01-01T10:00:15Z", "sessionId": "ml-discussion-002", "model": "qwen-turbo"}
+{"type": "system", "role": "system", "message": "Conversation context: Educational ML discussion", "timestamp": "2024-01-01T10:00:20+08:00", "session_id": "ml-discussion-002"}
+{"type": "user", "role": "user", "content": {"text": "What's the difference between supervised and unsupervised learning?"}, "timestamp": "2024-01-01T10:00:30Z", "conversationId": "ml-discussion-002"}
+{"type": "tool_use", "tool": "python_interpreter", "content": "# This is a tool use block", "timestamp": "2024-01-01T10:00:35Z", "session_id": "ml-discussion-002"}
+{"type": "assistant", "role": "ai", "content": "Supervised learning uses labeled training data, while unsupervised learning finds patterns in unlabeled data.", "timestamp": "2024-01-01T10:00:40Z", "session_id": "ml-discussion-002", "checkpoint_tag": "supervised_vs_unsupervised"}

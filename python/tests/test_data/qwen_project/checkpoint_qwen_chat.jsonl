@@ -1,0 +1,7 @@
+{"type": "user", "role": "user", "content": "Start a new coding session", "timestamp": "2024-01-01T10:00:00Z", "session_id": "checkpoint-session-001"}
+{"type": "checkpoint", "checkpoint_tag": "session_start", "timestamp": "2024-01-01T10:00:01Z", "session_id": "checkpoint-session-001"}
+{"type": "assistant", "role": "qwen", "content": "Starting a new coding session. How can I help you today?", "timestamp": "2024-01-01T10:00:05Z", "session_id": "checkpoint-session-001"}
+{"type": "user", "role": "user", "content": "Let's work on a data structure problem", "timestamp": "2024-01-01T10:01:00Z", "session_id": "checkpoint-session-001"}
+{"type": "checkpoint", "checkpoint_tag": "data_structures", "timestamp": "2024-01-01T10:01:01Z", "session_id": "checkpoint-session-001"}
+{"type": "assistant", "role": "qwen", "content": "Great! Data structures are fundamental to programming. What specific data structure would you like to explore?", "timestamp": "2024-01-01T10:01:10Z", "session_id": "checkpoint-session-001"}
+{"type": "checkpoint", "checkpoint_tag": "ready_for_implementation", "timestamp": "2024-01-01T10:01:15Z", "session_id": "checkpoint-session-001"}

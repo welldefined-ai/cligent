@@ -5,39 +5,45 @@ from typing import List, Optional, Union, Dict, Tuple, Any
 from .models import Chat, Message
 from .store import LogStore
 from .errors import ErrorCollector
-
+from pathlib import Path
+from .agent import AgentBackend
 
 class ChatParser:
     """Main interface for parsing and composing agent chats."""
 
-    def __init__(self, agent_name: str = "claude-code", location: str = None):
+    def __init__(self, agent_name: str = None, location: str = None):
         """Initialize parser for a specific agent.
 
         Args:
-            agent_name: Name of the agent (default: "claude-code")
-            location: Optional custom location for logs (implementation-specific)
+           agent_name: Name of the agent (None for auto-detection)
+            location: Optional custom location for logs
         """
-        self.agent_name = agent_name
-        self.store = self._create_store(agent_name, location)
+        self.location = location
         self.error_collector = ErrorCollector()
         self.selected_messages: List[Message] = []
         self._chat_cache: Dict[str, Chat] = {}
 
-    def _create_store(self, agent_name: str, location: str = None) -> LogStore:
-        """Create appropriate log store for the agent.
+        if not agent_name:
+            agent_name = "claude-code"  # Default
 
-        Args:
-            agent_name: Name of the agent
-            location: Optional custom location
+        self.agent_name = agent_name
+        self.agent = self._create_agent(agent_name)
+        self.store = self.agent.create_store(location)
 
-        Returns:
-            LogStore implementation for the agent
-        """
-        if agent_name in ("claude-code", "claude"):
-            from .claude import ClaudeStore
-            return ClaudeStore(location=location)
-        else:
-            raise ValueError(f"Unsupported agent: {agent_name}")
+    def _create_agent(self, agent_name: str) -> AgentBackend:
+        """Create appropriate agent backend."""
+        from .registry import registry
+
+        agent_class = registry.get_agent(agent_name)
+        if not agent_class:
+            available = [config.name for config in registry.list_agents()]
+            raise ValueError(f"Unsupported agent: {agent_name}. Available: {available}")
+
+        return agent_class()
+
+    def _parse_content(self, content: str, log_uri: str) -> Chat:
+        """Parse raw log content using agent backend."""
+        return self.agent.parse_content(content, log_uri, self.store)
 
     def list_logs(self) -> List[Tuple[str, Dict[str, Any]]]:
         """Show available logs for the agent.
@@ -167,38 +173,6 @@ class ChatParser:
             result = result.merge(chat)
 
         return result
-
-    def _parse_content(self, content: str, log_uri: str) -> Chat:
-        """Parse raw log content into Chat object.
-
-        Args:
-            content: Raw log content
-            log_uri: Log URI (session ID or path)
-
-        Returns:
-            Parsed Chat object
-        """
-        if self.agent_name in ("claude-code", "claude"):
-            from .claude.claude_code import Session, ClaudeStore
-            from pathlib import Path
-
-            # Determine actual file path
-            if "/" in log_uri or "\\" in log_uri:
-                # Full path provided
-                file_path = Path(log_uri)
-            else:
-                # Session ID provided - get the actual path from store
-                if isinstance(self.store, ClaudeStore):
-                    file_path = self.store._project_dir / f"{log_uri}.jsonl"
-                else:
-                    # Fallback
-                    file_path = Path(log_uri)
-
-            session = Session(file_path=file_path)
-            session.load()  # Actually load the content
-            return session.to_chat()
-        else:
-            raise ValueError(f"Unsupported agent: {self.agent_name}")
 
     def get_errors(self) -> Optional[str]:
         """Get error report if any errors occurred.
