@@ -15,6 +15,11 @@ from .claude.claude_code import ClaudeCodeAgent
 from .gemini.gemini_cli import GeminiCliAgent
 from .qwen.qwen_code import QwenCodeAgent
 
+# New unified interface
+from .client import CligentClient, cligent, claude, gemini, qwen
+from .task_models import TaskResult, TaskUpdate, TaskConfig, TaskStatus, UpdateType
+from .agent import AgentBackend, AgentConfig
+
 
 __all__ = [
     # Core models
@@ -29,6 +34,23 @@ __all__ = [
     # Stores
     "LogStore",
     
+    # Unified client interface
+    "CligentClient",
+    "cligent",
+    "claude", 
+    "gemini",
+    "qwen",
+    
+    # Task execution
+    "TaskResult",
+    "TaskUpdate", 
+    "TaskConfig",
+    "TaskStatus",
+    "UpdateType",
+    
+    # Agent framework
+    "AgentBackend",
+    "AgentConfig",
     
     # Errors
     "ChatParserError",

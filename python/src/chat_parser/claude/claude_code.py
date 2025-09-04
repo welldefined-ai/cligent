@@ -11,6 +11,9 @@ from ..models import Message, Chat, ErrorReport, Role
 from ..store import LogStore
 
 from ..agent import AgentBackend, AgentConfig
+from ..task_models import TaskResult, TaskUpdate, TaskConfig
+from ..executor import MockExecutor
+from typing import AsyncIterator
 
 
 @dataclass
@@ -256,6 +259,10 @@ class ClaudeStore(LogStore):
 class ClaudeCodeAgent(AgentBackend):
     """Claude Code agent implementation."""
 
+    def __init__(self):
+        # Initialize executor for task execution
+        self._executor = MockExecutor("claude-code")  # Using mock for now
+
     @property
     def config(self) -> AgentConfig:
         return AgentConfig(
@@ -263,6 +270,7 @@ class ClaudeCodeAgent(AgentBackend):
             display_name="Claude Code",
             log_extensions=[".jsonl"],
             requires_session_id=True,
+            supports_execution=True,  # Enable task execution
             metadata={
                 "log_format": "jsonl",
                 "project_based": True,
@@ -308,3 +316,17 @@ class ClaudeCodeAgent(AgentBackend):
             pass
 
         return False
+
+    # Task execution methods
+    async def execute_task(self, task: str, config: TaskConfig = None) -> TaskResult:
+        """Execute a task using Claude Code."""
+        if config is None:
+            config = TaskConfig()
+        return await self._executor.execute_task(task, config)
+
+    async def execute_task_stream(self, task: str, config: TaskConfig = None) -> AsyncIterator[TaskUpdate]:
+        """Execute task with streaming updates."""
+        if config is None:
+            config = TaskConfig(stream=True)
+        async for update in self._executor.execute_task_stream(task, config):
+            yield update

@@ -10,6 +10,9 @@ from datetime import datetime
 from ..models import Message, Chat, ErrorReport, Role
 from ..store import LogStore
 from ..agent import AgentBackend, AgentConfig
+from ..task_models import TaskResult, TaskUpdate, TaskConfig
+from ..executor import MockExecutor
+from typing import AsyncIterator
 
 
 @dataclass
@@ -267,6 +270,10 @@ class GeminiStore(LogStore):
 class GeminiCliAgent(AgentBackend):
     """Gemini CLI agent implementation."""
 
+    def __init__(self):
+        # Initialize executor for task execution
+        self._executor = MockExecutor("gemini-cli")
+
     @property
     def config(self) -> AgentConfig:
         return AgentConfig(
@@ -274,6 +281,7 @@ class GeminiCliAgent(AgentBackend):
             display_name="Gemini CLI",
             log_extensions=[".jsonl", ".json"],
             requires_session_id=True,
+            supports_execution=True,
             metadata={
                 "log_format": "jsonl",
                 "base_dir": "~/.gemini/",
@@ -322,3 +330,17 @@ class GeminiCliAgent(AgentBackend):
             pass
 
         return False
+
+    # Task execution methods
+    async def execute_task(self, task: str, config: TaskConfig = None) -> TaskResult:
+        """Execute a task using Gemini CLI."""
+        if config is None:
+            config = TaskConfig()
+        return await self._executor.execute_task(task, config)
+
+    async def execute_task_stream(self, task: str, config: TaskConfig = None) -> AsyncIterator[TaskUpdate]:
+        """Execute task with streaming updates."""
+        if config is None:
+            config = TaskConfig(stream=True)
+        async for update in self._executor.execute_task_stream(task, config):
+            yield update

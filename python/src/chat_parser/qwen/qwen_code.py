@@ -10,6 +10,9 @@ from datetime import datetime
 from ..models import Message, Chat, ErrorReport, Role
 from ..store import LogStore
 from ..agent import AgentBackend, AgentConfig
+from ..task_models import TaskResult, TaskUpdate, TaskConfig
+from ..executor import MockExecutor
+from typing import AsyncIterator
 
 
 @dataclass
@@ -302,6 +305,10 @@ class QwenStore(LogStore):
 class QwenCodeAgent(AgentBackend):
     """Qwen Code agent implementation."""
 
+    def __init__(self):
+        # Initialize executor for task execution
+        self._executor = MockExecutor("qwen-code")
+
     @property
     def config(self) -> AgentConfig:
         return AgentConfig(
@@ -309,6 +316,7 @@ class QwenCodeAgent(AgentBackend):
             display_name="Qwen Code",
             log_extensions=[".jsonl", ".json"],
             requires_session_id=True,
+            supports_execution=True,
             metadata={
                 "log_format": "jsonl",
                 "base_dir": "~/.qwen/",
@@ -362,3 +370,17 @@ class QwenCodeAgent(AgentBackend):
             pass
 
         return False
+
+    # Task execution methods
+    async def execute_task(self, task: str, config: TaskConfig = None) -> TaskResult:
+        """Execute a task using Qwen Code."""
+        if config is None:
+            config = TaskConfig()
+        return await self._executor.execute_task(task, config)
+
+    async def execute_task_stream(self, task: str, config: TaskConfig = None) -> AsyncIterator[TaskUpdate]:
+        """Execute task with streaming updates."""
+        if config is None:
+            config = TaskConfig(stream=True)
+        async for update in self._executor.execute_task_stream(task, config):
+            yield update
