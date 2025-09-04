@@ -1,7 +1,7 @@
 """Example usage of the unified cligent SDK."""
 
 import asyncio
-from chat_parser import cligent, claude, gemini, qwen
+from cligent import cligent, claude, gemini, qwen
 
 
 async def basic_usage_example():

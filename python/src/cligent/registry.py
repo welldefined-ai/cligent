@@ -1,5 +1,5 @@
 from typing import Dict, Type, Optional, List
-from .agent import AgentBackend, AgentConfig
+from .core.agent import AgentBackend, AgentConfig
 
 class AgentRegistry:
     """Registry for managing available agent backends."""

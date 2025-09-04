@@ -1,10 +1,12 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Dict, Any, Optional, List, Tuple, AsyncIterator
+from typing import Dict, Any, Optional, List, Tuple, AsyncIterator, TYPE_CHECKING
 from pathlib import Path
-from .store import LogStore
 from .models import Chat
-from .task_models import TaskResult, TaskUpdate, TaskConfig
+from ..execution.task_models import TaskResult, TaskUpdate, TaskConfig
+
+if TYPE_CHECKING:
+    from ..parsers.store import LogStore
 
 @dataclass
 class AgentConfig:

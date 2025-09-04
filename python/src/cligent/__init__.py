@@ -1,9 +1,8 @@
-"""Chat Parser subpackage for parsing AI agent conversation logs."""
+"""Cligent - Unified SDK for CLI agent orchestration."""
 
-from .models import Chat, Message, Role, ErrorReport
-from .store import LogStore
-from .parser import ChatParser
-from .errors import (
+from .core import Chat, Message, Role, ErrorReport
+from .parsers import ChatParser, LogStore
+from .core import (
     ChatParserError,
     ParseError, 
     LogAccessError,
@@ -11,14 +10,12 @@ from .errors import (
     InvalidFormatError,
 )
 from .registry import registry
-from .claude.claude_code import ClaudeCodeAgent
-from .gemini.gemini_cli import GeminiCliAgent
-from .qwen.qwen_code import QwenCodeAgent
+from .agents import ClaudeCodeAgent, GeminiCliAgent, QwenCodeAgent
 
-# New unified interface
+# Unified client interface
 from .client import CligentClient, cligent, claude, gemini, qwen
-from .task_models import TaskResult, TaskUpdate, TaskConfig, TaskStatus, UpdateType
-from .agent import AgentBackend, AgentConfig
+from .execution import TaskResult, TaskUpdate, TaskConfig, TaskStatus, UpdateType
+from .core import AgentBackend, AgentConfig
 
 
 __all__ = [
@@ -61,7 +58,7 @@ __all__ = [
 ]
 
 
-# 自动注册所有agent
+# Auto-register all agents
 registry.register(ClaudeCodeAgent, aliases=["claude"])
 registry.register(GeminiCliAgent, aliases=["gemini", "gemini-cli"])
 registry.register(QwenCodeAgent, aliases=["qwen", "qwen-code"])

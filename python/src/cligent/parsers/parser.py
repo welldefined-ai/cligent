@@ -2,11 +2,11 @@
 
 from typing import List, Optional, Union, Dict, Tuple, Any
 
-from .models import Chat, Message
+from ..core.models import Chat, Message
 from .store import LogStore
-from .errors import ErrorCollector
+from ..core.errors import ErrorCollector
 from pathlib import Path
-from .agent import AgentBackend
+from ..core.agent import AgentBackend
 
 class ChatParser:
     """Main interface for parsing and composing agent chats."""
@@ -32,7 +32,7 @@ class ChatParser:
 
     def _create_agent(self, agent_name: str) -> AgentBackend:
         """Create appropriate agent backend."""
-        from .registry import registry
+        from ..registry import registry
 
         agent_class = registry.get_agent(agent_name)
         if not agent_class:

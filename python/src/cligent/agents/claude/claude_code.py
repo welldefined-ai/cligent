@@ -7,12 +7,12 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime
 
-from ..models import Message, Chat, ErrorReport, Role
-from ..store import LogStore
+from ...core.models import Message, Chat, ErrorReport, Role
+from ...parsers.store import LogStore
 
-from ..agent import AgentBackend, AgentConfig
-from ..task_models import TaskResult, TaskUpdate, TaskConfig
-from ..executor import MockExecutor
+from ...core.agent import AgentBackend, AgentConfig
+from ...execution.task_models import TaskResult, TaskUpdate, TaskConfig
+from ...execution.executor import MockExecutor
 from typing import AsyncIterator
 
 
@@ -279,12 +279,9 @@ class ClaudeCodeAgent(AgentBackend):
         )
 
     def create_store(self, location: Optional[str] = None) -> LogStore:
-        from .claude_code import ClaudeStore
         return ClaudeStore(location=location)
 
     def parse_content(self, content: str, log_uri: str, store: LogStore) -> Chat:
-        from .claude_code import Session
-        from pathlib import Path
 
         # 使用现有的Session逻辑
         if "/" in log_uri or "\\" in log_uri:

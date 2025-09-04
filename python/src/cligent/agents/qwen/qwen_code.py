@@ -7,11 +7,11 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime
 
-from ..models import Message, Chat, ErrorReport, Role
-from ..store import LogStore
-from ..agent import AgentBackend, AgentConfig
-from ..task_models import TaskResult, TaskUpdate, TaskConfig
-from ..executor import MockExecutor
+from ...core.models import Message, Chat, ErrorReport, Role
+from ...parsers.store import LogStore
+from ...core.agent import AgentBackend, AgentConfig
+from ...execution.task_models import TaskResult, TaskUpdate, TaskConfig
+from ...execution.executor import MockExecutor
 from typing import AsyncIterator
 
 

@@ -6,11 +6,11 @@ from typing import AsyncIterator, Optional, Dict, Any, List
 from pathlib import Path
 
 from .registry import registry
-from .agent import AgentBackend
-from .parser import ChatParser
-from .models import Chat
-from .task_models import TaskResult, TaskUpdate, TaskConfig, TaskStatus
-from .errors import ChatParserError
+from .core.agent import AgentBackend
+from .parsers.parser import ChatParser
+from .core.models import Chat
+from .execution.task_models import TaskResult, TaskUpdate, TaskConfig, TaskStatus
+from .core.errors import ChatParserError
 
 
 class CligentClient:

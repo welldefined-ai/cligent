@@ -6,9 +6,9 @@ import sys
 import os
 from unittest.mock import patch
 
-from chat_parser import ChatParser, Chat, Message, Role
-from chat_parser.errors import ChatParserError
-from chat_parser.claude.claude_code import ClaudeStore, Session, Record
+from cligent import ChatParser, Chat, Message, Role
+from cligent.core.errors import ChatParserError
+from cligent.agents.claude.claude_code import ClaudeStore, Session, Record
 
 
 class TestChatParserReal:

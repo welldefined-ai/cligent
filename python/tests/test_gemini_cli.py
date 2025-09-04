@@ -6,13 +6,13 @@ from pathlib import Path
 from unittest.mock import patch
 from datetime import datetime
 
-from chat_parser.gemini.gemini_cli import (
+from cligent.agents.gemini.gemini_cli import (
     GeminiRecord, 
     GeminiSession, 
     GeminiStore, 
     GeminiCliAgent
 )
-from chat_parser.models import Role, Chat
+from cligent.core.models import Role, Chat
 
 
 class TestGeminiRecord:
