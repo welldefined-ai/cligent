@@ -53,19 +53,6 @@ class Chat:
         if message in self.messages:
             self.messages.remove(message)
     
-    def parse(self, log_content: str) -> None:
-        """Extract chat from a log."""
-        # This is a placeholder - actual parsing would be agent-specific
-        # In practice, this would delegate to agent-specific parsers
-        lines = log_content.strip().split('\n')
-        for line in lines:
-            if line.strip():
-                # Simple text-based parsing for demo
-                role = Role.USER if line.startswith('User:') else Role.ASSISTANT
-                content = line.split(':', 1)[1].strip() if ':' in line else line
-                message = Message(role=role, content=content)
-                self.messages.append(message)
-    
     def merge(self, other: 'Chat') -> 'Chat':
         """Combine with another chat."""
         merged_messages = self.messages + other.messages
