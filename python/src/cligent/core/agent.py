@@ -34,7 +34,8 @@ class AgentBackend(ABC):
         self.error_collector = ErrorCollector()
         self.selected_messages: List[Message] = []
         self._chat_cache: Dict[str, Chat] = {}
-        self._store: Optional['LogStore'] = None
+        # Automatically create store during initialization
+        self._store: 'LogStore' = self._create_store(location)
 
     @property
     @abstractmethod
@@ -43,7 +44,7 @@ class AgentBackend(ABC):
         pass
 
     @abstractmethod
-    def create_store(self, location: Optional[str] = None) -> 'LogStore':
+    def _create_store(self, location: Optional[str] = None) -> 'LogStore':
         """Create appropriate log store for this agent."""
         pass
 
@@ -95,9 +96,7 @@ class AgentBackend(ABC):
     # Log Store Management
     @property
     def store(self) -> 'LogStore':
-        """Get or create log store for this agent."""
-        if self._store is None:
-            self._store = self.create_store(self.location)
+        """Get log store for this agent."""
         return self._store
 
     # Log Parsing Methods

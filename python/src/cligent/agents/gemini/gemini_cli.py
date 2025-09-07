@@ -290,7 +290,7 @@ class GeminiCliAgent(AgentBackend):
             }
         )
 
-    def create_store(self, location: Optional[str] = None) -> LogStore:
+    def _create_store(self, location: Optional[str] = None) -> LogStore:
         return GeminiStore()
 
     def parse_content(self, content: str, log_uri: str, store: LogStore) -> Chat:
