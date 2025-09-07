@@ -1,7 +1,9 @@
 """Cligent - Unified SDK for CLI agent orchestration."""
 
+__version__ = "0.2.0"
+
 from .core import Chat, Message, Role, ErrorReport
-from .parsers import ChatParser, LogStore
+from .core import LogStore
 from .core import (
     ChatParserError,
     ParseError, 
@@ -12,8 +14,8 @@ from .core import (
 from .registry import registry
 from .agents import ClaudeCodeAgent, GeminiCliAgent, QwenCodeAgent
 
-# Unified client interface
-from .client import CligentClient, cligent, claude, gemini, qwen
+# Unified agent interface - AgentBackend is the main entry point
+from .client import cligent, claude, gemini, qwen, list_available_agents
 from .execution import TaskResult, TaskUpdate, TaskConfig, TaskStatus, UpdateType
 from .core import AgentBackend, AgentConfig
 
@@ -25,18 +27,15 @@ __all__ = [
     "Role",
     "ErrorReport",
     
-    # Main interface
-    "ChatParser",
-    
-    # Stores
+    # Stores (for advanced usage)
     "LogStore",
     
-    # Unified client interface
-    "CligentClient",
+    # Main interface - AgentBackend only
     "cligent",
     "claude", 
     "gemini",
     "qwen",
+    "list_available_agents",
     
     # Task execution
     "TaskResult",

@@ -34,5 +34,12 @@ class AgentRegistry:
         """List all registered agents."""
         return [agent_class().config for agent_class in self._agents.values()]
 
+    def create_agent(self, name: str, location: Optional[str] = None) -> Optional[AgentBackend]:
+        """Create an agent instance by name or alias."""
+        agent_class = self.get_agent(name)
+        if agent_class:
+            return agent_class(location)
+        return None
+
 # Global registry instance
 registry = AgentRegistry()

@@ -1,6 +1,6 @@
 """Core models and base classes for Cligent."""
 
-from .models import Chat, Message, Role, ErrorReport
+from .models import Chat, Message, Role, ErrorReport, LogStore
 from .errors import (
     ChatParserError,
     ParseError, 
@@ -16,6 +16,7 @@ __all__ = [
     "Message", 
     "Role",
     "ErrorReport",
+    "LogStore",
     
     # Agent framework
     "AgentBackend",

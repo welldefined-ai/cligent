@@ -4,19 +4,21 @@ def test_main_package_imports():
     """Test that main package imports work."""
     import cligent
     assert hasattr(cligent, '__version__')
-    assert hasattr(cligent, 'ChatParser')
+    assert hasattr(cligent, 'cligent')  # Main factory function
     assert hasattr(cligent, 'Chat')
     assert hasattr(cligent, 'Message')
+    assert hasattr(cligent, 'AgentBackend')
 
 
 def test_cligent_direct_imports():
     """Test that cligent direct imports work."""
     from cligent import (
-        ChatParser, 
+        cligent,  # Main factory function 
         Chat, 
         Message, 
         Role,
-        LogStore
+        LogStore,
+        AgentBackend
     )
     
     # Verify classes can be instantiated
@@ -25,15 +27,26 @@ def test_cligent_direct_imports():
     
     chat = Chat()
     assert chat.messages == []
+    
+    # Verify agent creation works
+    agent = cligent("claude-code")
+    assert isinstance(agent, AgentBackend)
 
 
 def test_convenience_imports():
     """Test convenience imports from main package."""
-    from cligent import ChatParser, Chat, Message
+    from cligent import cligent, claude, gemini, qwen, Chat, Message
     
-    # Should be able to create parser
-    parser = ChatParser("claude-code")
-    assert parser.agent_name == "claude-code"
+    # Should be able to create agents directly
+    agent1 = cligent("claude-code")
+    agent2 = claude()
+    agent3 = gemini()
+    agent4 = qwen()
+    
+    assert agent1.config.name == "claude-code"
+    assert agent2.config.name == "claude-code"
+    assert agent3.config.name == "gemini-cli"
+    assert agent4.config.name == "qwen-code"
 
 
 def test_error_imports():

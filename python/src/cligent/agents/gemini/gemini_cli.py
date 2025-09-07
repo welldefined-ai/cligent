@@ -8,7 +8,7 @@ from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime
 
 from ...core.models import Message, Chat, ErrorReport, Role
-from ...parsers.store import LogStore
+from ...core.models import LogStore
 from ...core.agent import AgentBackend, AgentConfig
 from ...execution.task_models import TaskResult, TaskUpdate, TaskConfig
 from ...execution.executor import MockExecutor
@@ -270,7 +270,8 @@ class GeminiStore(LogStore):
 class GeminiCliAgent(AgentBackend):
     """Gemini CLI agent implementation."""
 
-    def __init__(self):
+    def __init__(self, location: Optional[str] = None):
+        super().__init__(location)
         # Initialize executor for task execution
         self._executor = MockExecutor("gemini-cli")
 
