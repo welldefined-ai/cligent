@@ -62,33 +62,19 @@ class AgentBackend(ABC):
         return log_path.exists() and log_path.suffix in self.config.log_extensions
 
     # Task execution methods with default implementation
-    async def execute_task(self, task: str, config: TaskConfig = None) -> TaskResult:
-        """Execute a task and return the result.
-        
-        Args:
-            task: The task description/instruction
-            config: Task execution configuration
-            
-        Returns:
-            TaskResult with execution outcome
-        """
-        if config is None:
-            config = TaskConfig()
-        return await self._executor.execute_task(task, config)
-
-    async def execute_task_stream(self, task: str, config: TaskConfig = None) -> AsyncIterator[TaskUpdate]:
+    async def execute_task(self, task: str, config: TaskConfig = None) -> AsyncIterator[TaskUpdate]:
         """Execute a task with streaming updates.
         
         Args:
-            task: The task description/instruction  
+            task: The task description/instruction
             config: Task execution configuration
             
         Yields:
             TaskUpdate objects with execution progress
         """
         if config is None:
-            config = TaskConfig(stream=True)
-        async for update in self._executor.execute_task_stream(task, config):
+            config = TaskConfig()
+        async for update in self._executor.execute_task(task, config):
             yield update
 
 
@@ -250,9 +236,9 @@ class AgentBackend(ABC):
             "metadata": config.metadata or {}
         }
 
-    # High-level Task Execution Methods
-    async def execute(self, task: str, **kwargs) -> TaskResult:
-        """Execute a task using this agent.
+    # High-level Task Execution Methods  
+    async def query(self, task: str, **kwargs) -> TaskResult:
+        """Query the agent and aggregate streaming results.
         
         Args:
             task: Task description or instruction
@@ -262,19 +248,53 @@ class AgentBackend(ABC):
             TaskResult with execution outcome
             
         Raises:
-            ChatParserError: If execution fails
+            ChatParserError: If query fails
         """
         # Build task configuration with all options
         config = TaskConfig()
         config.options.update(kwargs)
         
         try:
-            return await self.execute_task(task, config)
+            # Aggregate streaming results into TaskResult
+            from datetime import datetime
+            from ..execution.task_models import TaskStatus
+            
+            result = TaskResult(
+                task_id="",
+                status=TaskStatus.RUNNING,
+                created_at=datetime.now()
+            )
+            
+            output_parts = []
+            async for update in self.execute_task(task, config):
+                if update.task_id and not result.task_id:
+                    result.task_id = update.task_id
+                    
+                if update.type.value == "status":
+                    status_str = update.data.get("status", "")
+                    if status_str == TaskStatus.COMPLETED.value:
+                        result.status = TaskStatus.COMPLETED
+                        result.completed_at = datetime.now()
+                    elif status_str == TaskStatus.FAILED.value:
+                        result.status = TaskStatus.FAILED
+                        result.completed_at = datetime.now()
+                elif update.type.value == "output":
+                    content = update.data.get("content", "")
+                    if content:
+                        output_parts.append(content)
+                elif update.type.value == "error":
+                    result.status = TaskStatus.FAILED
+                    result.error = update.data.get("error", "Unknown error")
+                    result.completed_at = datetime.now()
+                    
+            result.output = "".join(output_parts)
+            return result
+            
         except Exception as e:
-            raise ChatParserError(f"Task execution failed: {e}") from e
+            raise ChatParserError(f"Query failed: {e}") from e
 
-    async def execute_stream(self, task: str, **kwargs) -> AsyncIterator[TaskUpdate]:
-        """Execute a task with streaming updates.
+    async def query_stream(self, task: str, **kwargs) -> AsyncIterator[TaskUpdate]:
+        """Query the agent with streaming updates.
         
         Args:
             task: Task description or instruction
@@ -284,17 +304,17 @@ class AgentBackend(ABC):
             TaskUpdate objects with execution progress
             
         Raises:
-            ChatParserError: If execution fails
+            ChatParserError: If streaming query fails
         """
-        # Build task configuration with all options and streaming enabled
-        config = TaskConfig(stream=True)
+        # Build task configuration with all options
+        config = TaskConfig()
         config.options.update(kwargs)
         
         try:
-            async for update in self.execute_task_stream(task, config):
+            async for update in self.execute_task(task, config):
                 yield update
         except Exception as e:
-            raise ChatParserError(f"Streaming execution failed: {e}") from e
+            raise ChatParserError(f"Streaming query failed: {e}") from e
 
 
     def __repr__(self) -> str:

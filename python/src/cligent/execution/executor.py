@@ -18,13 +18,8 @@ class BaseExecutor(ABC):
         self.agent_name = agent_name
 
     @abstractmethod
-    async def execute_task(self, task: str, config: TaskConfig) -> TaskResult:
-        """Execute a task and return result."""
-        pass
-
-    @abstractmethod  
-    async def execute_task_stream(self, task: str, config: TaskConfig) -> AsyncIterator[TaskUpdate]:
-        """Execute task with streaming updates."""
+    async def execute_task(self, task: str, config: TaskConfig) -> AsyncIterator[TaskUpdate]:
+        """Execute a task with streaming updates."""
         pass
 
     def map_options_to_config(self, options: Dict[str, Any]) -> Dict[str, Any]:
@@ -93,41 +88,7 @@ class ClaudeExecutor(BaseExecutor):
         except ImportError:
             raise ImportError("claude-code-sdk package not installed. Run: pip install claude-code-sdk")
 
-    async def execute_task(self, task: str, config: TaskConfig) -> TaskResult:
-        """Execute task using Claude Code SDK."""
-        task_id = self._generate_task_id()
-        
-        result = TaskResult(
-            task_id=task_id,
-            status=TaskStatus.RUNNING,
-            created_at=datetime.now()
-        )
-        
-        try:
-            ClaudeSDKClient, ClaudeCodeOptions = self._get_client_class()
-            
-            # Get SDK-specific options from task config
-            sdk_options = self.map_options_to_config(config.options)
-            
-            # Build ClaudeCodeOptions with only valid parameters
-            options = ClaudeCodeOptions(**sdk_options)
-            
-            # Initialize client with api_key at client level
-            client = ClaudeSDKClient(api_key=self.api_key, options=options)
-            response = await client.query(task)
-                
-            result.status = TaskStatus.COMPLETED
-            result.output = response if isinstance(response, str) else str(response)
-            result.completed_at = datetime.now()
-            
-        except Exception as e:
-            result.status = TaskStatus.FAILED
-            result.error = f"Claude Code error: {str(e)}"
-            result.completed_at = datetime.now()
-        
-        return result
-
-    async def execute_task_stream(self, task: str, config: TaskConfig) -> AsyncIterator[TaskUpdate]:
+    async def execute_task(self, task: str, config: TaskConfig) -> AsyncIterator[TaskUpdate]:
         """Execute task with streaming Claude Code SDK."""
         task_id = self._generate_task_id()
         
@@ -142,14 +103,20 @@ class ClaudeExecutor(BaseExecutor):
             # Build ClaudeCodeOptions with only valid parameters
             options = ClaudeCodeOptions(**sdk_options)
             
-            # Initialize client with api_key at client level
-            client = ClaudeSDKClient(api_key=self.api_key, options=options)
-            async for chunk in client.query_stream(task):
-                if chunk:
-                    yield TaskUpdate(task_id, UpdateType.OUTPUT, {
-                        "content": chunk,
-                        "partial": True
-                    })
+            # Use async context manager and correct streaming API
+            async with ClaudeSDKClient(api_key=self.api_key, options=options) as client:
+                # Send query
+                await client.query(task)
+                
+                # Stream responses using receive_response()
+                async for message in client.receive_response():
+                    if hasattr(message, 'content'):
+                        for block in message.content:
+                            if hasattr(block, 'text') and block.text:
+                                yield TaskUpdate(task_id, UpdateType.OUTPUT, {
+                                    "content": block.text,
+                                    "partial": True
+                                })
             
             yield TaskUpdate(task_id, UpdateType.STATUS, {"status": TaskStatus.COMPLETED.value})
             
@@ -185,56 +152,7 @@ class GeminiExecutor(BaseExecutor):
                 raise ImportError("google-genai package not installed. Run: pip install google-genai")
         return self._client
 
-    async def execute_task(self, task: str, config: TaskConfig) -> TaskResult:
-        """Execute task using Gemini API."""
-        task_id = self._generate_task_id()
-        
-        result = TaskResult(
-            task_id=task_id,
-            status=TaskStatus.RUNNING,
-            created_at=datetime.now()
-        )
-        
-        try:
-            client = self._get_client()
-            
-            # Import types for GenerateContentConfig
-            from google.genai import types
-            
-            # Build GenerateContentConfig from options
-            config_options = {}
-            for key, value in config.options.items():
-                if key not in {'model', 'contents', 'timeout', 'stream', 'save_logs', 'workspace'}:
-                    config_options[key] = value
-            
-            # Create GenerateContentConfig if we have options
-            generate_config = types.GenerateContentConfig(**config_options) if config_options else None
-            
-            # Use native async interface with correct API
-            if generate_config:
-                response = await client.aio.models.generate_content(
-                    model=config.get('model', 'gemini-2.0-flash-001'),
-                    contents=task,
-                    config=generate_config
-                )
-            else:
-                response = await client.aio.models.generate_content(
-                    model=config.get('model', 'gemini-2.0-flash-001'),
-                    contents=task
-                )
-            
-            result.status = TaskStatus.COMPLETED
-            result.output = response.text
-            result.completed_at = datetime.now()
-            
-        except Exception as e:
-            result.status = TaskStatus.FAILED
-            result.error = f"Gemini API error: {str(e)}"
-            result.completed_at = datetime.now()
-        
-        return result
-
-    async def execute_task_stream(self, task: str, config: TaskConfig) -> AsyncIterator[TaskUpdate]:
+    async def execute_task(self, task: str, config: TaskConfig) -> AsyncIterator[TaskUpdate]:
         """Execute task with streaming Gemini API."""
         task_id = self._generate_task_id()
         
@@ -306,60 +224,7 @@ class QwenExecutor(BaseExecutor):
                 raise ImportError("dashscope package not installed. Run: pip install dashscope")
         return self._client
 
-    async def execute_task(self, task: str, config: TaskConfig) -> TaskResult:
-        """Execute task using Qwen API."""
-        task_id = self._generate_task_id()
-        
-        result = TaskResult(
-            task_id=task_id,
-            status=TaskStatus.RUNNING,
-            created_at=datetime.now()
-        )
-        
-        try:
-            dashscope = self._get_client()
-            from dashscope import Generation
-            
-            # Build Generation.call arguments from config
-            generation_args = {
-                'model': config.get('model', 'qwen-turbo'),
-                'prompt': task,
-                'max_tokens': config.get('max_tokens', 4000)
-            }
-            
-            # Add all other options from config.options
-            for key, value in config.options.items():
-                if key not in generation_args and key not in {'timeout', 'stream', 'save_logs', 'workspace'}:
-                    generation_args[key] = value
-            
-            # Try async call if available, fallback to sync
-            try:
-                if hasattr(Generation, 'acall'):
-                    response = await Generation.acall(**generation_args)
-                else:
-                    # Fallback to sync wrapped in thread
-                    response = await asyncio.to_thread(Generation.call, **generation_args)
-            except AttributeError:
-                # Fallback to sync method
-                response = await asyncio.to_thread(Generation.call, **generation_args)
-            
-            if response.status_code == 200:
-                result.status = TaskStatus.COMPLETED
-                result.output = response.output.text
-                result.completed_at = datetime.now()
-            else:
-                result.status = TaskStatus.FAILED
-                result.error = f"Qwen API error: {response.message}"
-                result.completed_at = datetime.now()
-            
-        except Exception as e:
-            result.status = TaskStatus.FAILED
-            result.error = f"Qwen API error: {str(e)}"
-            result.completed_at = datetime.now()
-        
-        return result
-
-    async def execute_task_stream(self, task: str, config: TaskConfig) -> AsyncIterator[TaskUpdate]:
+    async def execute_task(self, task: str, config: TaskConfig) -> AsyncIterator[TaskUpdate]:
         """Execute task with streaming Qwen API."""
         task_id = self._generate_task_id()
         
@@ -444,23 +309,7 @@ class QwenExecutor(BaseExecutor):
 class MockExecutor(BaseExecutor):
     """Mock executor for testing and demonstration."""
     
-    async def execute_task(self, task: str, config: TaskConfig) -> TaskResult:
-        """Mock task execution."""
-        task_id = self._generate_task_id()
-        
-        # Simulate work
-        await asyncio.sleep(1)
-        
-        return TaskResult(
-            task_id=task_id,
-            status=TaskStatus.COMPLETED,
-            output=f"Mock execution of: {task}",
-            created_at=datetime.now(),
-            completed_at=datetime.now(),
-            logs=[f"Executed task: {task}"]
-        )
-
-    async def execute_task_stream(self, task: str, config: TaskConfig) -> AsyncIterator[TaskUpdate]:
+    async def execute_task(self, task: str, config: TaskConfig) -> AsyncIterator[TaskUpdate]:
         """Mock streaming execution."""
         task_id = self._generate_task_id()
         
