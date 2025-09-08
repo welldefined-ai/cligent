@@ -315,3 +315,4 @@ class GeminiCliAgent(AgentBackend):
         return session.to_chat()
 
 
+

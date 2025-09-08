@@ -293,7 +293,6 @@ class ClaudeCodeAgent(AgentBackend):
         return ClaudeStore(location=location)
 
     def parse_content(self, content: str, log_uri: str, store: LogStore) -> Chat:
-
         # 使用现有的Session逻辑
         if "/" in log_uri or "\\" in log_uri:
             file_path = Path(log_uri)
@@ -303,5 +302,6 @@ class ClaudeCodeAgent(AgentBackend):
         session = Session(file_path=file_path)
         session.load()
         return session.to_chat()
+
 
 

@@ -75,20 +75,42 @@ class TaskUpdate:
 class TaskConfig:
     """Configuration for task execution."""
     
+    # Core configuration options
     timeout: Optional[int] = None  # seconds
     stream: bool = False
     save_logs: bool = True
     workspace: Optional[str] = None
-    environment: Dict[str, str] = field(default_factory=dict)
-    tools: List[str] = field(default_factory=list)
+    
+    # Dynamic options dictionary for agent-specific parameters
+    options: Dict[str, Any] = field(default_factory=dict)
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary representation."""
-        return {
+        result = {
             "timeout": self.timeout,
             "stream": self.stream,
             "save_logs": self.save_logs,
             "workspace": self.workspace,
-            "environment": self.environment,
-            "tools": self.tools
         }
+        # Merge in dynamic options
+        result.update(self.options)
+        return result
+    
+    def get(self, key: str, default: Any = None) -> Any:
+        """Get option value with fallback to core attributes."""
+        # Check core attributes first
+        if hasattr(self, key):
+            value = getattr(self, key)
+            if value is not None:
+                return value
+        # Then check dynamic options
+        return self.options.get(key, default)
+    
+    def set(self, key: str, value: Any) -> None:
+        """Set option value."""
+        # If it's a core attribute, set it directly
+        if hasattr(self, key) and key != 'options':
+            setattr(self, key, value)
+        else:
+            # Otherwise, put it in options
+            self.options[key] = value

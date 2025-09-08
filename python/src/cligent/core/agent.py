@@ -56,6 +56,7 @@ class AgentBackend(ABC):
         pass
 
 
+
     def validate_log(self, log_path: Path) -> bool:
         """Validate log file format (optional override)."""
         return log_path.exists() and log_path.suffix in self.config.log_extensions
@@ -263,8 +264,9 @@ class AgentBackend(ABC):
         Raises:
             ChatParserError: If execution fails
         """
-        # Build task configuration
-        config = TaskConfig(**kwargs)
+        # Build task configuration with all options
+        config = TaskConfig()
+        config.options.update(kwargs)
         
         try:
             return await self.execute_task(task, config)
@@ -284,8 +286,9 @@ class AgentBackend(ABC):
         Raises:
             ChatParserError: If execution fails
         """
-        # Build task configuration
-        config = TaskConfig(stream=True, **kwargs)
+        # Build task configuration with all options and streaming enabled
+        config = TaskConfig(stream=True)
+        config.options.update(kwargs)
         
         try:
             async for update in self.execute_task_stream(task, config):

@@ -27,6 +27,21 @@ class BaseExecutor(ABC):
         """Execute task with streaming updates."""
         pass
 
+    def map_options_to_config(self, options: Dict[str, Any]) -> Dict[str, Any]:
+        """Map generic options to SDK-specific configuration.
+        
+        Each executor should implement this to filter and transform options
+        for their specific SDK requirements.
+        
+        Args:
+            options: Generic options dictionary from TaskConfig
+            
+        Returns:
+            SDK-specific configuration dictionary
+        """
+        # Default implementation returns all options
+        return options.copy()
+
     def _generate_task_id(self) -> str:
         """Generate unique task ID."""
         return f"{self.agent_name}-{uuid.uuid4().hex[:8]}"
@@ -45,6 +60,31 @@ class ClaudeExecutor(BaseExecutor):
         self.api_key = api_key
         self._client = None
     
+    def map_options_to_config(self, options: Dict[str, Any]) -> Dict[str, Any]:
+        """Map generic options to Claude Code SDK configuration.
+        
+        Args:
+            options: Generic options dictionary
+            
+        Returns:
+            Dictionary of Claude Code SDK compatible options
+        """
+        # Define Claude Code SDK supported options (from actual ClaudeCodeOptions)
+        supported_options = {
+            'system_prompt', 'append_system_prompt', 'max_turns', 'model', 
+            'max_thinking_tokens', 'allowed_tools', 'disallowed_tools',
+            'continue_conversation', 'resume', 'cwd', 'add_dirs', 'settings',
+            'permission_mode', 'permission_prompt_tool_name', 'mcp_servers', 'extra_args'
+        }
+        
+        # Filter and return only supported options
+        claude_options = {}
+        for key, value in options.items():
+            if key in supported_options:
+                claude_options[key] = value
+        
+        return claude_options
+
     def _get_client_class(self):
         """Get Claude Code SDK client class."""
         try:
@@ -66,15 +106,15 @@ class ClaudeExecutor(BaseExecutor):
         try:
             ClaudeSDKClient, ClaudeCodeOptions = self._get_client_class()
             
-            options = ClaudeCodeOptions(
-                model=config.model or "claude-3-5-sonnet-20241022",
-                api_key=self.api_key,
-                workspace=config.workspace
-            )
+            # Get SDK-specific options from task config
+            sdk_options = self.map_options_to_config(config.options)
             
-            # Use native async interface
-            async with ClaudeSDKClient(options=options) as client:
-                response = await client.query(task)
+            # Build ClaudeCodeOptions with only valid parameters
+            options = ClaudeCodeOptions(**sdk_options)
+            
+            # Initialize client with api_key at client level
+            client = ClaudeSDKClient(api_key=self.api_key, options=options)
+            response = await client.query(task)
                 
             result.status = TaskStatus.COMPLETED
             result.output = response if isinstance(response, str) else str(response)
@@ -96,20 +136,20 @@ class ClaudeExecutor(BaseExecutor):
         try:
             ClaudeSDKClient, ClaudeCodeOptions = self._get_client_class()
             
-            options = ClaudeCodeOptions(
-                model=config.model or "claude-3-5-sonnet-20241022",
-                api_key=self.api_key,
-                workspace=config.workspace
-            )
+            # Get SDK-specific options from task config
+            sdk_options = self.map_options_to_config(config.options)
             
-            # Use native async streaming interface
-            async with ClaudeSDKClient(options=options) as client:
-                async for chunk in client.query_stream(task):
-                    if chunk:
-                        yield TaskUpdate(task_id, UpdateType.OUTPUT, {
-                            "content": chunk,
-                            "partial": True
-                        })
+            # Build ClaudeCodeOptions with only valid parameters
+            options = ClaudeCodeOptions(**sdk_options)
+            
+            # Initialize client with api_key at client level
+            client = ClaudeSDKClient(api_key=self.api_key, options=options)
+            async for chunk in client.query_stream(task):
+                if chunk:
+                    yield TaskUpdate(task_id, UpdateType.OUTPUT, {
+                        "content": chunk,
+                        "partial": True
+                    })
             
             yield TaskUpdate(task_id, UpdateType.STATUS, {"status": TaskStatus.COMPLETED.value})
             
@@ -158,11 +198,30 @@ class GeminiExecutor(BaseExecutor):
         try:
             client = self._get_client()
             
-            # Use native async interface
-            response = await client.aio.models.generate_content(
-                model=config.model or 'gemini-2.0-flash-001',
-                contents=task
-            )
+            # Import types for GenerateContentConfig
+            from google.genai import types
+            
+            # Build GenerateContentConfig from options
+            config_options = {}
+            for key, value in config.options.items():
+                if key not in {'model', 'contents', 'timeout', 'stream', 'save_logs', 'workspace'}:
+                    config_options[key] = value
+            
+            # Create GenerateContentConfig if we have options
+            generate_config = types.GenerateContentConfig(**config_options) if config_options else None
+            
+            # Use native async interface with correct API
+            if generate_config:
+                response = await client.aio.models.generate_content(
+                    model=config.get('model', 'gemini-2.0-flash-001'),
+                    contents=task,
+                    config=generate_config
+                )
+            else:
+                response = await client.aio.models.generate_content(
+                    model=config.get('model', 'gemini-2.0-flash-001'),
+                    contents=task
+                )
             
             result.status = TaskStatus.COMPLETED
             result.output = response.text
@@ -184,11 +243,32 @@ class GeminiExecutor(BaseExecutor):
         try:
             client = self._get_client()
             
-            # Use native async streaming interface
-            async for chunk in client.aio.models.generate_content_stream(
-                model=config.model or 'gemini-2.0-flash-001',
-                contents=task
-            ):
+            # Import types for GenerateContentConfig
+            from google.genai import types
+            
+            # Build GenerateContentConfig from options
+            config_options = {}
+            for key, value in config.options.items():
+                if key not in {'model', 'contents', 'timeout', 'stream', 'save_logs', 'workspace'}:
+                    config_options[key] = value
+            
+            # Create GenerateContentConfig if we have options
+            generate_config = types.GenerateContentConfig(**config_options) if config_options else None
+            
+            # Use native async streaming interface with correct API
+            if generate_config:
+                stream = client.aio.models.generate_content_stream(
+                    model=config.get('model', 'gemini-2.0-flash-001'),
+                    contents=task,
+                    config=generate_config
+                )
+            else:
+                stream = client.aio.models.generate_content_stream(
+                    model=config.get('model', 'gemini-2.0-flash-001'),
+                    contents=task
+                )
+            
+            async for chunk in stream:
                 if chunk.text:
                     yield TaskUpdate(task_id, UpdateType.OUTPUT, {
                         "content": chunk.text,
@@ -240,30 +320,28 @@ class QwenExecutor(BaseExecutor):
             dashscope = self._get_client()
             from dashscope import Generation
             
+            # Build Generation.call arguments from config
+            generation_args = {
+                'model': config.get('model', 'qwen-turbo'),
+                'prompt': task,
+                'max_tokens': config.get('max_tokens', 4000)
+            }
+            
+            # Add all other options from config.options
+            for key, value in config.options.items():
+                if key not in generation_args and key not in {'timeout', 'stream', 'save_logs', 'workspace'}:
+                    generation_args[key] = value
+            
             # Try async call if available, fallback to sync
             try:
                 if hasattr(Generation, 'acall'):
-                    response = await Generation.acall(
-                        model=config.model or 'qwen-turbo',
-                        prompt=task,
-                        max_tokens=config.max_tokens or 4000
-                    )
+                    response = await Generation.acall(**generation_args)
                 else:
                     # Fallback to sync wrapped in thread
-                    response = await asyncio.to_thread(
-                        Generation.call,
-                        model=config.model or 'qwen-turbo',
-                        prompt=task,
-                        max_tokens=config.max_tokens or 4000
-                    )
+                    response = await asyncio.to_thread(Generation.call, **generation_args)
             except AttributeError:
                 # Fallback to sync method
-                response = await asyncio.to_thread(
-                    Generation.call,
-                    model=config.model or 'qwen-turbo',
-                    prompt=task,
-                    max_tokens=config.max_tokens or 4000
-                )
+                response = await asyncio.to_thread(Generation.call, **generation_args)
             
             if response.status_code == 200:
                 result.status = TaskStatus.COMPLETED
@@ -291,15 +369,23 @@ class QwenExecutor(BaseExecutor):
             dashscope = self._get_client()
             from dashscope import Generation
             
+            # Build Generation.call arguments from config for streaming
+            generation_args = {
+                'model': config.get('model', 'qwen-turbo'),
+                'prompt': task,
+                'max_tokens': config.get('max_tokens', 4000),
+                'stream': True
+            }
+            
+            # Add all other options from config.options
+            for key, value in config.options.items():
+                if key not in generation_args and key not in {'timeout', 'save_logs', 'workspace'}:
+                    generation_args[key] = value
+            
             # Try async streaming if available, fallback to sync
             try:
                 if hasattr(Generation, 'acall'):
-                    responses = await Generation.acall(
-                        model=config.model or 'qwen-turbo',
-                        prompt=task,
-                        max_tokens=config.max_tokens or 4000,
-                        stream=True
-                    )
+                    responses = await Generation.acall(**generation_args)
                     async for response in responses:
                         if response.status_code == 200:
                             if hasattr(response.output, 'text'):
@@ -315,12 +401,7 @@ class QwenExecutor(BaseExecutor):
                 else:
                     # Fallback to sync wrapped in thread
                     def stream_sync():
-                        return Generation.call(
-                            model=config.model or 'qwen-turbo',
-                            prompt=task,
-                            max_tokens=config.max_tokens or 4000,
-                            stream=True
-                        )
+                        return Generation.call(**generation_args)
                     
                     responses = await asyncio.to_thread(stream_sync)
                     for response in responses:
@@ -338,12 +419,7 @@ class QwenExecutor(BaseExecutor):
             except AttributeError:
                 # Fallback to sync method
                 def stream_sync():
-                    return Generation.call(
-                        model=config.model or 'qwen-turbo',
-                        prompt=task,
-                        max_tokens=config.max_tokens or 4000,
-                        stream=True
-                    )
+                    return Generation.call(**generation_args)
                 
                 responses = await asyncio.to_thread(stream_sync)
                 for response in responses:
