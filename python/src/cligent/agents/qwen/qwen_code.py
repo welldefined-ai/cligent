@@ -341,36 +341,6 @@ class QwenCodeAgent(AgentBackend):
         session.load()
         return session.to_chat()
 
-    def detect_agent(self, log_path: Path) -> bool:
-        """Detect Qwen Code logs by checking JSON structure."""
-        if log_path.suffix not in [".jsonl", ".json"]:
-            return False
-
-        try:
-            with open(log_path, 'r', encoding='utf-8') as f:
-                # Check first few lines
-                for i, line in enumerate(f):
-                    if i >= 5:  # Check first 5 lines
-                        break
-                    if line.strip():
-                        data = json.loads(line.strip())
-                        # Look for Qwen-specific indicators
-                        qwen_indicators = [
-                            'qwen' in str(data).lower(),
-                            data.get('model', '').lower().startswith('qwen'),
-                            data.get('role') in ['qwen', 'model', 'user', 'assistant'],
-                            'checkpoint' in data or 'checkpointTag' in data,
-                            any(key in data for key in ['sessionId', 'session_id', 'conversationId']),
-                            # Check for Qwen Code specific configuration patterns
-                            'contextFileName' in str(data) and 'QWEN.md' in str(data),
-                        ]
-                        
-                        if any(qwen_indicators):
-                            return True
-        except Exception:
-            pass
-
-        return False
 
     # Task execution methods
     async def execute_task(self, task: str, config: TaskConfig = None) -> TaskResult:

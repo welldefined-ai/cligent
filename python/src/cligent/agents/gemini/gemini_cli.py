@@ -304,33 +304,6 @@ class GeminiCliAgent(AgentBackend):
         session.load()
         return session.to_chat()
 
-    def detect_agent(self, log_path: Path) -> bool:
-        """Detect Gemini CLI logs by checking JSON structure."""
-        if log_path.suffix not in [".jsonl", ".json"]:
-            return False
-
-        try:
-            with open(log_path, 'r', encoding='utf-8') as f:
-                # Check first few lines
-                for i, line in enumerate(f):
-                    if i >= 3:  # Only check first 3 lines
-                        break
-                    if line.strip():
-                        data = json.loads(line.strip())
-                        # Look for Gemini-specific indicators
-                        gemini_indicators = [
-                            'model' in str(data).lower() and 'gemini' in str(data).lower(),
-                            data.get('role') in ['model', 'user', 'assistant'],
-                            'content' in data or 'text' in data or 'message' in data,
-                            any(key in data for key in ['session_id', 'conversation_id', 'sessionId']),
-                        ]
-                        
-                        if any(gemini_indicators):
-                            return True
-        except Exception:
-            pass
-
-        return False
 
     # Task execution methods
     async def execute_task(self, task: str, config: TaskConfig = None) -> TaskResult:

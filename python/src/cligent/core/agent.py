@@ -53,10 +53,6 @@ class AgentBackend(ABC):
         """Parse raw log content into Chat object."""
         pass
 
-    @abstractmethod
-    def detect_agent(self, log_path: Path) -> bool:
-        """Detect if a log file belongs to this agent."""
-        pass
 
     def validate_log(self, log_path: Path) -> bool:
         """Validate log file format (optional override)."""

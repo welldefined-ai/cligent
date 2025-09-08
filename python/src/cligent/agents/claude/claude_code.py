@@ -294,26 +294,6 @@ class ClaudeCodeAgent(AgentBackend):
         session.load()
         return session.to_chat()
 
-    def detect_agent(self, log_path: Path) -> bool:
-        """Detect Claude Code logs by checking JSON structure."""
-        if log_path.suffix != ".jsonl":
-            return False
-
-        try:
-            with open(log_path, 'r', encoding='utf-8') as f:
-                # Check first few lines
-                for i, line in enumerate(f):
-                    if i >= 3:  # Only check first 3 lines
-                        break
-                    if line.strip():
-                        data = json.loads(line.strip())
-                        # Claude Code specific fields
-                        if 'type' in data and 'uuid' in data and data['type'] in ['user', 'assistant', 'tool_use']:
-                           return True
-        except:
-            pass
-
-        return False
 
     # Task execution methods
     async def execute_task(self, task: str, config: TaskConfig = None) -> TaskResult:
