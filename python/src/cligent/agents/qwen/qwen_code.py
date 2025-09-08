@@ -11,7 +11,7 @@ from ...core.models import Message, Chat, ErrorReport, Role
 from ...core.models import LogStore
 from ...core.agent import AgentBackend, AgentConfig
 from ...execution.task_models import TaskResult, TaskUpdate, TaskConfig
-from ...execution.executor import MockExecutor
+from ...execution.executor import QwenExecutor, MockExecutor
 from typing import AsyncIterator
 
 
@@ -305,10 +305,21 @@ class QwenStore(LogStore):
 class QwenCodeAgent(AgentBackend):
     """Qwen Code agent implementation."""
 
-    def __init__(self, location: Optional[str] = None):
+    def __init__(self, location: Optional[str] = None, api_key: Optional[str] = None, use_mock: bool = False):
+        """Initialize Qwen Code agent.
+        
+        Args:
+            location: Optional workspace location for logs
+            api_key: Qwen API key (uses DASHSCOPE_API_KEY env var if not provided)  
+            use_mock: If True, use mock executor instead of real Qwen API
+        """
         super().__init__(location)
-        # Initialize executor for task execution
-        self._executor = MockExecutor("qwen-code")
+        
+        # Initialize executor - real Qwen API or mock
+        if use_mock:
+            self._executor = MockExecutor("qwen-code")
+        else:
+            self._executor = QwenExecutor(api_key)
 
     @property
     def config(self) -> AgentConfig:

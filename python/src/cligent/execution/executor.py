@@ -1,7 +1,6 @@
-"""Base executor implementations for different agent types."""
+"""SDK-based executor implementations for different agent types."""
 
 import asyncio
-import subprocess
 import uuid
 import json
 from datetime import datetime
@@ -33,26 +32,32 @@ class BaseExecutor(ABC):
         return f"{self.agent_name}-{uuid.uuid4().hex[:8]}"
 
 
-class SubprocessExecutor(BaseExecutor):
-    """Executor that runs agents as subprocesses."""
+class ClaudeExecutor(BaseExecutor):
+    """Executor for Claude Code using claude-code-sdk."""
     
-    def __init__(self, agent_name: str, command_template: str):
-        """
+    def __init__(self, api_key: Optional[str] = None):
+        """Initialize Claude Code executor.
+        
         Args:
-            agent_name: Name of the agent
-            command_template: Command template with {task} placeholder
+            api_key: Anthropic API key (will use ANTHROPIC_API_KEY env var if not provided)
         """
-        super().__init__(agent_name)
-        self.command_template = command_template
+        super().__init__("claude-code")
+        self.api_key = api_key
+        self._client = None
+    
+    def _get_client(self):
+        """Get or create Claude Code client."""
+        if self._client is None:
+            try:
+                from claude_code_sdk import ClaudeCodeClient
+                self._client = ClaudeCodeClient(api_key=self.api_key)
+            except ImportError:
+                raise ImportError("claude-code-sdk package not installed. Run: pip install claude-code-sdk")
+        return self._client
 
     async def execute_task(self, task: str, config: TaskConfig) -> TaskResult:
-        """Execute task via subprocess."""
+        """Execute task using Claude Code SDK."""
         task_id = self._generate_task_id()
-        
-        # Build command
-        command = self.command_template.format(task=task)
-        if config.workspace:
-            command = f"cd '{config.workspace}' && {command}"
         
         result = TaskResult(
             task_id=task_id,
@@ -61,144 +66,253 @@ class SubprocessExecutor(BaseExecutor):
         )
         
         try:
-            # Set up environment
-            env = dict(config.environment) if config.environment else {}
+            client = self._get_client()
             
-            # Run subprocess
-            process = await asyncio.create_subprocess_shell(
-                command,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                env=env,
-                cwd=config.workspace
+            # Execute task using Claude Code
+            response = await asyncio.to_thread(
+                client.execute,
+                task=task,
+                model=config.model or "claude-3-5-sonnet-20241022",
+                workspace=config.workspace
             )
             
-            # Wait for completion with timeout
-            timeout = config.timeout if config.timeout else 300  # 5 min default
-            stdout, stderr = await asyncio.wait_for(
-                process.communicate(),
-                timeout=timeout
-            )
-            
-            # Process results
-            if process.returncode == 0:
-                result.status = TaskStatus.COMPLETED
-                result.output = stdout.decode('utf-8') if stdout else ""
-            else:
-                result.status = TaskStatus.FAILED
-                result.error = stderr.decode('utf-8') if stderr else "Process failed"
-            
+            result.status = TaskStatus.COMPLETED
+            result.output = response.output
             result.completed_at = datetime.now()
             
-            if stderr:
-                result.logs.append(f"STDERR: {stderr.decode('utf-8')}")
-            if stdout:
-                result.logs.append(f"STDOUT: {stdout.decode('utf-8')}")
-                
-        except asyncio.TimeoutError:
-            result.status = TaskStatus.FAILED
-            result.error = f"Task timed out after {timeout} seconds"
-            result.completed_at = datetime.now()
+            # Add Claude Code specific metadata
+            if hasattr(response, 'model'):
+                result.logs.append(f"Model: {response.model}")
+            if hasattr(response, 'usage'):
+                result.logs.append(f"Usage: {response.usage}")
+            if hasattr(response, 'session_id'):
+                result.logs.append(f"Session: {response.session_id}")
             
         except Exception as e:
             result.status = TaskStatus.FAILED
-            result.error = f"Execution error: {str(e)}"
+            result.error = f"Claude Code error: {str(e)}"
             result.completed_at = datetime.now()
         
         return result
 
     async def execute_task_stream(self, task: str, config: TaskConfig) -> AsyncIterator[TaskUpdate]:
-        """Execute task with streaming output."""
+        """Execute task with streaming Claude Code SDK."""
         task_id = self._generate_task_id()
         
-        # Initial status update
         yield TaskUpdate(task_id, UpdateType.STATUS, {"status": TaskStatus.RUNNING.value})
         
-        # Build command
-        command = self.command_template.format(task=task)
-        if config.workspace:
-            command = f"cd '{config.workspace}' && {command}"
-            
         try:
-            # Set up environment
-            env = dict(config.environment) if config.environment else {}
+            client = self._get_client()
             
-            # Start subprocess
-            process = await asyncio.create_subprocess_shell(
-                command,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                env=env,
-                cwd=config.workspace
+            # Create streaming execution
+            stream = await asyncio.to_thread(
+                client.execute_stream,
+                task=task,
+                model=config.model or "claude-3-5-sonnet-20241022",
+                workspace=config.workspace
             )
             
-            # Stream output
-            async def read_stream(stream, stream_name):
-                while True:
-                    line = await stream.readline()
-                    if not line:
-                        break
-                    text = line.decode('utf-8').rstrip()
-                    if text:
-                        yield TaskUpdate(task_id, UpdateType.OUTPUT, {
-                            "stream": stream_name,
-                            "content": text
-                        })
+            async for chunk in stream:
+                if hasattr(chunk, 'content') and chunk.content:
+                    yield TaskUpdate(task_id, UpdateType.OUTPUT, {
+                        "content": chunk.content,
+                        "partial": True
+                    })
+                elif hasattr(chunk, 'status'):
+                    if chunk.status == 'completed':
+                        yield TaskUpdate(task_id, UpdateType.STATUS, {"status": TaskStatus.COMPLETED.value})
+                    elif chunk.status == 'error':
+                        yield TaskUpdate(task_id, UpdateType.ERROR, {"error": chunk.error})
             
-            # Read both streams concurrently  
-            async for update in self._merge_streams([
-                read_stream(process.stdout, "stdout"),
-                read_stream(process.stderr, "stderr")
-            ]):
-                yield update
-            
-            # Wait for process to complete
-            await process.wait()
-            
-            # Final status
-            if process.returncode == 0:
-                yield TaskUpdate(task_id, UpdateType.STATUS, {"status": TaskStatus.COMPLETED.value})
-            else:
-                yield TaskUpdate(task_id, UpdateType.ERROR, {
-                    "error": f"Process exited with code {process.returncode}"
-                })
-                
         except Exception as e:
             yield TaskUpdate(task_id, UpdateType.ERROR, {"error": str(e)})
 
-    async def _merge_streams(self, streams) -> AsyncIterator[TaskUpdate]:
-        """Merge multiple async streams."""
-        tasks = [asyncio.create_task(self._exhaust_stream(stream)) for stream in streams]
+
+class GeminiExecutor(BaseExecutor):
+    """Executor for Gemini using Google AI SDK."""
+    
+    def __init__(self, api_key: Optional[str] = None):
+        """Initialize Gemini executor.
+        
+        Args:
+            api_key: Google API key (will use GOOGLE_API_KEY env var if not provided)
+        """
+        super().__init__("gemini")
+        self.api_key = api_key
+        self._client = None
+    
+    def _get_client(self):
+        """Get or create Gemini client."""
+        if self._client is None:
+            try:
+                from google import genai
+                import os
+                # Set API key from parameter or environment
+                api_key = self.api_key or os.getenv('GOOGLE_API_KEY')
+                if not api_key:
+                    raise ValueError("Google API key not provided. Set GOOGLE_API_KEY environment variable or pass api_key parameter.")
+                self._client = genai.Client(api_key=api_key)
+            except ImportError:
+                raise ImportError("google-genai package not installed. Run: pip install google-genai")
+        return self._client
+
+    async def execute_task(self, task: str, config: TaskConfig) -> TaskResult:
+        """Execute task using Gemini API."""
+        task_id = self._generate_task_id()
+        
+        result = TaskResult(
+            task_id=task_id,
+            status=TaskStatus.RUNNING,
+            created_at=datetime.now()
+        )
         
         try:
-            done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+            client = self._get_client()
             
-            while tasks:
-                for task in done:
-                    async for item in task.result():
-                        yield item
-                    tasks.remove(task)
-                
-                if tasks:
-                    done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
-        finally:
-            for task in tasks:
-                task.cancel()
+            response = await asyncio.to_thread(
+                client.models.generate_content,
+                model=config.model or 'gemini-2.0-flash-001',
+                contents=task
+            )
+            
+            result.status = TaskStatus.COMPLETED
+            result.output = response.text
+            result.completed_at = datetime.now()
+            
+        except Exception as e:
+            result.status = TaskStatus.FAILED
+            result.error = f"Gemini API error: {str(e)}"
+            result.completed_at = datetime.now()
+        
+        return result
 
-    async def _exhaust_stream(self, stream) -> List[TaskUpdate]:
-        """Collect all items from async stream."""
-        items = []
-        async for item in stream:
-            items.append(item)
-        return items
+    async def execute_task_stream(self, task: str, config: TaskConfig) -> AsyncIterator[TaskUpdate]:
+        """Execute task with streaming Gemini API."""
+        task_id = self._generate_task_id()
+        
+        yield TaskUpdate(task_id, UpdateType.STATUS, {"status": TaskStatus.RUNNING.value})
+        
+        try:
+            client = self._get_client()
+            
+            def stream_content():
+                return client.models.generate_content_stream(
+                    model=config.model or 'gemini-2.0-flash-001',
+                    contents=task
+                )
+            
+            response = await asyncio.to_thread(stream_content)
+            
+            for chunk in response:
+                if chunk.text:
+                    yield TaskUpdate(task_id, UpdateType.OUTPUT, {
+                        "content": chunk.text,
+                        "partial": True
+                    })
+            
+            yield TaskUpdate(task_id, UpdateType.STATUS, {"status": TaskStatus.COMPLETED.value})
+            
+        except Exception as e:
+            yield TaskUpdate(task_id, UpdateType.ERROR, {"error": str(e)})
 
 
-class ClaudeCodeExecutor(SubprocessExecutor):
-    """Executor for Claude Code agent."""
+class QwenExecutor(BaseExecutor):
+    """Executor for Qwen using Alibaba Cloud SDK."""
     
-    def __init__(self):
-        # Claude Code command template - adjust based on actual CLI
-        super().__init__("claude-code", "claude-code '{task}'")
+    def __init__(self, api_key: Optional[str] = None):
+        """Initialize Qwen executor.
+        
+        Args:
+            api_key: Qwen API key (will use DASHSCOPE_API_KEY env var if not provided)
+        """
+        super().__init__("qwen")
+        self.api_key = api_key
+        self._client = None
+    
+    def _get_client(self):
+        """Get or create Qwen client."""
+        if self._client is None:
+            try:
+                import dashscope
+                if self.api_key:
+                    dashscope.api_key = self.api_key
+                self._client = dashscope
+            except ImportError:
+                raise ImportError("dashscope package not installed. Run: pip install dashscope")
+        return self._client
+
+    async def execute_task(self, task: str, config: TaskConfig) -> TaskResult:
+        """Execute task using Qwen API."""
+        task_id = self._generate_task_id()
+        
+        result = TaskResult(
+            task_id=task_id,
+            status=TaskStatus.RUNNING,
+            created_at=datetime.now()
+        )
+        
+        try:
+            dashscope = self._get_client()
+            from dashscope import Generation
+            
+            response = await asyncio.to_thread(
+                Generation.call,
+                model=config.model or 'qwen-turbo',
+                prompt=task,
+                max_tokens=config.max_tokens or 4000
+            )
+            
+            if response.status_code == 200:
+                result.status = TaskStatus.COMPLETED
+                result.output = response.output.text
+                result.completed_at = datetime.now()
+            else:
+                result.status = TaskStatus.FAILED
+                result.error = f"Qwen API error: {response.message}"
+                result.completed_at = datetime.now()
+            
+        except Exception as e:
+            result.status = TaskStatus.FAILED
+            result.error = f"Qwen API error: {str(e)}"
+            result.completed_at = datetime.now()
+        
+        return result
+
+    async def execute_task_stream(self, task: str, config: TaskConfig) -> AsyncIterator[TaskUpdate]:
+        """Execute task with streaming Qwen API."""
+        task_id = self._generate_task_id()
+        
+        yield TaskUpdate(task_id, UpdateType.STATUS, {"status": TaskStatus.RUNNING.value})
+        
+        try:
+            dashscope = self._get_client()
+            from dashscope import Generation
+            
+            responses = await asyncio.to_thread(
+                Generation.call,
+                model=config.model or 'qwen-turbo',
+                prompt=task,
+                max_tokens=config.max_tokens or 4000,
+                stream=True
+            )
+            
+            for response in responses:
+                if response.status_code == 200:
+                    if hasattr(response.output, 'text'):
+                        yield TaskUpdate(task_id, UpdateType.OUTPUT, {
+                            "content": response.output.text,
+                            "partial": True
+                        })
+                else:
+                    yield TaskUpdate(task_id, UpdateType.ERROR, {
+                        "error": f"Qwen API error: {response.message}"
+                    })
+                    return
+            
+            yield TaskUpdate(task_id, UpdateType.STATUS, {"status": TaskStatus.COMPLETED.value})
+            
+        except Exception as e:
+            yield TaskUpdate(task_id, UpdateType.ERROR, {"error": str(e)})
 
 
 class MockExecutor(BaseExecutor):
