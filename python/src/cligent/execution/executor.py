@@ -45,15 +45,13 @@ class ClaudeExecutor(BaseExecutor):
         self.api_key = api_key
         self._client = None
     
-    def _get_client(self):
-        """Get or create Claude Code client."""
-        if self._client is None:
-            try:
-                from claude_code_sdk import ClaudeCodeClient
-                self._client = ClaudeCodeClient(api_key=self.api_key)
-            except ImportError:
-                raise ImportError("claude-code-sdk package not installed. Run: pip install claude-code-sdk")
-        return self._client
+    def _get_client_class(self):
+        """Get Claude Code SDK client class."""
+        try:
+            from claude_code_sdk import ClaudeSDKClient, ClaudeCodeOptions
+            return ClaudeSDKClient, ClaudeCodeOptions
+        except ImportError:
+            raise ImportError("claude-code-sdk package not installed. Run: pip install claude-code-sdk")
 
     async def execute_task(self, task: str, config: TaskConfig) -> TaskResult:
         """Execute task using Claude Code SDK."""
@@ -66,27 +64,21 @@ class ClaudeExecutor(BaseExecutor):
         )
         
         try:
-            client = self._get_client()
+            ClaudeSDKClient, ClaudeCodeOptions = self._get_client_class()
             
-            # Execute task using Claude Code
-            response = await asyncio.to_thread(
-                client.execute,
-                task=task,
+            options = ClaudeCodeOptions(
                 model=config.model or "claude-3-5-sonnet-20241022",
+                api_key=self.api_key,
                 workspace=config.workspace
             )
             
+            # Use native async interface
+            async with ClaudeSDKClient(options=options) as client:
+                response = await client.query(task)
+                
             result.status = TaskStatus.COMPLETED
-            result.output = response.output
+            result.output = response if isinstance(response, str) else str(response)
             result.completed_at = datetime.now()
-            
-            # Add Claude Code specific metadata
-            if hasattr(response, 'model'):
-                result.logs.append(f"Model: {response.model}")
-            if hasattr(response, 'usage'):
-                result.logs.append(f"Usage: {response.usage}")
-            if hasattr(response, 'session_id'):
-                result.logs.append(f"Session: {response.session_id}")
             
         except Exception as e:
             result.status = TaskStatus.FAILED
@@ -102,27 +94,24 @@ class ClaudeExecutor(BaseExecutor):
         yield TaskUpdate(task_id, UpdateType.STATUS, {"status": TaskStatus.RUNNING.value})
         
         try:
-            client = self._get_client()
+            ClaudeSDKClient, ClaudeCodeOptions = self._get_client_class()
             
-            # Create streaming execution
-            stream = await asyncio.to_thread(
-                client.execute_stream,
-                task=task,
+            options = ClaudeCodeOptions(
                 model=config.model or "claude-3-5-sonnet-20241022",
+                api_key=self.api_key,
                 workspace=config.workspace
             )
             
-            async for chunk in stream:
-                if hasattr(chunk, 'content') and chunk.content:
-                    yield TaskUpdate(task_id, UpdateType.OUTPUT, {
-                        "content": chunk.content,
-                        "partial": True
-                    })
-                elif hasattr(chunk, 'status'):
-                    if chunk.status == 'completed':
-                        yield TaskUpdate(task_id, UpdateType.STATUS, {"status": TaskStatus.COMPLETED.value})
-                    elif chunk.status == 'error':
-                        yield TaskUpdate(task_id, UpdateType.ERROR, {"error": chunk.error})
+            # Use native async streaming interface
+            async with ClaudeSDKClient(options=options) as client:
+                async for chunk in client.query_stream(task):
+                    if chunk:
+                        yield TaskUpdate(task_id, UpdateType.OUTPUT, {
+                            "content": chunk,
+                            "partial": True
+                        })
+            
+            yield TaskUpdate(task_id, UpdateType.STATUS, {"status": TaskStatus.COMPLETED.value})
             
         except Exception as e:
             yield TaskUpdate(task_id, UpdateType.ERROR, {"error": str(e)})
@@ -169,8 +158,8 @@ class GeminiExecutor(BaseExecutor):
         try:
             client = self._get_client()
             
-            response = await asyncio.to_thread(
-                client.models.generate_content,
+            # Use native async interface
+            response = await client.aio.models.generate_content(
                 model=config.model or 'gemini-2.0-flash-001',
                 contents=task
             )
@@ -195,15 +184,11 @@ class GeminiExecutor(BaseExecutor):
         try:
             client = self._get_client()
             
-            def stream_content():
-                return client.models.generate_content_stream(
-                    model=config.model or 'gemini-2.0-flash-001',
-                    contents=task
-                )
-            
-            response = await asyncio.to_thread(stream_content)
-            
-            for chunk in response:
+            # Use native async streaming interface
+            async for chunk in client.aio.models.generate_content_stream(
+                model=config.model or 'gemini-2.0-flash-001',
+                contents=task
+            ):
                 if chunk.text:
                     yield TaskUpdate(task_id, UpdateType.OUTPUT, {
                         "content": chunk.text,
@@ -255,12 +240,30 @@ class QwenExecutor(BaseExecutor):
             dashscope = self._get_client()
             from dashscope import Generation
             
-            response = await asyncio.to_thread(
-                Generation.call,
-                model=config.model or 'qwen-turbo',
-                prompt=task,
-                max_tokens=config.max_tokens or 4000
-            )
+            # Try async call if available, fallback to sync
+            try:
+                if hasattr(Generation, 'acall'):
+                    response = await Generation.acall(
+                        model=config.model or 'qwen-turbo',
+                        prompt=task,
+                        max_tokens=config.max_tokens or 4000
+                    )
+                else:
+                    # Fallback to sync wrapped in thread
+                    response = await asyncio.to_thread(
+                        Generation.call,
+                        model=config.model or 'qwen-turbo',
+                        prompt=task,
+                        max_tokens=config.max_tokens or 4000
+                    )
+            except AttributeError:
+                # Fallback to sync method
+                response = await asyncio.to_thread(
+                    Generation.call,
+                    model=config.model or 'qwen-turbo',
+                    prompt=task,
+                    max_tokens=config.max_tokens or 4000
+                )
             
             if response.status_code == 200:
                 result.status = TaskStatus.COMPLETED
@@ -288,26 +291,73 @@ class QwenExecutor(BaseExecutor):
             dashscope = self._get_client()
             from dashscope import Generation
             
-            responses = await asyncio.to_thread(
-                Generation.call,
-                model=config.model or 'qwen-turbo',
-                prompt=task,
-                max_tokens=config.max_tokens or 4000,
-                stream=True
-            )
-            
-            for response in responses:
-                if response.status_code == 200:
-                    if hasattr(response.output, 'text'):
-                        yield TaskUpdate(task_id, UpdateType.OUTPUT, {
-                            "content": response.output.text,
-                            "partial": True
-                        })
+            # Try async streaming if available, fallback to sync
+            try:
+                if hasattr(Generation, 'acall'):
+                    responses = await Generation.acall(
+                        model=config.model or 'qwen-turbo',
+                        prompt=task,
+                        max_tokens=config.max_tokens or 4000,
+                        stream=True
+                    )
+                    async for response in responses:
+                        if response.status_code == 200:
+                            if hasattr(response.output, 'text'):
+                                yield TaskUpdate(task_id, UpdateType.OUTPUT, {
+                                    "content": response.output.text,
+                                    "partial": True
+                                })
+                        else:
+                            yield TaskUpdate(task_id, UpdateType.ERROR, {
+                                "error": f"Qwen API error: {response.message}"
+                            })
+                            return
                 else:
-                    yield TaskUpdate(task_id, UpdateType.ERROR, {
-                        "error": f"Qwen API error: {response.message}"
-                    })
-                    return
+                    # Fallback to sync wrapped in thread
+                    def stream_sync():
+                        return Generation.call(
+                            model=config.model or 'qwen-turbo',
+                            prompt=task,
+                            max_tokens=config.max_tokens or 4000,
+                            stream=True
+                        )
+                    
+                    responses = await asyncio.to_thread(stream_sync)
+                    for response in responses:
+                        if response.status_code == 200:
+                            if hasattr(response.output, 'text'):
+                                yield TaskUpdate(task_id, UpdateType.OUTPUT, {
+                                    "content": response.output.text,
+                                    "partial": True
+                                })
+                        else:
+                            yield TaskUpdate(task_id, UpdateType.ERROR, {
+                                "error": f"Qwen API error: {response.message}"
+                            })
+                            return
+            except AttributeError:
+                # Fallback to sync method
+                def stream_sync():
+                    return Generation.call(
+                        model=config.model or 'qwen-turbo',
+                        prompt=task,
+                        max_tokens=config.max_tokens or 4000,
+                        stream=True
+                    )
+                
+                responses = await asyncio.to_thread(stream_sync)
+                for response in responses:
+                    if response.status_code == 200:
+                        if hasattr(response.output, 'text'):
+                            yield TaskUpdate(task_id, UpdateType.OUTPUT, {
+                                "content": response.output.text,
+                                "partial": True
+                            })
+                    else:
+                        yield TaskUpdate(task_id, UpdateType.ERROR, {
+                            "error": f"Qwen API error: {response.message}"
+                        })
+                        return
             
             yield TaskUpdate(task_id, UpdateType.STATUS, {"status": TaskStatus.COMPLETED.value})
             
