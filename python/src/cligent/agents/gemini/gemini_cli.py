@@ -282,7 +282,6 @@ class GeminiCliAgent(AgentBackend):
             display_name="Gemini CLI",
             log_extensions=[".jsonl", ".json"],
             requires_session_id=True,
-            supports_execution=True,
             metadata={
                 "log_format": "jsonl",
                 "base_dir": "~/.gemini/",

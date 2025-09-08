@@ -18,7 +18,6 @@ class AgentConfig:
     log_extensions: List[str]  # [".jsonl", ".log"]
     default_log_dir: Optional[Path] = None
     requires_session_id: bool = True
-    supports_execution: bool = True  # Whether agent supports task execution
     metadata: Dict[str, Any] = None
 
 class AgentBackend(ABC):
@@ -85,9 +84,6 @@ class AgentBackend(ABC):
         """
         pass
 
-    def supports_task_execution(self) -> bool:
-        """Check if this agent supports task execution."""
-        return self.config.supports_execution
 
     # Log Store Management
     @property
@@ -242,7 +238,6 @@ class AgentBackend(ABC):
         return {
             "name": config.name,
             "display_name": config.display_name,
-            "supports_execution": config.supports_execution,
             "log_extensions": config.log_extensions,
             "requires_session_id": config.requires_session_id,
             "metadata": config.metadata or {}
@@ -260,12 +255,8 @@ class AgentBackend(ABC):
             TaskResult with execution outcome
             
         Raises:
-            ValueError: If agent doesn't support task execution
             ChatParserError: If execution fails
         """
-        if not self.supports_task_execution():
-            raise ValueError(f"Agent {self.config.name} does not support task execution")
-
         # Build task configuration
         config = TaskConfig(**kwargs)
         
@@ -285,12 +276,8 @@ class AgentBackend(ABC):
             TaskUpdate objects with execution progress
             
         Raises:
-            ValueError: If agent doesn't support task execution
             ChatParserError: If execution fails
         """
-        if not self.supports_task_execution():
-            raise ValueError(f"Agent {self.config.name} does not support task execution")
-
         # Build task configuration
         config = TaskConfig(stream=True, **kwargs)
         

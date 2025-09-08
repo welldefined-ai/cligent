@@ -271,7 +271,6 @@ class ClaudeCodeAgent(AgentBackend):
             display_name="Claude Code",
             log_extensions=[".jsonl"],
             requires_session_id=True,
-            supports_execution=True,  # Enable task execution
             metadata={
                 "log_format": "jsonl",
                 "project_based": True,

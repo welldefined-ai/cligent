@@ -317,7 +317,6 @@ class QwenCodeAgent(AgentBackend):
             display_name="Qwen Code",
             log_extensions=[".jsonl", ".json"],
             requires_session_id=True,
-            supports_execution=True,
             metadata={
                 "log_format": "jsonl",
                 "base_dir": "~/.qwen/",
