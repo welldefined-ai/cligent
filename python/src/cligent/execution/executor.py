@@ -152,6 +152,98 @@ class GeminiExecutor(BaseExecutor):
                 raise ImportError("google-genai package not installed. Run: pip install google-genai")
         return self._client
 
+    def map_options_to_config(self, options: Dict[str, Any]) -> Dict[str, Any]:
+        """Map generic options to Gemini GenerateContentConfig parameters.
+        
+        Args:
+            options: Generic options dictionary
+            
+        Returns:
+            Dictionary of GenerateContentConfig compatible options
+        """
+        # Define GenerateContentConfig supported parameters from official schema
+        supported_options = {
+            # HTTP and response options
+            'httpOptions',
+            'shouldReturnHttpResponse',
+            
+            # Core generation parameters
+            'systemInstruction',
+            'temperature',
+            'topP',
+            'topK', 
+            'candidateCount',
+            'maxOutputTokens',
+            'stopSequences',
+            
+            # Probability and penalty settings
+            'responseLogprobs',
+            'logprobs',
+            'presencePenalty',
+            'frequencyPenalty',
+            'seed',
+            
+            # Response format
+            'responseMimeType',
+            'responseSchema',
+            'responseJsonSchema',
+            
+            # Advanced configurations
+            'routingConfig',
+            'modelSelectionConfig',
+            'safetySettings',
+            'tools',
+            'toolConfig',
+            'labels',
+            'cachedContent',
+            
+            # Multimodal features
+            'responseModalities',
+            'mediaResolution',
+            'speechConfig',
+            'audioTimestamp',
+            
+            # Function calling and thinking
+            'automaticFunctionCalling',
+            'thinkingConfig'
+        }
+        
+        # Map common parameter names to official names
+        name_mapping = {
+            'top_p': 'topP',
+            'top_k': 'topK',
+            'candidate_count': 'candidateCount',
+            'max_output_tokens': 'maxOutputTokens',
+            'stop_sequences': 'stopSequences',
+            'response_logprobs': 'responseLogprobs',
+            'presence_penalty': 'presencePenalty',
+            'frequency_penalty': 'frequencyPenalty',
+            'response_mime_type': 'responseMimeType',
+            'response_schema': 'responseSchema',
+            'response_json_schema': 'responseJsonSchema',
+            'system_instruction': 'systemInstruction',
+            'safety_settings': 'safetySettings',
+            'tool_config': 'toolConfig',
+            'cached_content': 'cachedContent',
+            'response_modalities': 'responseModalities',
+            'media_resolution': 'mediaResolution',
+            'speech_config': 'speechConfig',
+            'audio_timestamp': 'audioTimestamp',
+            'automatic_function_calling': 'automaticFunctionCalling',
+            'thinking_config': 'thinkingConfig'
+        }
+        
+        # Filter and map options to only include supported parameters
+        config = {}
+        for key, value in options.items():
+            # Map common names to official names
+            official_key = name_mapping.get(key, key)
+            
+            if official_key in supported_options:
+                config[official_key] = value
+                
+        return config
+
     async def execute_task(self, task: str, config: TaskConfig) -> AsyncIterator[TaskUpdate]:
         """Execute task with streaming Gemini API."""
         task_id = self._generate_task_id()
@@ -164,11 +256,8 @@ class GeminiExecutor(BaseExecutor):
             # Import types for GenerateContentConfig
             from google.genai import types
             
-            # Build GenerateContentConfig from options
-            config_options = {}
-            for key, value in config.options.items():
-                if key not in {'model', 'contents', 'timeout', 'stream', 'save_logs', 'workspace'}:
-                    config_options[key] = value
+            # Get Gemini-specific options from task config
+            config_options = self.map_options_to_config(config.options)
             
             # Create GenerateContentConfig if we have options
             generate_config = types.GenerateContentConfig(**config_options) if config_options else None
@@ -217,15 +306,75 @@ class QwenExecutor(BaseExecutor):
         if self._client is None:
             try:
                 import dashscope
-                if self.api_key:
-                    dashscope.api_key = self.api_key
+                import os
+                # Set API key from parameter or environment
+                api_key = self.api_key or os.getenv('DASHSCOPE_API_KEY')
+                if api_key:
+                    dashscope.api_key = api_key
+                # Set base URL (can be configured via options)
+                dashscope.base_http_api_url = 'https://dashscope-intl.aliyuncs.com/api/v1'
                 self._client = dashscope
             except ImportError:
                 raise ImportError("dashscope package not installed. Run: pip install dashscope")
         return self._client
 
+    def map_options_to_config(self, options: Dict[str, Any]) -> Dict[str, Any]:
+        """Map generic options to Qwen DashScope Generation.call parameters.
+        
+        Args:
+            options: Generic options dictionary
+            
+        Returns:
+            Dictionary of Generation.call compatible options
+        """
+        # Define Generation.call supported parameters from official docs
+        supported_options = {
+            # Core parameters
+            'model',
+            'messages', 
+            'api_key',
+            'system',
+
+            # Format and generation controls
+            'result_format',
+            'incremental_output',
+            
+            # Generation parameters
+            'max_tokens',
+            'max_input_tokens',
+            'temperature',
+            'top_p',
+            'top_k',
+            'repetition_penalty',
+            'presence_penalty',
+            'seed',
+            
+            # Advanced features
+            'tools',
+            'tool_choice',
+
+            # Response options
+            'response_format',
+        }
+        
+        # Map common parameter names
+        name_mapping = {
+            'max_output_tokens': 'max_tokens',
+        }
+        
+        # Filter and map options to only include supported parameters
+        config = {}
+        for key, value in options.items():
+            # Map common names to official names
+            official_key = name_mapping.get(key, key)
+            
+            if official_key in supported_options:
+                config[official_key] = value
+                
+        return config
+
     async def execute_task(self, task: str, config: TaskConfig) -> AsyncIterator[TaskUpdate]:
-        """Execute task with streaming Qwen API."""
+        """Execute task with streaming Qwen API using official DashScope pattern."""
         task_id = self._generate_task_id()
         
         yield TaskUpdate(task_id, UpdateType.STATUS, {"status": TaskStatus.RUNNING.value})
@@ -233,72 +382,121 @@ class QwenExecutor(BaseExecutor):
         try:
             dashscope = self._get_client()
             from dashscope import Generation
+            import os
             
-            # Build Generation.call arguments from config for streaming
+            # Get Qwen-specific options from task config
+            qwen_options = self.map_options_to_config(config.options)
+            
+            # Build messages in official format
+            messages = []
+            
+            # Add system message if provided
+            system_prompt = qwen_options.get('system')
+            if system_prompt:
+                messages.append({'role': 'system', 'content': system_prompt})
+                
+            # Add user message
+            messages.append({'role': 'user', 'content': task})
+            
+            # Build Generation.call arguments using official pattern
             generation_args = {
-                'model': config.get('model', 'qwen-turbo'),
-                'prompt': task,
-                'max_tokens': config.get('max_tokens', 4000),
-                'stream': True
+                'api_key': self.api_key or os.getenv('DASHSCOPE_API_KEY'),
+                'model': qwen_options.get('model', 'qwen-plus'),
+                'messages': messages,
+                'result_format': qwen_options.get('result_format', 'text'),
+                'stream': True  # Enable streaming
             }
             
-            # Add all other options from config.options
-            for key, value in config.options.items():
-                if key not in generation_args and key not in {'timeout', 'save_logs', 'workspace'}:
+            # Add other supported options
+            for key, value in qwen_options.items():
+                if key not in {'system', 'model', 'result_format'} and key in generation_args:
+                    generation_args[key] = value
+                elif key not in generation_args:  # Add any additional valid parameters
                     generation_args[key] = value
             
-            # Try async streaming if available, fallback to sync
-            try:
-                if hasattr(Generation, 'acall'):
-                    responses = await Generation.acall(**generation_args)
-                    async for response in responses:
-                        if response.status_code == 200:
-                            if hasattr(response.output, 'text'):
-                                yield TaskUpdate(task_id, UpdateType.OUTPUT, {
-                                    "content": response.output.text,
-                                    "partial": True
-                                })
-                        else:
-                            yield TaskUpdate(task_id, UpdateType.ERROR, {
-                                "error": f"Qwen API error: {response.message}"
-                            })
-                            return
-                else:
-                    # Fallback to sync wrapped in thread
-                    def stream_sync():
-                        return Generation.call(**generation_args)
+            # Use streaming Generation.call
+            responses = Generation.call(**generation_args)
+            
+            # Handle streaming response based on official API structure
+            for response in responses:
+                # Check status_code (200 = success)
+                if hasattr(response, 'status_code') and response.status_code == 200:
+                    # Extract content from response.output according to official structure
+                    content = ""
                     
-                    responses = await asyncio.to_thread(stream_sync)
-                    for response in responses:
-                        if response.status_code == 200:
-                            if hasattr(response.output, 'text'):
-                                yield TaskUpdate(task_id, UpdateType.OUTPUT, {
-                                    "content": response.output.text,
-                                    "partial": True
-                                })
-                        else:
-                            yield TaskUpdate(task_id, UpdateType.ERROR, {
-                                "error": f"Qwen API error: {response.message}"
-                            })
-                            return
-            except AttributeError:
-                # Fallback to sync method
-                def stream_sync():
-                    return Generation.call(**generation_args)
-                
-                responses = await asyncio.to_thread(stream_sync)
-                for response in responses:
-                    if response.status_code == 200:
-                        if hasattr(response.output, 'text'):
-                            yield TaskUpdate(task_id, UpdateType.OUTPUT, {
-                                "content": response.output.text,
-                                "partial": True
-                            })
-                    else:
-                        yield TaskUpdate(task_id, UpdateType.ERROR, {
-                            "error": f"Qwen API error: {response.message}"
+                    if hasattr(response, 'output') and response.output:
+                        output = response.output
+                        
+                        # Handle result_format="text" mode
+                        if hasattr(output, 'text') and output.text is not None:
+                            content = output.text
+                        
+                        # Handle result_format="message" mode
+                        elif hasattr(output, 'choices') and output.choices:
+                            choice = output.choices[0]  # Get first choice
+                            if hasattr(choice, 'message') and choice.message:
+                                message = choice.message
+                                if hasattr(message, 'content') and message.content:
+                                    content = message.content
+                            
+                            # For streaming, also check for delta content
+                            elif hasattr(choice, 'delta') and choice.delta:
+                                delta = choice.delta
+                                if hasattr(delta, 'content') and delta.content:
+                                    content = delta.content
+                    
+                    # Yield content if available
+                    if content:
+                        yield TaskUpdate(task_id, UpdateType.OUTPUT, {
+                            "content": content,
+                            "partial": True
                         })
-                        return
+                        
+                    # Check if generation is finished
+                    if hasattr(response, 'output') and response.output:
+                        output = response.output
+                        finish_reason = None
+                        
+                        # Get finish_reason from output level or choice level
+                        if hasattr(output, 'finish_reason'):
+                            finish_reason = output.finish_reason
+                        elif hasattr(output, 'choices') and output.choices:
+                            choice = output.choices[0]
+                            if hasattr(choice, 'finish_reason'):
+                                finish_reason = choice.finish_reason
+                        
+                        # If finished, we can optionally yield usage info
+                        if finish_reason in ['stop', 'length', 'tool_calls']:
+                            if hasattr(response, 'usage') and response.usage:
+                                usage = response.usage
+                                yield TaskUpdate(task_id, UpdateType.STATUS, {
+                                    "usage": {
+                                        "input_tokens": getattr(usage, 'input_tokens', 0),
+                                        "output_tokens": getattr(usage, 'output_tokens', 0),
+                                        "total_tokens": getattr(usage, 'total_tokens', 0)
+                                    }
+                                })
+                
+                else:
+                    # Handle error cases based on official structure
+                    error_msg = "Unknown error"
+                    error_code = ""
+                    
+                    if hasattr(response, 'code') and response.code:
+                        error_code = response.code
+                    if hasattr(response, 'message') and response.message:
+                        error_msg = response.message
+                    
+                    # Format error message
+                    if error_code:
+                        error_msg = f"[{error_code}] {error_msg}"
+                    
+                    yield TaskUpdate(task_id, UpdateType.ERROR, {
+                        "error": f"Qwen API error: {error_msg}",
+                        "status_code": getattr(response, 'status_code', None),
+                        "request_id": getattr(response, 'request_id', None)
+                    })
+                    return
             
             yield TaskUpdate(task_id, UpdateType.STATUS, {"status": TaskStatus.COMPLETED.value})
             

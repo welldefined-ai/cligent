@@ -293,29 +293,6 @@ class AgentBackend(ABC):
         except Exception as e:
             raise ChatParserError(f"Query failed: {e}") from e
 
-    async def query_stream(self, task: str, **kwargs) -> AsyncIterator[TaskUpdate]:
-        """Query the agent with streaming updates.
-        
-        Args:
-            task: Task description or instruction
-            **kwargs: Additional configuration options
-            
-        Yields:
-            TaskUpdate objects with execution progress
-            
-        Raises:
-            ChatParserError: If streaming query fails
-        """
-        # Build task configuration with all options
-        config = TaskConfig()
-        config.options.update(kwargs)
-        
-        try:
-            async for update in self.execute_task(task, config):
-                yield update
-        except Exception as e:
-            raise ChatParserError(f"Streaming query failed: {e}") from e
-
 
     def __repr__(self) -> str:
         """String representation of agent."""
