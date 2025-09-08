@@ -300,27 +300,6 @@ class AgentBackend(ABC):
         except Exception as e:
             raise ChatParserError(f"Streaming execution failed: {e}") from e
 
-    # Convenience methods
-    async def task_and_parse(self, task: str, **kwargs) -> tuple[TaskResult, Chat]:
-        """Execute task and immediately parse the logs.
-        
-        Args:
-            task: Task to execute
-            **kwargs: Task configuration
-            
-        Returns:
-            Tuple of (TaskResult, Chat with parsed logs)
-        """
-        # Execute task
-        result = await self.execute(task, **kwargs)
-        
-        # Small delay to ensure logs are written
-        await asyncio.sleep(0.5)
-        
-        # Parse the latest logs
-        chat = self.parse()
-        
-        return result, chat
 
     def __repr__(self) -> str:
         """String representation of agent."""
