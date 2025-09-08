@@ -301,22 +301,36 @@ class QwenExecutor(BaseExecutor):
         self.api_key = api_key
         self._client = None
     
-    def _get_client(self):
-        """Get or create Qwen client."""
-        if self._client is None:
-            try:
-                import dashscope
-                import os
-                # Set API key from parameter or environment
-                api_key = self.api_key or os.getenv('DASHSCOPE_API_KEY')
-                if api_key:
-                    dashscope.api_key = api_key
-                # Set base URL (can be configured via options)
-                dashscope.base_http_api_url = 'https://dashscope-intl.aliyuncs.com/api/v1'
-                self._client = dashscope
-            except ImportError:
-                raise ImportError("dashscope package not installed. Run: pip install dashscope")
-        return self._client
+    def _get_client(self, region: str = "beijing"):
+        """Get or create Qwen client with region-specific base URL.
+        
+        Args:
+            region: Region for API endpoint, 'beijing' or 'singapore' (default: 'beijing')
+        """
+        try:
+            import dashscope
+            import os
+            
+            # Set API key from parameter or environment
+            api_key = self.api_key or os.getenv('DASHSCOPE_API_KEY')
+            if api_key:
+                dashscope.api_key = api_key
+            
+            # Validate and set base URL based on region
+            region = region.lower()
+            if region == 'singapore':
+                base_url = 'https://dashscope-intl.aliyuncs.com/api/v1'
+            elif region == 'beijing':
+                base_url = 'https://dashscope.aliyuncs.com/api/v1'
+            else:
+                # Default to beijing for invalid regions
+                base_url = 'https://dashscope.aliyuncs.com/api/v1'
+            
+            dashscope.base_http_api_url = base_url
+            return dashscope
+            
+        except ImportError:
+            raise ImportError("dashscope package not installed. Run: pip install dashscope")
 
     def map_options_to_config(self, options: Dict[str, Any]) -> Dict[str, Any]:
         """Map generic options to Qwen DashScope Generation.call parameters.
@@ -334,6 +348,7 @@ class QwenExecutor(BaseExecutor):
             'messages', 
             'api_key',
             'system',
+            'region',  # Add region support
 
             # Format and generation controls
             'result_format',
@@ -380,12 +395,16 @@ class QwenExecutor(BaseExecutor):
         yield TaskUpdate(task_id, UpdateType.STATUS, {"status": TaskStatus.RUNNING.value})
         
         try:
-            dashscope = self._get_client()
+            # Get Qwen-specific options from task config first
+            qwen_options = self.map_options_to_config(config.options)
+            
+            # Get region from options (default: beijing)
+            region = qwen_options.get('region', 'beijing')
+            
+            # Initialize client with region-specific settings
+            dashscope = self._get_client(region)
             from dashscope import Generation
             import os
-            
-            # Get Qwen-specific options from task config
-            qwen_options = self.map_options_to_config(config.options)
             
             # Build messages in official format
             messages = []
