@@ -9,6 +9,7 @@ from .errors import ErrorCollector, ChatParserError
 
 if TYPE_CHECKING:
     from .models import LogStore
+    from ..execution.executor import MockExecutor
 
 @dataclass
 class AgentConfig:
@@ -35,6 +36,8 @@ class AgentBackend(ABC):
         self._chat_cache: Dict[str, Chat] = {}
         # Automatically create store during initialization
         self._store: 'LogStore' = self._create_store(location)
+        # Executor will be initialized by subclasses
+        self._executor: Optional['MockExecutor'] = None
 
     @property
     @abstractmethod
@@ -57,8 +60,7 @@ class AgentBackend(ABC):
         """Validate log file format (optional override)."""
         return log_path.exists() and log_path.suffix in self.config.log_extensions
 
-    # New task execution methods
-    @abstractmethod
+    # Task execution methods with default implementation
     async def execute_task(self, task: str, config: TaskConfig = None) -> TaskResult:
         """Execute a task and return the result.
         
@@ -69,9 +71,10 @@ class AgentBackend(ABC):
         Returns:
             TaskResult with execution outcome
         """
-        pass
+        if config is None:
+            config = TaskConfig()
+        return await self._executor.execute_task(task, config)
 
-    @abstractmethod
     async def execute_task_stream(self, task: str, config: TaskConfig = None) -> AsyncIterator[TaskUpdate]:
         """Execute a task with streaming updates.
         
@@ -82,7 +85,10 @@ class AgentBackend(ABC):
         Yields:
             TaskUpdate objects with execution progress
         """
-        pass
+        if config is None:
+            config = TaskConfig(stream=True)
+        async for update in self._executor.execute_task_stream(task, config):
+            yield update
 
 
     # Log Store Management

@@ -304,16 +304,3 @@ class GeminiCliAgent(AgentBackend):
         return session.to_chat()
 
 
-    # Task execution methods
-    async def execute_task(self, task: str, config: TaskConfig = None) -> TaskResult:
-        """Execute a task using Gemini CLI."""
-        if config is None:
-            config = TaskConfig()
-        return await self._executor.execute_task(task, config)
-
-    async def execute_task_stream(self, task: str, config: TaskConfig = None) -> AsyncIterator[TaskUpdate]:
-        """Execute task with streaming updates."""
-        if config is None:
-            config = TaskConfig(stream=True)
-        async for update in self._executor.execute_task_stream(task, config):
-            yield update
