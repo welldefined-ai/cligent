@@ -12,7 +12,7 @@ from .core import (
     InvalidFormatError,
 )
 from .agents import ClaudeCodeAgent, GeminiCliAgent, QwenCodeAgent
-from .core import AgentBackend, AgentConfig, claude, gemini, qwen, cligent
+from .core import AgentBackend, claude, gemini, qwen, cligent
 
 # Backwards compatibility alias
 ChatParser = cligent
@@ -42,7 +42,6 @@ __all__ = [
     
     # Agent framework
     "AgentBackend",
-    "AgentConfig",
     
     # Errors
     "ChatParserError",

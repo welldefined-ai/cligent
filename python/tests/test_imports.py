@@ -42,9 +42,9 @@ def test_convenience_imports():
     agent2 = gemini()
     agent3 = qwen()
     
-    assert agent1.config.name == "claude-code"
-    assert agent2.config.name == "gemini-cli"
-    assert agent3.config.name == "qwen-code"
+    assert agent1.name == "claude-code"
+    assert agent2.name == "gemini-cli"
+    assert agent3.name == "qwen-code"
 
 
 def test_backwards_compatibility():
@@ -53,10 +53,10 @@ def test_backwards_compatibility():
     
     # Should be able to use old ChatParser function
     agent = ChatParser("claude")
-    assert agent.config.name == "claude-code"
+    assert agent.name == "claude-code"
     
     agent2 = ChatParser("gemini")
-    assert agent2.config.name == "gemini-cli"
+    assert agent2.name == "gemini-cli"
 
 
 def test_error_imports():

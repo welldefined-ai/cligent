@@ -9,7 +9,7 @@ from datetime import datetime
 
 from ...core.models import Message, Chat, ErrorReport, Role
 from ...core.models import LogStore
-from ...core.agent import AgentBackend, AgentConfig
+from ...core.agent import AgentBackend
 
 
 @dataclass
@@ -276,18 +276,12 @@ class GeminiCliAgent(AgentBackend):
         super().__init__(location)
 
     @property
-    def config(self) -> AgentConfig:
-        return AgentConfig(
-            name="gemini-cli",
-            display_name="Gemini CLI",
-            log_extensions=[".jsonl", ".json"],
-            requires_session_id=True,
-            metadata={
-                "log_format": "jsonl",
-                "base_dir": "~/.gemini/",
-                "supports_tools": True
-            }
-        )
+    def name(self) -> str:
+        return "gemini-cli"
+        
+    @property
+    def display_name(self) -> str:
+        return "Gemini CLI"
 
     def _create_store(self, location: Optional[str] = None) -> LogStore:
         return GeminiStore()

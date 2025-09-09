@@ -10,7 +10,7 @@ from datetime import datetime
 from ...core.models import Message, Chat, ErrorReport, Role
 from ...core.models import LogStore
 
-from ...core.agent import AgentBackend, AgentConfig
+from ...core.agent import AgentBackend
 
 
 @dataclass
@@ -265,18 +265,12 @@ class ClaudeCodeAgent(AgentBackend):
         super().__init__(location)
 
     @property
-    def config(self) -> AgentConfig:
-        return AgentConfig(
-            name="claude-code",
-            display_name="Claude Code",
-            log_extensions=[".jsonl"],
-            requires_session_id=True,
-            metadata={
-                "log_format": "jsonl",
-                "project_based": True,
-                "base_dir": "~/.claude/projects/"
-            }
-        )
+    def name(self) -> str:
+        return "claude-code"
+        
+    @property
+    def display_name(self) -> str:
+        return "Claude Code"
 
     def _create_store(self, location: Optional[str] = None) -> LogStore:
         return ClaudeStore(location=location)

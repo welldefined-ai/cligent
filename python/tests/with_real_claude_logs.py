@@ -25,6 +25,7 @@ def main():
     
     for uri, metadata in logs:
         try:
+            print(f"Parsing {uri}")
             chat = parser.parse(uri)
             if chat and chat.messages:
                 all_messages.extend(chat.messages)

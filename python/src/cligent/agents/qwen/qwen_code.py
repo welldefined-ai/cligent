@@ -9,7 +9,7 @@ from datetime import datetime
 
 from ...core.models import Message, Chat, ErrorReport, Role
 from ...core.models import LogStore
-from ...core.agent import AgentBackend, AgentConfig
+from ...core.agent import AgentBackend
 
 
 @dataclass
@@ -311,20 +311,12 @@ class QwenCodeAgent(AgentBackend):
         super().__init__(location)
 
     @property
-    def config(self) -> AgentConfig:
-        return AgentConfig(
-            name="qwen-code",
-            display_name="Qwen Code",
-            log_extensions=[".jsonl", ".json"],
-            requires_session_id=True,
-            metadata={
-                "log_format": "jsonl",
-                "base_dir": "~/.qwen/",
-                "supports_checkpoints": True,
-                "supports_tools": True,
-                "based_on": "gemini-cli"
-            }
-        )
+    def name(self) -> str:
+        return "qwen-code"
+        
+    @property
+    def display_name(self) -> str:
+        return "Qwen Code"
 
     def _create_store(self, location: Optional[str] = None) -> LogStore:
         return QwenStore()

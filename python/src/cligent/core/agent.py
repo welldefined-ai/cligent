@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 from typing import Dict, Any, Optional, List, Tuple, TYPE_CHECKING
 from pathlib import Path
 from .models import Chat, Message
@@ -7,16 +6,6 @@ from .errors import ErrorCollector
 
 if TYPE_CHECKING:
     from .models import LogStore
-
-@dataclass
-class AgentConfig:
-    """Agent configuration and metadata."""
-    name: str
-    display_name: str
-    log_extensions: List[str]  # [".jsonl", ".log"]
-    default_log_dir: Optional[Path] = None
-    requires_session_id: bool = True
-    metadata: Dict[str, Any] = None
 
 class AgentBackend(ABC):
     """Abstract base class for all agent implementations."""
@@ -35,9 +24,15 @@ class AgentBackend(ABC):
         self._store: 'LogStore' = self._create_store(location)
 
     @property
+    @abstractmethod 
+    def name(self) -> str:
+        """Agent name identifier."""
+        pass
+        
+    @property
     @abstractmethod
-    def config(self) -> AgentConfig:
-        """Agent configuration and metadata."""
+    def display_name(self) -> str:
+        """Agent display name."""
         pass
 
     @abstractmethod
@@ -52,9 +47,6 @@ class AgentBackend(ABC):
 
 
 
-    def validate_log(self, log_path: Path) -> bool:
-        """Validate log file format (optional override)."""
-        return log_path.exists() and log_path.suffix in self.config.log_extensions
 
 
     # Log Store Management
@@ -206,19 +198,15 @@ class AgentBackend(ABC):
     # Agent Information
     def get_agent_info(self) -> Dict[str, Any]:
         """Get information about current agent."""
-        config = self.config
         return {
-            "name": config.name,
-            "display_name": config.display_name,
-            "log_extensions": config.log_extensions,
-            "requires_session_id": config.requires_session_id,
-            "metadata": config.metadata or {}
+            "name": self.name,
+            "display_name": self.display_name,
         }
 
 
     def __repr__(self) -> str:
         """String representation of agent."""
-        return f"{self.__class__.__name__}(name='{self.config.name}', location='{self.location}')"
+        return f"{self.__class__.__name__}(name='{self.name}', location='{self.location}')"
 
 
 # Factory functions for creating agent instances
