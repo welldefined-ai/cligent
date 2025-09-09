@@ -64,15 +64,17 @@ def handle_list(agent: AgentBackend):
     try:
         logs = agent.list_logs()
         if logs:
-            print(f"Found {len(logs)} logs:")
-            for i, (uri, metadata) in enumerate(logs[:50], 1):  # Show first 50
+            # Sort logs by modified time (newest first)
+            sorted_logs = sorted(logs, key=lambda x: x[1].get('modified', ''), reverse=True)
+            print(f"Found {len(sorted_logs)} logs (sorted by modified time):")
+            for i, (uri, metadata) in enumerate(sorted_logs[:50], 1):  # Show first 50
                 size = metadata.get('size', 0)
                 modified = metadata.get('modified', 'unknown')
                 print(f"  {i:2d}. {uri[:50]}{'...' if len(uri) > 50 else ''}")
                 print(f"      Size: {size} bytes, Modified: {modified[:19]}")
             
-            if len(logs) > 50:
-                print(f"  ... and {len(logs) - 50} more")
+            if len(sorted_logs) > 50:
+                print(f"  ... and {len(sorted_logs) - 50} more")
         else:
             print("No logs found")
     except Exception as e:
@@ -91,14 +93,16 @@ def handle_parse(agent: AgentBackend):
         chat = agent.parse(log_uri)
         if chat:
             print(f"✓ Parsed {len(chat.messages)} messages")
+            print("\nMessages:")
+            print("=" * 60)
             
-            # Show first few messages
-            for i, msg in enumerate(chat.messages[:3]):
-                content_preview = msg.content[:100] + "..." if len(msg.content) > 100 else msg.content
-                print(f"  {i+1}. [{msg.role.value}] {content_preview}")
-            
-            if len(chat.messages) > 3:
-                print(f"  ... and {len(chat.messages) - 3} more messages")
+            # Show all messages with full content
+            for i, msg in enumerate(chat.messages, 1):
+                timestamp_str = f" [{msg.timestamp}]" if msg.timestamp else ""
+                print(f"\n{i}. {msg.role.value.upper()}{timestamp_str}:")
+                print("-" * 40)
+                print(msg.content)
+                print("-" * 40)
         else:
             print("No chat data found")
     except Exception as e:
