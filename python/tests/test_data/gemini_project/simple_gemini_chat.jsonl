@@ -1,4 +1,0 @@
-{"type": "user", "role": "user", "content": "Hello, Gemini! Can you help me with Python?", "timestamp": "2024-01-01T10:00:00Z", "session_id": "gemini-session-001"}
-{"type": "assistant", "role": "model", "content": "Hello! I'd be happy to help you with Python. What specific topic or problem would you like assistance with?", "timestamp": "2024-01-01T10:00:05Z", "session_id": "gemini-session-001"}
-{"type": "user", "role": "user", "content": "How do I create a list comprehension?", "timestamp": "2024-01-01T10:01:00Z", "session_id": "gemini-session-001"}
-{"type": "assistant", "role": "model", "content": [{"text": "List comprehensions in Python provide a concise way to create lists. "}, {"text": "The basic syntax is: [expression for item in iterable if condition]"}], "timestamp": "2024-01-01T10:01:10Z", "session_id": "gemini-session-001"}

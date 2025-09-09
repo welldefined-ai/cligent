@@ -14,13 +14,14 @@ from ...core.agent import AgentBackend
 
 @dataclass
 class GeminiRecord:
-    """A single JSON line in a Gemini CLI JSONL log file."""
+    """A single message record in a Gemini CLI JSON log file."""
 
     type: str  # user, assistant, system, tool_use, tool_result
     timestamp: Optional[str] = None
     content: str = ""
     role: Optional[str] = None
     session_id: Optional[str] = None
+    message_id: Optional[int] = None
     raw_data: Dict[str, Any] = field(default_factory=dict)
 
     @classmethod
@@ -35,6 +36,7 @@ class GeminiRecord:
             role = data.get('role', data.get('sender', ''))
             timestamp = data.get('timestamp', data.get('time', data.get('created_at', '')))
             session_id = data.get('session_id', data.get('sessionId', data.get('conversation_id', '')))
+            message_id = data.get('message_id', data.get('messageId'))
             
             return cls(
                 type=record_type,
@@ -42,6 +44,7 @@ class GeminiRecord:
                 role=role,
                 timestamp=timestamp,
                 session_id=session_id,
+                message_id=message_id,
                 raw_data=data
             )
         except (json.JSONDecodeError, KeyError) as e:
@@ -62,7 +65,9 @@ class GeminiRecord:
             'ai': Role.ASSISTANT,  # Alternative assistant role
         }
 
-        role = role_mapping.get(self.role.lower() if self.role else '', Role.ASSISTANT)
+        # First try explicit role field, then fallback to type field
+        role_source = self.role if self.role else self.type
+        role = role_mapping.get(role_source.lower() if role_source else '', Role.ASSISTANT)
 
         # Handle different content formats
         content = self.content
@@ -146,23 +151,52 @@ class GeminiSession:
         self.records.clear()
         try:
             with open(self.file_path, 'r', encoding='utf-8') as f:
-                for line_num, line in enumerate(f, 1):
-                    line = line.strip()
-                    if not line:
-                        continue
+                content = f.read().strip()
+                if not content:
+                    return
 
-                    try:
-                        record = GeminiRecord.load(line)
+                try:
+                    # Try to parse as JSON array first
+                    data = json.loads(content)
+                    if isinstance(data, list):
+                        # Handle JSON array format
+                        for record_data in data:
+                            try:
+                                record = GeminiRecord.load(json.dumps(record_data))
+                                self.records.append(record)
+
+                                # Extract session metadata
+                                if not self.session_id and record.session_id:
+                                    self.session_id = record.session_id
+
+                            except ValueError as e:
+                                print(f"Warning: Skipped invalid record: {e}")
+                                continue
+                    else:
+                        # Handle single JSON object
+                        record = GeminiRecord.load(content)
                         self.records.append(record)
-
-                        # Extract session metadata
                         if not self.session_id and record.session_id:
                             self.session_id = record.session_id
 
-                    except ValueError as e:
-                        # Log parsing error but continue
-                        print(f"Warning: Skipped invalid record at line {line_num}: {e}")
-                        continue
+                except json.JSONDecodeError:
+                    # Fall back to JSONL format for backward compatibility
+                    for line_num, line in enumerate(content.split('\n'), 1):
+                        line = line.strip()
+                        if not line:
+                            continue
+
+                        try:
+                            record = GeminiRecord.load(line)
+                            self.records.append(record)
+
+                            # Extract session metadata
+                            if not self.session_id and record.session_id:
+                                self.session_id = record.session_id
+
+                        except ValueError as e:
+                            print(f"Warning: Skipped invalid record at line {line_num}: {e}")
+                            continue
 
         except (IOError, OSError) as e:
             raise FileNotFoundError(f"Cannot read log file: {e}")
@@ -201,7 +235,7 @@ class GeminiStore(LogStore):
 
         # Use current directory for LogStore base class compatibility
         super().__init__("gemini-cli", str(Path.cwd()))
-        self.session_pattern = "*.jsonl"  # Pattern for session file names
+        self.session_pattern = "*/logs.json"  # Pattern for session file names in folders
 
     def list(self) -> List[Tuple[str, Dict[str, Any]]]:
         """Show available logs."""
@@ -211,11 +245,11 @@ class GeminiStore(LogStore):
             if not self._logs_dir.exists():
                 return logs
 
-            # Scan for JSONL files
+            # Scan for logs.json files in session folders
             for log_file in self._logs_dir.glob(self.session_pattern):
                 if log_file.is_file():
                     stat = log_file.stat()
-                    session_id = log_file.stem
+                    session_id = log_file.parent.name  # Get session ID from folder name
                     metadata = {
                         "size": stat.st_size,
                         "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
@@ -239,7 +273,7 @@ class GeminiStore(LogStore):
         if "/" in log_uri or "\\" in log_uri:
             log_path = Path(log_uri)
         else:
-            log_path = self._logs_dir / f"{log_uri}.jsonl"
+            log_path = self._logs_dir / log_uri / "logs.json"
 
         try:
             if not log_path.exists():
@@ -291,7 +325,7 @@ class GeminiCliAgent(AgentBackend):
         if "/" in log_uri or "\\" in log_uri:
             file_path = Path(log_uri)
         else:
-            file_path = self.store._logs_dir / f"{log_uri}.jsonl"
+            file_path = self.store._logs_dir / log_uri / "logs.json"
 
         session = GeminiSession(file_path=file_path)
         session.load()

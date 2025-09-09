@@ -1,0 +1,16 @@
+[
+  {
+    "sessionId": "session-20240101-001",
+    "messageId": 0,
+    "type": "user",
+    "message": "Hello from mock session 1",
+    "timestamp": "2024-01-01T09:00:00Z"
+  },
+  {
+    "sessionId": "session-20240101-001",
+    "messageId": 1,
+    "type": "assistant",
+    "message": "Hello! This is a response from mock session 1.",
+    "timestamp": "2024-01-01T09:00:05Z"
+  }
+]

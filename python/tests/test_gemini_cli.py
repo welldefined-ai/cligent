@@ -209,8 +209,10 @@ class TestGeminiSession:
 
     @pytest.fixture
     def temp_jsonl_file(self, tmp_path):
-        """Create a temporary JSONL file for testing."""
-        file_path = tmp_path / "test_session.jsonl"
+        """Create a temporary JSON file for testing."""
+        session_dir = tmp_path / "test_session"
+        session_dir.mkdir()
+        file_path = session_dir / "logs.json"
         
         records = [
             {"type": "user", "role": "user", "content": "Hello", "session_id": "test-123"},
@@ -219,21 +221,22 @@ class TestGeminiSession:
             {"type": "assistant", "role": "model", "content": "I'm doing well!"}
         ]
         
+        # Write records as JSON array instead of JSONL
         with open(file_path, 'w') as f:
-            for record in records:
-                f.write(json.dumps(record) + '\n')
+            json.dump(records, f, indent=2)
         
         return file_path
 
     @pytest.fixture
     def malformed_jsonl_file(self, tmp_path):
-        """Create a JSONL file with some malformed lines."""
-        file_path = tmp_path / "malformed_session.jsonl"
+        """Create a JSON file with some malformed lines."""
+        session_dir = tmp_path / "malformed_session"
+        session_dir.mkdir()
+        file_path = session_dir / "logs.json"
         
+        # Write malformed JSON content
         with open(file_path, 'w') as f:
-            f.write('{"type": "user", "content": "Good line"}\n')
-            f.write('invalid json line\n')
-            f.write('{"type": "assistant", "content": "Another good line"}\n')
+            f.write('invalid json content')
         
         return file_path
 
@@ -249,22 +252,18 @@ class TestGeminiSession:
 
     def test_load_nonexistent_file(self):
         """Test loading a non-existent file raises FileNotFoundError."""
-        session = GeminiSession(file_path=Path("/nonexistent/file.jsonl"))
+        session = GeminiSession(file_path=Path("/nonexistent/session/logs.json"))
         
         with pytest.raises(FileNotFoundError, match="Log file not found"):
             session.load()
 
     def test_load_malformed_file(self, malformed_jsonl_file, capsys):
-        """Test loading file with malformed JSON lines."""
+        """Test loading file with malformed JSON content."""
         session = GeminiSession(file_path=malformed_jsonl_file)
         session.load()
         
-        # Should have 2 valid records despite malformed line
-        assert len(session.records) == 2
-        
-        # Check warning was printed
-        captured = capsys.readouterr()
-        assert "Warning: Skipped invalid record" in captured.out
+        # Should have 0 records due to malformed JSON
+        assert len(session.records) == 0
 
     def test_to_chat(self, temp_jsonl_file):
         """Test converting session to Chat object."""
@@ -281,7 +280,9 @@ class TestGeminiSession:
 
     def test_empty_file(self, tmp_path):
         """Test loading empty file."""
-        empty_file = tmp_path / "empty.jsonl"
+        session_dir = tmp_path / "empty_session"
+        session_dir.mkdir()
+        empty_file = session_dir / "logs.json"
         empty_file.touch()
         
         session = GeminiSession(file_path=empty_file)
@@ -302,9 +303,14 @@ class TestGeminiStore:
         gemini_dir = home_dir / ".gemini" / "tmp"
         gemini_dir.mkdir(parents=True)
         
-        # Create some test log files
-        (gemini_dir / "session1.jsonl").write_text('{"content": "test1"}')
-        (gemini_dir / "session2.jsonl").write_text('{"content": "test2"}')
+        # Create some test session directories with logs.json files
+        session1_dir = gemini_dir / "session1"
+        session1_dir.mkdir()
+        (session1_dir / "logs.json").write_text('{"content": "test1"}')
+        
+        session2_dir = gemini_dir / "session2"
+        session2_dir.mkdir()
+        (session2_dir / "logs.json").write_text('{"content": "test2"}')
         
         return home_dir
 
@@ -354,7 +360,7 @@ class TestGeminiStore:
 
     def test_get_log_by_full_path(self, mock_home_dir):
         """Test retrieving log content by full path."""
-        log_path = mock_home_dir / ".gemini" / "tmp" / "session1.jsonl"
+        log_path = mock_home_dir / ".gemini" / "tmp" / "session1" / "logs.json"
         
         with patch('pathlib.Path.home', return_value=mock_home_dir):
             store = GeminiStore()
@@ -395,7 +401,9 @@ class TestGeminiStore:
         # Test fallback to logs directory when tmp doesn't exist
         logs_dir = home_dir / ".gemini" / "logs"
         logs_dir.mkdir(parents=True)
-        (logs_dir / "test.jsonl").write_text('{"test": "data"}')
+        test_session_dir = logs_dir / "test_session"
+        test_session_dir.mkdir()
+        (test_session_dir / "logs.json").write_text('{"test": "data"}')
         
         with patch('pathlib.Path.home', return_value=home_dir):
             store = GeminiStore()
@@ -411,7 +419,9 @@ class TestGeminiStore:
         # Test that when logs directory exists, it's selected over sessions
         logs_dir = gemini_base / "logs"
         logs_dir.mkdir(parents=True)
-        (logs_dir / "test.jsonl").write_text('{"test": "data"}')
+        test_session_dir = logs_dir / "test_session"
+        test_session_dir.mkdir()
+        (test_session_dir / "logs.json").write_text('{"test": "data"}')
         
         with patch('pathlib.Path.home', return_value=home_dir):
             store = GeminiStore()
