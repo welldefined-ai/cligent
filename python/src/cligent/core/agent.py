@@ -46,7 +46,7 @@ class AgentBackend(ABC):
         pass
 
     @abstractmethod
-    def parse_content(self, content: str, log_uri: str, store: 'LogStore') -> 'Chat':
+    def parse_content(self, content: str, log_uri: str) -> 'Chat':
         """Parse raw log content into Chat object."""
         pass
 
@@ -83,13 +83,13 @@ class AgentBackend(ABC):
         """
         if log_uri:
             content = self.store.get(log_uri)
-            return self.parse_content(content, log_uri, self.store)
+            return self.parse_content(content, log_uri)
         else:
             live_uri = self.store.live()
             if live_uri is None:
                 return None
             content = self.store.get(live_uri)
-            return self.parse_content(content, live_uri, self.store)
+            return self.parse_content(content, live_uri)
 
     def compose(self, *args) -> str:
         """Create Tigs text output from selected content.

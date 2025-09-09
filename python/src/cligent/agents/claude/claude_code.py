@@ -281,12 +281,12 @@ class ClaudeCodeAgent(AgentBackend):
     def _create_store(self, location: Optional[str] = None) -> LogStore:
         return ClaudeStore(location=location)
 
-    def parse_content(self, content: str, log_uri: str, store: LogStore) -> Chat:
+    def parse_content(self, content: str, log_uri: str) -> Chat:
         # 使用现有的Session逻辑
         if "/" in log_uri or "\\" in log_uri:
             file_path = Path(log_uri)
         else:
-            file_path = store._project_dir / f"{log_uri}.jsonl"
+            file_path = self.store._project_dir / f"{log_uri}.jsonl"
 
         session = Session(file_path=file_path)
         session.load()

@@ -329,12 +329,12 @@ class QwenCodeAgent(AgentBackend):
     def _create_store(self, location: Optional[str] = None) -> LogStore:
         return QwenStore()
 
-    def parse_content(self, content: str, log_uri: str, store: LogStore) -> Chat:
+    def parse_content(self, content: str, log_uri: str) -> Chat:
         # Handle both session IDs and full paths
         if "/" in log_uri or "\\" in log_uri:
             file_path = Path(log_uri)
         else:
-            file_path = store._logs_dir / f"{log_uri}.jsonl"
+            file_path = self.store._logs_dir / f"{log_uri}.jsonl"
 
         session = QwenSession(file_path=file_path)
         session.load()
