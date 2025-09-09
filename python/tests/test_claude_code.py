@@ -27,7 +27,7 @@ class TestChatParserReal:
     @pytest.fixture
     def parser(self, test_data_path):
         """ChatParser instance using test data."""
-        return ChatParser("claude-code", location=str(test_data_path))
+        return ChatParser("claude-code", project_path=str(test_data_path))
 
     @pytest.fixture
     def claude_parser(self, mock_home):
@@ -226,10 +226,10 @@ class TestSessionIDFunctionality:
         
         # Test with different project directories
         with patch.object(Path, 'home', return_value=mock_home):
-            parent_parser = ChatParser("claude-code", location="/home/user/projects/myproject")
+            parent_parser = ChatParser("claude-code", project_path="/home/user/projects/myproject")
             parent_logs = parent_parser.list_logs()
 
-            python_parser = ChatParser("claude-code", location="/home/user/projects/myproject/python")
+            python_parser = ChatParser("claude-code", project_path="/home/user/projects/myproject/python")
             python_logs = python_parser.list_logs()
 
             # Different projects should have different logs
@@ -307,7 +307,7 @@ class TestClaudeImplementation:
         """Test that tool use messages are filtered out correctly."""
         from cligent import ChatParser
 
-        parser = ChatParser("claude-code", location=str(test_data_path))
+        parser = ChatParser("claude-code", project_path=str(test_data_path))
         tool_log = (
             test_data_path / "claude_code_project" / "tool_filtering_chat.jsonl"
         )
@@ -384,7 +384,7 @@ class TestErrorHandling:
 
     def test_file_permission_errors(self):
         """Test handling file access errors."""
-        store = ClaudeStore(location="/nonexistent/directory")
+        store = ClaudeStore(project_path="/nonexistent/directory")
 
         # Should return empty list, not raise error
         logs = store.list()

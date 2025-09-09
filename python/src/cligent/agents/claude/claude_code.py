@@ -161,18 +161,18 @@ class Session:
 class ClaudeStore(LogStore):
     """Claude Code log store implementation."""
 
-    def __init__(self, location: Path = None):
+    def __init__(self, project_path: Path = None):
         """Initialize with base path for Claude logs.
 
         Args:
-            location: Working directory to find Claude logs for
-                     (default: current working directory)
+            project_path: Working directory to find Claude logs for
+                         (default: current working directory)
         """
         # Determine the working directory
-        if location is None:
+        if project_path is None:
             working_dir = Path.cwd()
         else:
-            working_dir = Path(location)
+            working_dir = Path(project_path)
 
         # Convert working directory to Claude project folder name
         # Claude uses path with / replaced by -
@@ -256,13 +256,13 @@ class ClaudeStore(LogStore):
 class ClaudeCodeAgent(AgentBackend):
     """Claude Code agent implementation."""
 
-    def __init__(self, location: Optional[str] = None):
+    def __init__(self, project_path: Optional[str] = None):
         """Initialize Claude Code agent.
         
         Args:
-            location: Optional workspace location for logs
+            project_path: Optional workspace location for logs
         """
-        super().__init__(location)
+        super().__init__(project_path)
 
     @property
     def name(self) -> str:
@@ -272,8 +272,8 @@ class ClaudeCodeAgent(AgentBackend):
     def display_name(self) -> str:
         return "Claude Code"
 
-    def _create_store(self, location: Optional[str] = None) -> LogStore:
-        return ClaudeStore(location=location)
+    def _create_store(self, project_path: Optional[str] = None) -> LogStore:
+        return ClaudeStore(project_path=project_path)
 
     def parse_content(self, content: str, log_uri: str) -> Chat:
         # 使用现有的Session逻辑

@@ -10,18 +10,18 @@ if TYPE_CHECKING:
 class AgentBackend(ABC):
     """Abstract base class for all agent implementations."""
 
-    def __init__(self, location: Optional[str] = None):
+    def __init__(self, project_path: Optional[str] = None):
         """Initialize agent backend.
         
         Args:
-            location: Optional workspace location for logs
+            project_path: Optional workspace location for logs (only used by Claude Code agent)
         """
-        self.location = location
+        self.project_path = project_path
         self.error_collector = ErrorCollector()
         self.selected_messages: List[Message] = []
         self._chat_cache: Dict[str, Chat] = {}
         # Automatically create store during initialization
-        self._store: 'LogStore' = self._create_store(location)
+        self._store: 'LogStore' = self._create_store(project_path)
 
     @property
     @abstractmethod 
@@ -36,7 +36,7 @@ class AgentBackend(ABC):
         pass
 
     @abstractmethod
-    def _create_store(self, location: Optional[str] = None) -> 'LogStore':
+    def _create_store(self, project_path: Optional[str] = None) -> 'LogStore':
         """Create appropriate log store for this agent."""
         pass
 
@@ -206,55 +206,49 @@ class AgentBackend(ABC):
 
     def __repr__(self) -> str:
         """String representation of agent."""
-        return f"{self.__class__.__name__}(name='{self.name}', location='{self.location}')"
+        return f"{self.__class__.__name__}(name='{self.name}', project_path='{self.project_path}')"
 
 
 # Factory functions for creating agent instances
-def claude(location: Optional[str] = None):
+def claude(project_path: Optional[str] = None):
     """Create a Claude Code agent.
     
     Args:
-        location: Optional workspace location for logs
+        project_path: Optional workspace location for logs
         
     Returns:
         ClaudeCodeAgent instance
     """
     from ..agents.claude.claude_code import ClaudeCodeAgent
-    return ClaudeCodeAgent(location=location)
+    return ClaudeCodeAgent(project_path=project_path)
 
 
-def gemini(location: Optional[str] = None):
+def gemini():
     """Create a Gemini CLI agent.
-    
-    Args:
-        location: Optional workspace location for logs
         
     Returns:
         GeminiCliAgent instance
     """
     from ..agents.gemini.gemini_cli import GeminiCliAgent
-    return GeminiCliAgent(location=location)
+    return GeminiCliAgent()
 
 
-def qwen(location: Optional[str] = None):
+def qwen():
     """Create a Qwen Code agent.
-    
-    Args:
-        location: Optional workspace location for logs
         
     Returns:
         QwenCodeAgent instance
     """
     from ..agents.qwen.qwen_code import QwenCodeAgent
-    return QwenCodeAgent(location=location)
+    return QwenCodeAgent()
 
 
-def cligent(agent_type: str = "claude", location: Optional[str] = None):
+def cligent(agent_type: str = "claude", project_path: Optional[str] = None):
     """Create an agent for the specified type.
     
     Args:
         agent_type: Agent type ("claude", "gemini", "qwen")
-        location: Optional workspace location for logs
+        project_path: Optional workspace location for logs (only used by Claude agent)
         
     Returns:
         Appropriate agent instance
@@ -262,16 +256,12 @@ def cligent(agent_type: str = "claude", location: Optional[str] = None):
     Raises:
         ValueError: If agent_type is not supported
     """
-    agents = {
-        "claude": claude,
-        "claude-code": claude,
-        "gemini": gemini,
-        "gemini-cli": gemini,
-        "qwen": qwen,
-        "qwen-code": qwen,
-    }
-    
-    if agent_type not in agents:
-        raise ValueError(f"Unsupported agent type: {agent_type}. Supported: {list(agents.keys())}")
-    
-    return agents[agent_type](location=location)
+    if agent_type in ["claude", "claude-code"]:
+        return claude(project_path=project_path)
+    elif agent_type in ["gemini", "gemini-cli"]:
+        return gemini()
+    elif agent_type in ["qwen", "qwen-code"]:
+        return qwen()
+    else:
+        supported_types = ["claude", "claude-code", "gemini", "gemini-cli", "qwen", "qwen-code"]
+        raise ValueError(f"Unsupported agent type: {agent_type}. Supported: {supported_types}")

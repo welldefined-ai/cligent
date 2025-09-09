@@ -301,13 +301,9 @@ class GeminiStore(LogStore):
 class GeminiCliAgent(AgentBackend):
     """Gemini CLI agent implementation."""
 
-    def __init__(self, location: Optional[str] = None):
-        """Initialize Gemini CLI agent.
-        
-        Args:
-            location: Optional workspace location for logs
-        """
-        super().__init__(location)
+    def __init__(self):
+        """Initialize Gemini CLI agent."""
+        super().__init__()
 
     @property
     def name(self) -> str:
@@ -317,7 +313,7 @@ class GeminiCliAgent(AgentBackend):
     def display_name(self) -> str:
         return "Gemini CLI"
 
-    def _create_store(self, location: Optional[str] = None) -> LogStore:
+    def _create_store(self, project_path: Optional[str] = None) -> LogStore:
         return GeminiStore()
 
     def parse_content(self, content: str, log_uri: str) -> Chat:

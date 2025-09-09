@@ -18,18 +18,20 @@ def get_agent() -> AgentBackend:
             break
         print("Invalid agent type. Please enter: claude, gemini, or qwen")
     
-    # Get location (optional)
-    location_input = input(f"Enter location for {agent_type} logs (press Enter for default): ").strip()
-    location = location_input if location_input else None
+    # Get project path (optional, only for Claude)
+    project_path = None
+    if agent_type in ['claude', 'claude-code']:
+        project_path_input = input(f"Enter project path for {agent_type} logs (press Enter for default): ").strip()
+        project_path = project_path_input if project_path_input else None
     
     # Create agent
     try:
-        agent = cligent(agent_type, location=location)
+        agent = cligent(agent_type, project_path=project_path)
         print(f"\n✓ Created {agent.display_name} agent")
-        if location:
-            print(f"  Location: {location}")
+        if project_path:
+            print(f"  Project Path: {project_path}")
         else:
-            print("  Location: default")
+            print("  Project Path: default" if agent_type in ['claude', 'claude-code'] else "  Project Path: not applicable")
         return agent
     except Exception as e:
         print(f"✗ Error creating agent: {e}")
