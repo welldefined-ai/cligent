@@ -97,7 +97,7 @@ def handle_parse(agent: AgentBackend):
             print("=" * 60)
             
             # Show all messages with full content
-            for i, msg in enumerate(chat.messages, 1):
+            for i, msg in enumerate(chat.messages, 0):
                 timestamp_str = f" [{msg.timestamp}]" if msg.timestamp else ""
                 print(f"\n{i}. {msg.role.value.upper()}{timestamp_str}:")
                 print("-" * 40)
