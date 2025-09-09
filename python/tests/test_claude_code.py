@@ -332,7 +332,7 @@ class TestClaudeImplementation:
 
     def test_mixed_content_messages(self) -> None:
         """Test messages with both text and tool content extract only text."""
-        from chat_parser.claude.claude_code import Record
+        from cligent.agents.claude.claude_code import Record
 
         # Simulate a message with both text and tool_use blocks
         mixed_data = {

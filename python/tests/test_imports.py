@@ -29,24 +29,34 @@ def test_cligent_direct_imports():
     assert chat.messages == []
     
     # Verify agent creation works
-    agent = cligent("claude-code")
+    agent = cligent("claude")
     assert isinstance(agent, AgentBackend)
 
 
 def test_convenience_imports():
     """Test convenience imports from main package."""
-    from cligent import cligent, claude, gemini, qwen, Chat, Message
+    from cligent import claude, gemini, qwen, Chat, Message
     
     # Should be able to create agents directly
-    agent1 = cligent("claude-code")
-    agent2 = claude()
-    agent3 = gemini()
-    agent4 = qwen()
+    agent1 = claude()
+    agent2 = gemini()
+    agent3 = qwen()
     
     assert agent1.config.name == "claude-code"
-    assert agent2.config.name == "claude-code"
-    assert agent3.config.name == "gemini-cli"
-    assert agent4.config.name == "qwen-code"
+    assert agent2.config.name == "gemini-cli"
+    assert agent3.config.name == "qwen-code"
+
+
+def test_backwards_compatibility():
+    """Test backwards compatibility aliases."""
+    from cligent import ChatParser, Chat, Message
+    
+    # Should be able to use old ChatParser function
+    agent = ChatParser("claude")
+    assert agent.config.name == "claude-code"
+    
+    agent2 = ChatParser("gemini")
+    assert agent2.config.name == "gemini-cli"
 
 
 def test_error_imports():

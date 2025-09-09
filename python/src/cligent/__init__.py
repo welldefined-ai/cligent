@@ -11,13 +11,11 @@ from .core import (
     LogCorruptionError,
     InvalidFormatError,
 )
-from .registry import registry
 from .agents import ClaudeCodeAgent, GeminiCliAgent, QwenCodeAgent
+from .core import AgentBackend, AgentConfig, claude, gemini, qwen, cligent
 
-# Unified agent interface - AgentBackend is the main entry point
-from .client import cligent, claude, gemini, qwen, list_available_agents
-from .execution import TaskResult, TaskUpdate, TaskConfig, TaskStatus, UpdateType
-from .core import AgentBackend, AgentConfig
+# Backwards compatibility alias
+ChatParser = cligent
 
 
 __all__ = [
@@ -30,19 +28,17 @@ __all__ = [
     # Stores (for advanced usage)
     "LogStore",
     
-    # Main interface - AgentBackend only
-    "cligent",
-    "claude", 
-    "gemini",
-    "qwen",
-    "list_available_agents",
+    # Agent implementations
+    "ClaudeCodeAgent",
+    "GeminiCliAgent", 
+    "QwenCodeAgent",
     
-    # Task execution
-    "TaskResult",
-    "TaskUpdate", 
-    "TaskConfig",
-    "TaskStatus",
-    "UpdateType",
+    # Factory functions
+    "claude",
+    "gemini",
+    "qwen", 
+    "cligent",
+    "ChatParser",  # Backwards compatibility
     
     # Agent framework
     "AgentBackend",
@@ -56,8 +52,3 @@ __all__ = [
     "InvalidFormatError",
 ]
 
-
-# Auto-register all agents
-registry.register(ClaudeCodeAgent, aliases=["claude"])
-registry.register(GeminiCliAgent, aliases=["gemini", "gemini-cli"])
-registry.register(QwenCodeAgent, aliases=["qwen", "qwen-code"])

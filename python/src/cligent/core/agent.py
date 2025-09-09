@@ -1,15 +1,12 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Dict, Any, Optional, List, Tuple, AsyncIterator, TYPE_CHECKING
+from typing import Dict, Any, Optional, List, Tuple, TYPE_CHECKING
 from pathlib import Path
-import asyncio
 from .models import Chat, Message
-from ..execution.task_models import TaskResult, TaskUpdate, TaskConfig
-from .errors import ErrorCollector, ChatParserError
+from .errors import ErrorCollector
 
 if TYPE_CHECKING:
     from .models import LogStore
-    from ..execution.executor import MockExecutor
 
 @dataclass
 class AgentConfig:
@@ -36,8 +33,6 @@ class AgentBackend(ABC):
         self._chat_cache: Dict[str, Chat] = {}
         # Automatically create store during initialization
         self._store: 'LogStore' = self._create_store(location)
-        # Executor will be initialized by subclasses
-        self._executor: Optional['MockExecutor'] = None
 
     @property
     @abstractmethod
@@ -60,22 +55,6 @@ class AgentBackend(ABC):
     def validate_log(self, log_path: Path) -> bool:
         """Validate log file format (optional override)."""
         return log_path.exists() and log_path.suffix in self.config.log_extensions
-
-    # Task execution methods with default implementation
-    async def execute_task(self, task: str, config: TaskConfig = None) -> AsyncIterator[TaskUpdate]:
-        """Execute a task with streaming updates.
-        
-        Args:
-            task: The task description/instruction
-            config: Task execution configuration
-            
-        Yields:
-            TaskUpdate objects with execution progress
-        """
-        if config is None:
-            config = TaskConfig()
-        async for update in self._executor.execute_task(task, config):
-            yield update
 
 
     # Log Store Management
@@ -236,64 +215,75 @@ class AgentBackend(ABC):
             "metadata": config.metadata or {}
         }
 
-    # High-level Task Execution Methods  
-    async def query(self, task: str, **kwargs) -> TaskResult:
-        """Query the agent and aggregate streaming results.
-        
-        Args:
-            task: Task description or instruction
-            **kwargs: Additional configuration options
-            
-        Returns:
-            TaskResult with execution outcome
-            
-        Raises:
-            ChatParserError: If query fails
-        """
-        # Build task configuration with all options
-        config = TaskConfig()
-        config.options.update(kwargs)
-        
-        try:
-            # Aggregate streaming results into TaskResult
-            from datetime import datetime
-            from ..execution.task_models import TaskStatus
-            
-            result = TaskResult(
-                task_id="",
-                status=TaskStatus.RUNNING,
-                created_at=datetime.now()
-            )
-            
-            output_parts = []
-            async for update in self.execute_task(task, config):
-                if update.task_id and not result.task_id:
-                    result.task_id = update.task_id
-                    
-                if update.type.value == "status":
-                    status_str = update.data.get("status", "")
-                    if status_str == TaskStatus.COMPLETED.value:
-                        result.status = TaskStatus.COMPLETED
-                        result.completed_at = datetime.now()
-                    elif status_str == TaskStatus.FAILED.value:
-                        result.status = TaskStatus.FAILED
-                        result.completed_at = datetime.now()
-                elif update.type.value == "output":
-                    content = update.data.get("content", "")
-                    if content:
-                        output_parts.append(content)
-                elif update.type.value == "error":
-                    result.status = TaskStatus.FAILED
-                    result.error = update.data.get("error", "Unknown error")
-                    result.completed_at = datetime.now()
-                    
-            result.output = "".join(output_parts)
-            return result
-            
-        except Exception as e:
-            raise ChatParserError(f"Query failed: {e}") from e
-
 
     def __repr__(self) -> str:
         """String representation of agent."""
         return f"{self.__class__.__name__}(name='{self.config.name}', location='{self.location}')"
+
+
+# Factory functions for creating agent instances
+def claude(location: Optional[str] = None):
+    """Create a Claude Code agent.
+    
+    Args:
+        location: Optional workspace location for logs
+        
+    Returns:
+        ClaudeCodeAgent instance
+    """
+    from ..agents.claude.claude_code import ClaudeCodeAgent
+    return ClaudeCodeAgent(location=location)
+
+
+def gemini(location: Optional[str] = None):
+    """Create a Gemini CLI agent.
+    
+    Args:
+        location: Optional workspace location for logs
+        
+    Returns:
+        GeminiCliAgent instance
+    """
+    from ..agents.gemini.gemini_cli import GeminiCliAgent
+    return GeminiCliAgent(location=location)
+
+
+def qwen(location: Optional[str] = None):
+    """Create a Qwen Code agent.
+    
+    Args:
+        location: Optional workspace location for logs
+        
+    Returns:
+        QwenCodeAgent instance
+    """
+    from ..agents.qwen.qwen_code import QwenCodeAgent
+    return QwenCodeAgent(location=location)
+
+
+def cligent(agent_type: str = "claude", location: Optional[str] = None):
+    """Create an agent for the specified type.
+    
+    Args:
+        agent_type: Agent type ("claude", "gemini", "qwen")
+        location: Optional workspace location for logs
+        
+    Returns:
+        Appropriate agent instance
+        
+    Raises:
+        ValueError: If agent_type is not supported
+    """
+    agents = {
+        "claude": claude,
+        "claude-code": claude,
+        "gemini": gemini,
+        "gemini-cli": gemini,
+        "qwen": qwen,
+        "qwen-code": qwen,
+    }
+    
+    if agent_type not in agents:
+        raise ValueError(f"Unsupported agent type: {agent_type}. Supported: {list(agents.keys())}")
+    
+    return agents[agent_type](location=location)

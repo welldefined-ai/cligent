@@ -1,105 +1,117 @@
-"""Example usage of the unified cligent SDK."""
+"""Example usage of the simplified cligent chat parser."""
 
-import asyncio
-from cligent import cligent, claude, gemini, qwen
+from cligent import claude, gemini, qwen, cligent
 
 
-async def basic_usage_example():
-    """Basic usage examples."""
+def basic_usage_example():
+    """Basic usage examples for chat parsers."""
     print("=== Basic Usage Examples ===\n")
     
-    # Method 1: Using factory function
-    client = cligent("claude")
-    print(f"Created client: {client}")
-    print(f"Agent info: {client.get_agent_info()}")
-    
-    # Method 2: Using convenience functions
+    # Method 1: Using specific functions
     claude_client = claude()
+    print(f"Created Claude agent: {claude_client}")
+    print(f"Agent info: {claude_client.get_agent_info()}")
+    
+    # Method 2: Using generic function
+    parser = cligent("claude")
+    print(f"Created agent via cligent: {parser}")
+    
+    # Different agents
     gemini_client = gemini()
     qwen_client = qwen()
     
-    print(f"Available agents: {claude_client.list_available_agents()}")
-    
-    # Switch agents dynamically
-    client.switch_agent("gemini-cli")
-    print(f"Switched to: {client.get_agent_info()['display_name']}")
+    print(f"Available parsers: Claude, Gemini, Qwen")
 
 
-async def task_execution_example():
-    """Task execution examples."""
-    print("\n=== Task Execution Examples ===\n")
-    
-    client = claude()
-    
-    # Check if agent supports execution
-    if client.supports_execution():
-        print("Agent supports task execution!")
-        
-        # Simple task execution
-        print("Executing task...")
-        result = await client.execute("Create a Python function to calculate fibonacci numbers")
-        print(f"Task result: {result.status.value}")
-        print(f"Output: {result.output[:100]}..." if result.output else "No output")
-        
-        # Streaming execution
-        print("\nStreaming task execution:")
-        async for update in client.execute_stream("Write a simple hello world script"):
-            print(f"Update: {update.update_type.value} - {update.data}")
-            
-    else:
-        print("Agent does not support task execution (using mock)")
-
-
-async def log_parsing_example():
-    """Log parsing examples (existing functionality)."""
+def log_parsing_example():
+    """Log parsing examples."""
     print("\n=== Log Parsing Examples ===\n")
     
-    client = claude()
+    parser = claude()
     
     # List available logs
-    logs = client.list_logs()
+    logs = parser.list_logs()
     print(f"Found {len(logs)} log files")
     
     if logs:
         # Parse the latest log
         latest_log = logs[0][0]  # Get URI of first log
-        chat = client.parse_logs(latest_log)
+        chat = parser.parse(latest_log)
         print(f"Parsed {len(chat.messages)} messages from log: {latest_log}")
         
+        # Select some messages
+        parser.select(latest_log, [0, 1])  # Select first two messages
+        
         # Export to YAML
-        yaml_output = client.compose_yaml()
+        yaml_output = parser.compose()
         print(f"YAML output length: {len(yaml_output)} characters")
+        print(f"YAML preview:\n{yaml_output[:200]}...")
     else:
         print("No logs found to parse")
 
 
-async def combined_workflow_example():
-    """Combined task execution and log parsing."""
-    print("\n=== Combined Workflow Example ===\n")
+def message_selection_example():
+    """Message selection and composition examples."""
+    print("\n=== Message Selection Examples ===\n")
     
-    client = claude()
+    parser = claude()
+    logs = parser.list_logs()
     
-    if client.supports_execution():
-        # Execute a task and immediately parse its logs
-        result, chat = await client.task_and_parse("Write a function to sort a list")
+    if logs:
+        log_uri = logs[0][0]
+        chat = parser.parse(log_uri)
+        print(f"Loaded chat with {len(chat.messages)} messages")
         
-        print(f"Task completed: {result.status.value}")
-        print(f"Generated {len(chat.messages)} messages")
+        # Select specific messages
+        parser.select(log_uri, [0, 2])  # First and third messages
+        print(f"Selected {len(parser.selected_messages)} messages")
         
-        # Export the conversation to YAML
-        yaml_output = chat.export()
-        print(f"Conversation YAML:\n{yaml_output[:300]}...")
+        # Compose YAML output
+        yaml_output = parser.compose()
+        print("Composed YAML from selected messages")
+        
+        # Clear selection and select all
+        parser.clear_selection()
+        parser.select(log_uri)  # All messages
+        print(f"Selected all {len(parser.selected_messages)} messages")
+        
+        # Export full chat
+        full_yaml = parser.compose()
+        print(f"Full YAML length: {len(full_yaml)} characters")
     else:
-        print("Task execution not supported, using mock data")
+        print("No logs available for selection example")
 
 
-async def main():
+def multi_parser_example():
+    """Examples using different parsers for different agents."""
+    print("\n=== Multi-Parser Example ===\n")
+    
+    parsers = {
+        'claude': claude(),
+        'gemini': gemini(),
+        'qwen': qwen()
+    }
+    
+    for agent_name, parser in parsers.items():
+        logs = parser.list_logs()
+        print(f"{agent_name}: Found {len(logs)} logs")
+        
+        if logs:
+            # Parse the most recent log
+            latest_chat = parser.parse()  # Live/most recent log
+            if latest_chat:
+                print(f"  Latest chat has {len(latest_chat.messages)} messages")
+            else:
+                print("  No recent chat found")
+
+
+def main():
     """Run all examples."""
     try:
-        await basic_usage_example()
-        await task_execution_example()
-        await log_parsing_example()
-        await combined_workflow_example()
+        basic_usage_example()
+        log_parsing_example()
+        message_selection_example()
+        multi_parser_example()
         
     except Exception as e:
         print(f"Error running examples: {e}")
@@ -108,19 +120,22 @@ async def main():
 
 
 if __name__ == "__main__":
-    print("Cligent Unified SDK - Usage Examples")
+    print("Cligent Chat Parser - Usage Examples")
     print("=" * 40)
     
     # Run the examples
-    asyncio.run(main())
+    main()
     
     print("\n" + "=" * 40)
     print("Examples completed!")
     
     # Show usage patterns
     print("\nUsage Patterns:")
-    print("1. cligent('claude') - Create client for specific agent")
-    print("2. claude() - Direct Claude client")
-    print("3. await client.execute('task') - Execute task")
-    print("4. client.parse_logs() - Parse logs")
-    print("5. await client.task_and_parse('task') - Execute + parse")
+    print("1. claude() - Create Claude Code agent")
+    print("2. gemini() - Create Gemini CLI agent") 
+    print("3. qwen() - Create Qwen Code agent")
+    print("4. cligent('claude') - Generic agent factory")
+    print("5. parser.list_logs() - List available logs")
+    print("6. parser.parse(log_uri) - Parse specific log")
+    print("7. parser.select(log_uri, indices) - Select messages")
+    print("8. parser.compose() - Export to YAML")
