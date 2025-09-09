@@ -1,141 +1,232 @@
-"""Example usage of the simplified cligent chat parser."""
+#!/usr/bin/env python3
+"""Interactive CLI tool for cligent chat parser."""
 
-from cligent import claude, gemini, qwen, cligent
-
-
-def basic_usage_example():
-    """Basic usage examples for chat parsers."""
-    print("=== Basic Usage Examples ===\n")
-    
-    # Method 1: Using specific functions
-    claude_client = claude()
-    print(f"Created Claude agent: {claude_client}")
-    print(f"Agent info: {claude_client.get_agent_info()}")
-    
-    # Method 2: Using generic function
-    parser = cligent("claude")
-    print(f"Created agent via cligent: {parser}")
-    
-    # Different agents
-    gemini_client = gemini()
-    qwen_client = qwen()
-    
-    print(f"Available parsers: Claude, Gemini, Qwen")
+import sys
+from typing import Optional
+from cligent import claude, gemini, qwen, cligent, AgentBackend
 
 
-def log_parsing_example():
-    """Log parsing examples."""
-    print("\n=== Log Parsing Examples ===\n")
+def get_agent() -> AgentBackend:
+    """Get agent from user input."""
+    print("Cligent Chat Parser - Interactive CLI")
+    print("=" * 40)
     
-    parser = claude()
+    # Get agent type
+    while True:
+        agent_type = input("\nEnter agent type (claude/gemini/qwen): ").strip().lower()
+        if agent_type in ['claude', 'gemini', 'qwen']:
+            break
+        print("Invalid agent type. Please enter: claude, gemini, or qwen")
     
-    # List available logs
-    logs = parser.list_logs()
-    print(f"Found {len(logs)} log files")
+    # Get location (optional)
+    location_input = input(f"Enter location for {agent_type} logs (press Enter for default): ").strip()
+    location = location_input if location_input else None
     
-    if logs:
-        # Parse the latest log
-        latest_log = logs[0][0]  # Get URI of first log
-        chat = parser.parse(latest_log)
-        print(f"Parsed {len(chat.messages)} messages from log: {latest_log}")
-        
-        # Select some messages
-        parser.select(latest_log, [0, 1])  # Select first two messages
-        
-        # Export to YAML
-        yaml_output = parser.compose()
-        print(f"YAML output length: {len(yaml_output)} characters")
-        print(f"YAML preview:\n{yaml_output[:200]}...")
-    else:
-        print("No logs found to parse")
+    # Create agent
+    try:
+        agent = cligent(agent_type, location=location)
+        print(f"\n✓ Created {agent.display_name} agent")
+        if location:
+            print(f"  Location: {location}")
+        else:
+            print("  Location: default")
+        return agent
+    except Exception as e:
+        print(f"✗ Error creating agent: {e}")
+        sys.exit(1)
 
 
-def message_selection_example():
-    """Message selection and composition examples."""
-    print("\n=== Message Selection Examples ===\n")
-    
-    parser = claude()
-    logs = parser.list_logs()
-    
-    if logs:
-        log_uri = logs[0][0]
-        chat = parser.parse(log_uri)
-        print(f"Loaded chat with {len(chat.messages)} messages")
-        
-        # Select specific messages
-        parser.select(log_uri, [0, 2])  # First and third messages
-        print(f"Selected {len(parser.selected_messages)} messages")
-        
-        # Compose YAML output
-        yaml_output = parser.compose()
-        print("Composed YAML from selected messages")
-        
-        # Clear selection and select all
-        parser.clear_selection()
-        parser.select(log_uri)  # All messages
-        print(f"Selected all {len(parser.selected_messages)} messages")
-        
-        # Export full chat
-        full_yaml = parser.compose()
-        print(f"Full YAML length: {len(full_yaml)} characters")
-    else:
-        print("No logs available for selection example")
+def show_menu():
+    """Show available commands."""
+    print("\nAvailable commands:")
+    print("  1. info      - Show agent information")
+    print("  2. list      - List available logs")
+    print("  3. parse     - Parse a specific log")
+    print("  4. live      - Parse live/most recent log")
+    print("  5. select    - Select messages from a log")
+    print("  6. compose   - Generate YAML from selected messages")
+    print("  7. clear     - Clear selected messages")
+    print("  8. menu      - Show this menu")
+    print("  9. quit      - Exit")
 
 
-def multi_parser_example():
-    """Examples using different parsers for different agents."""
-    print("\n=== Multi-Parser Example ===\n")
-    
-    parsers = {
-        'claude': claude(),
-        'gemini': gemini(),
-        'qwen': qwen()
-    }
-    
-    for agent_name, parser in parsers.items():
-        logs = parser.list_logs()
-        print(f"{agent_name}: Found {len(logs)} logs")
-        
+def handle_info(agent: AgentBackend):
+    """Handle info command."""
+    info = agent.get_agent_info()
+    print(f"\nAgent Information:")
+    print(f"  Name: {info['name']}")
+    print(f"  Display Name: {info['display_name']}")
+
+
+def handle_list(agent: AgentBackend):
+    """Handle list command."""
+    print("\nListing logs...")
+    try:
+        logs = agent.list_logs()
         if logs:
-            # Parse the most recent log
-            latest_chat = parser.parse()  # Live/most recent log
-            if latest_chat:
-                print(f"  Latest chat has {len(latest_chat.messages)} messages")
-            else:
-                print("  No recent chat found")
+            print(f"Found {len(logs)} logs:")
+            for i, (uri, metadata) in enumerate(logs[:50], 1):  # Show first 50
+                size = metadata.get('size', 0)
+                modified = metadata.get('modified', 'unknown')
+                print(f"  {i:2d}. {uri[:50]}{'...' if len(uri) > 50 else ''}")
+                print(f"      Size: {size} bytes, Modified: {modified[:19]}")
+            
+            if len(logs) > 50:
+                print(f"  ... and {len(logs) - 50} more")
+        else:
+            print("No logs found")
+    except Exception as e:
+        print(f"✗ Error listing logs: {e}")
+
+
+def handle_parse(agent: AgentBackend):
+    """Handle parse command."""
+    log_uri = input("Enter log URI/ID to parse: ").strip()
+    if not log_uri:
+        print("No log URI provided")
+        return
+    
+    try:
+        print(f"\nParsing log: {log_uri}")
+        chat = agent.parse(log_uri)
+        if chat:
+            print(f"✓ Parsed {len(chat.messages)} messages")
+            
+            # Show first few messages
+            for i, msg in enumerate(chat.messages[:3]):
+                content_preview = msg.content[:100] + "..." if len(msg.content) > 100 else msg.content
+                print(f"  {i+1}. [{msg.role.value}] {content_preview}")
+            
+            if len(chat.messages) > 3:
+                print(f"  ... and {len(chat.messages) - 3} more messages")
+        else:
+            print("No chat data found")
+    except Exception as e:
+        print(f"✗ Error parsing log: {e}")
+
+
+def handle_live(agent: AgentBackend):
+    """Handle live command."""
+    try:
+        print("\nParsing live/most recent log...")
+        chat = agent.parse()  # No URI = live log
+        if chat:
+            print(f"✓ Parsed {len(chat.messages)} messages from live log")
+            
+            # Show last few messages
+            for i, msg in enumerate(chat.messages[-3:], len(chat.messages) - 2):
+                content_preview = msg.content[:100] + "..." if len(msg.content) > 100 else msg.content
+                print(f"  {i}. [{msg.role.value}] {content_preview}")
+        else:
+            print("No live log found")
+    except Exception as e:
+        print(f"✗ Error parsing live log: {e}")
+
+
+def handle_select(agent: AgentBackend):
+    """Handle select command."""
+    log_uri = input("Enter log URI/ID to select from: ").strip()
+    if not log_uri:
+        print("No log URI provided")
+        return
+    
+    indices_input = input("Enter message indices (comma-separated, or 'all' for all): ").strip()
+    
+    try:
+        if indices_input.lower() == 'all':
+            agent.select(log_uri)
+            print(f"✓ Selected all messages from {log_uri}")
+        else:
+            indices = [int(x.strip()) for x in indices_input.split(',') if x.strip()]
+            agent.select(log_uri, indices)
+            print(f"✓ Selected {len(indices)} messages from {log_uri}")
+        
+        print(f"Total selected messages: {len(agent.selected_messages)}")
+    except ValueError:
+        print("✗ Invalid indices format. Use comma-separated numbers or 'all'")
+    except Exception as e:
+        print(f"✗ Error selecting messages: {e}")
+
+
+def handle_compose(agent: AgentBackend):
+    """Handle compose command."""
+    try:
+        if not agent.selected_messages:
+            print("No messages selected. Use 'select' command first.")
+            return
+        
+        print(f"\nGenerating YAML from {len(agent.selected_messages)} selected messages...")
+        yaml_output = agent.compose()
+        
+        # Ask if user wants to save to file
+        save = input("Save to file? (y/n): ").strip().lower()
+        if save == 'y':
+            filename = input("Enter filename (or press Enter for 'output.yaml'): ").strip()
+            if not filename:
+                filename = 'output.yaml'
+            
+            with open(filename, 'w') as f:
+                f.write(yaml_output)
+            print(f"✓ YAML saved to {filename}")
+        else:
+            # Show preview
+            lines = yaml_output.split('\n')
+            print(f"\nYAML preview ({len(lines)} lines):")
+            for line in lines[:50]:
+                print(f"  {line}")
+            if len(lines) > 50:
+                print(f"  ... and {len(lines) - 50} more lines")
+    except Exception as e:
+        print(f"✗ Error composing YAML: {e}")
+
+
+def handle_clear(agent: AgentBackend):
+    """Handle clear command."""
+    count = len(agent.selected_messages)
+    agent.clear_selection()
+    print(f"✓ Cleared {count} selected messages")
 
 
 def main():
-    """Run all examples."""
-    try:
-        basic_usage_example()
-        log_parsing_example()
-        message_selection_example()
-        multi_parser_example()
-        
-    except Exception as e:
-        print(f"Error running examples: {e}")
-        import traceback
-        traceback.print_exc()
+    """Main CLI loop."""
+    agent = get_agent()
+    
+    show_menu()
+    
+    while True:
+        try:
+            command = input(f"\n[{agent.name}]> ").strip().lower()
+            
+            if command in ['quit', 'exit', 'q']:
+                print("Goodbye!")
+                break
+            elif command in ['info', '1']:
+                handle_info(agent)
+            elif command in ['list', '2']:
+                handle_list(agent)
+            elif command in ['parse', '3']:
+                handle_parse(agent)
+            elif command in ['live', '4']:
+                handle_live(agent)
+            elif command in ['select', '5']:
+                handle_select(agent)
+            elif command in ['compose', '6']:
+                handle_compose(agent)
+            elif command in ['clear', '7']:
+                handle_clear(agent)
+            elif command in ['menu', '8']:
+                show_menu()
+            elif command == '':
+                continue
+            else:
+                print(f"Unknown command: {command}. Type 'menu' to see available commands.")
+                
+        except KeyboardInterrupt:
+            print("\nGoodbye!")
+            break
+        except Exception as e:
+            print(f"✗ Error: {e}")
 
 
 if __name__ == "__main__":
-    print("Cligent Chat Parser - Usage Examples")
-    print("=" * 40)
-    
-    # Run the examples
     main()
-    
-    print("\n" + "=" * 40)
-    print("Examples completed!")
-    
-    # Show usage patterns
-    print("\nUsage Patterns:")
-    print("1. claude() - Create Claude Code agent")
-    print("2. gemini() - Create Gemini CLI agent") 
-    print("3. qwen() - Create Qwen Code agent")
-    print("4. cligent('claude') - Generic agent factory")
-    print("5. parser.list_logs() - List available logs")
-    print("6. parser.parse(log_uri) - Parse specific log")
-    print("7. parser.select(log_uri, indices) - Select messages")
-    print("8. parser.compose() - Export to YAML")
