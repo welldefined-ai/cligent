@@ -27,7 +27,9 @@ class TestChatParserReal:
     @pytest.fixture
     def parser(self, test_data_path):
         """ChatParser instance using test data."""
-        return ChatParser("claude-code", project_path=str(test_data_path))
+        # Mock the current working directory to point to test data
+        with patch.object(Path, 'cwd', return_value=test_data_path):
+            return ChatParser("claude-code")
 
     @pytest.fixture
     def claude_parser(self, mock_home):
@@ -226,11 +228,14 @@ class TestSessionIDFunctionality:
         
         # Test with different project directories
         with patch.object(Path, 'home', return_value=mock_home):
-            parent_parser = ChatParser("claude-code", project_path="/home/user/projects/myproject")
-            parent_logs = parent_parser.list()
+            # Mock different working directories to simulate different projects
+            with patch.object(Path, 'cwd', return_value=Path("/home/user/projects/myproject")):
+                parent_parser = ChatParser("claude-code")
+                parent_logs = parent_parser.list()
 
-            python_parser = ChatParser("claude-code", project_path="/home/user/projects/myproject/python")
-            python_logs = python_parser.list()
+            with patch.object(Path, 'cwd', return_value=Path("/home/user/projects/myproject/python")):
+                python_parser = ChatParser("claude-code")
+                python_logs = python_parser.list()
 
             # Different projects should have different logs
             # (unless no logs exist for one of them)
@@ -307,7 +312,9 @@ class TestClaudeImplementation:
         """Test that tool use messages are filtered out correctly."""
         from cligent import ChatParser
 
-        parser = ChatParser("claude-code", project_path=str(test_data_path))
+        # Mock the current working directory to point to test data
+        with patch.object(Path, 'cwd', return_value=test_data_path):
+            parser = ChatParser("claude-code")
         tool_log = (
             test_data_path / "claude_code_project" / "tool_filtering_chat.jsonl"
         )
@@ -384,7 +391,9 @@ class TestErrorHandling:
 
     def test_file_permission_errors(self):
         """Test handling file access errors."""
-        store = ClaudeStore(project_path="/nonexistent/directory")
+        # Mock current working directory to nonexistent path
+        with patch.object(Path, 'cwd', return_value=Path("/nonexistent/directory")):
+            store = ClaudeStore()
 
         # Should return empty list, not raise error
         logs = store.list()

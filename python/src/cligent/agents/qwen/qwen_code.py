@@ -314,7 +314,7 @@ class QwenCodeAgent(AgentBackend):
     def display_name(self) -> str:
         return "Qwen Code"
 
-    def _create_store(self, project_path: Optional[str] = None) -> LogStore:
+    def _create_store(self) -> LogStore:
         return QwenStore()
 
     def parse_content(self, content: str, session_log_uri: str) -> Chat:

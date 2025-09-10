@@ -10,18 +10,13 @@ if TYPE_CHECKING:
 class AgentBackend(ABC):
     """Abstract base class for all agent implementations."""
 
-    def __init__(self, project_path: Optional[str] = None):
-        """Initialize agent backend.
-        
-        Args:
-            project_path: Optional workspace location for logs (only used by Claude Code agent)
-        """
-        self.project_path = project_path
+    def __init__(self):
+        """Initialize agent backend."""
         self.error_collector = ErrorCollector()
         self.selected_messages: List[Message] = []
         self._chat_cache: Dict[str, Chat] = {}
         # Automatically create store during initialization
-        self._store: 'LogStore' = self._create_store(project_path)
+        self._store: 'LogStore' = self._create_store()
 
     @property
     @abstractmethod 
@@ -36,7 +31,7 @@ class AgentBackend(ABC):
         pass
 
     @abstractmethod
-    def _create_store(self, project_path: Optional[str] = None) -> 'LogStore':
+    def _create_store(self) -> 'LogStore':
         """Create appropriate log store for this agent."""
         pass
 
@@ -206,21 +201,18 @@ class AgentBackend(ABC):
 
     def __repr__(self) -> str:
         """String representation of agent."""
-        return f"{self.__class__.__name__}(name='{self.name}', project_path='{self.project_path}')"
+        return f"{self.__class__.__name__}(name='{self.name}')"
 
 
 # Factory functions for creating agent instances
-def claude(project_path: Optional[str] = None):
+def claude():
     """Create a Claude Code agent.
-    
-    Args:
-        project_path: Optional workspace location for logs
         
     Returns:
         ClaudeCodeAgent instance
     """
     from ..agents.claude.claude_code import ClaudeCodeAgent
-    return ClaudeCodeAgent(project_path=project_path)
+    return ClaudeCodeAgent()
 
 
 def gemini():
@@ -243,12 +235,11 @@ def qwen():
     return QwenCodeAgent()
 
 
-def cligent(agent_type: str = "claude", project_path: Optional[str] = None):
+def cligent(agent_type: str = "claude"):
     """Create an agent for the specified type.
     
     Args:
         agent_type: Agent type ("claude", "gemini", "qwen")
-        project_path: Optional workspace location for logs (only used by Claude agent)
         
     Returns:
         Appropriate agent instance
@@ -257,7 +248,7 @@ def cligent(agent_type: str = "claude", project_path: Optional[str] = None):
         ValueError: If agent_type is not supported
     """
     if agent_type in ["claude", "claude-code"]:
-        return claude(project_path=project_path)
+        return claude()
     elif agent_type in ["gemini", "gemini-cli"]:
         return gemini()
     elif agent_type in ["qwen", "qwen-code"]:

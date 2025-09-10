@@ -18,20 +18,14 @@ def get_agent() -> AgentBackend:
             break
         print("Invalid agent type. Please enter: claude, gemini, or qwen")
     
-    # Get project path (optional, only for Claude)
-    project_path = None
-    if agent_type in ['claude', 'claude-code']:
-        project_path_input = input(f"Enter project path for {agent_type} logs (press Enter for default): ").strip()
-        project_path = project_path_input if project_path_input else None
-    
     # Create agent
     try:
-        agent = cligent(agent_type, project_path=project_path)
+        agent = cligent(agent_type)
         print(f"\n✓ Created {agent.display_name} agent")
-        if project_path:
-            print(f"  Project Path: {project_path}")
+        if agent_type in ['claude', 'claude-code']:
+            print("  Using current working directory for Claude session logs")
         else:
-            print("  Project Path: default" if agent_type in ['claude', 'claude-code'] else "  Project Path: not applicable")
+            print("  Using default session log location")
         return agent
     except Exception as e:
         print(f"✗ Error creating agent: {e}")
