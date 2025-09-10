@@ -31,8 +31,7 @@ class TestGeminiRecord:
         
         record = GeminiRecord.load(json_string)
         
-        assert record.type == "user"
-        assert record.role == "user"
+        assert record.role == "user"  # type becomes role
         assert record.content == "Hello, Gemini!"
         assert record.timestamp == "2024-01-01T10:00:00Z"
         assert record.session_id == "test-session-123"
@@ -51,8 +50,7 @@ class TestGeminiRecord:
         
         record = GeminiRecord.load(json_string)
         
-        assert record.type == "assistant"
-        assert record.role == "model"
+        assert record.role == "assistant"  # type becomes role
         assert record.content == "Hello, human!"
         assert record.timestamp == "1704103200"
         assert record.session_id == "conv-456"
@@ -80,7 +78,6 @@ class TestGeminiRecord:
     def test_extract_message_user_role(self):
         """Test extracting message from user record."""
         record = GeminiRecord(
-            type="user",
             role="user",
             content="Test message",
             timestamp="2024-01-01T10:00:00Z"
@@ -96,7 +93,6 @@ class TestGeminiRecord:
     def test_extract_message_model_role(self):
         """Test extracting message with 'model' role mapped to assistant."""
         record = GeminiRecord(
-            type="assistant",
             role="model",
             content="Assistant response",
             timestamp="1704103200"  # Unix timestamp
@@ -112,7 +108,6 @@ class TestGeminiRecord:
     def test_extract_message_list_content(self):
         """Test extracting message with list content."""
         record = GeminiRecord(
-            type="assistant",
             role="assistant",
             content=[
                 {"text": "First part"},
@@ -129,7 +124,6 @@ class TestGeminiRecord:
     def test_extract_message_dict_content(self):
         """Test extracting message with dict content."""
         record = GeminiRecord(
-            type="user",
             role="user",
             content={"text": "Message from dict"}
         )
@@ -142,7 +136,6 @@ class TestGeminiRecord:
     def test_extract_message_empty_content(self):
         """Test extracting message with empty content returns None."""
         record = GeminiRecord(
-            type="user",
             role="user",
             content=""
         )
@@ -153,7 +146,6 @@ class TestGeminiRecord:
     def test_extract_message_invalid_timestamp(self):
         """Test extracting message with invalid timestamp."""
         record = GeminiRecord(
-            type="user",
             role="user",
             content="Test",
             timestamp="invalid-timestamp"
@@ -164,27 +156,26 @@ class TestGeminiRecord:
         assert message is not None
         assert message.timestamp is None
 
-    def test_is_message_by_type(self):
-        """Test is_message detection by record type."""
-        message_types = ['user', 'assistant', 'system', 'human', 'ai', 'model', 'message']
-        
-        for msg_type in message_types:
-            record = GeminiRecord(type=msg_type)
-            assert record.is_message()
-        
-        record = GeminiRecord(type="tool_use")
-        assert not record.is_message()
-
     def test_is_message_by_role(self):
-        """Test is_message detection by role field."""
-        message_roles = ['user', 'assistant', 'system', 'human', 'ai', 'model']
+        """Test is_message detection by record role."""
+        message_roles = ['user', 'assistant', 'system', 'human', 'ai', 'model', 'message']
         
         for role in message_roles:
-            record = GeminiRecord(type="unknown", role=role)
+            record = GeminiRecord(role=role, content="test")
             assert record.is_message()
         
-        record = GeminiRecord(type="unknown", role="tool")
+        record = GeminiRecord(role="tool_use", content="test")
         assert not record.is_message()
+
+    def test_is_message_empty_content(self):
+        """Test is_message detection requires non-empty content."""
+        # Valid role but empty content should return False
+        record = GeminiRecord(role="user", content="")
+        assert not record.is_message()
+        
+        # Valid role with content should return True
+        record = GeminiRecord(role="user", content="test")
+        assert record.is_message()
 
     def test_role_mapping_variations(self):
         """Test various role mapping scenarios."""
@@ -199,7 +190,7 @@ class TestGeminiRecord:
         ]
         
         for gemini_role, expected_role in role_tests:
-            record = GeminiRecord(type="message", role=gemini_role, content="test")
+            record = GeminiRecord(role=gemini_role, content="test")
             message = record.extract_message()
             assert message.role == expected_role
 
@@ -218,7 +209,7 @@ class TestGeminiRecord:
         
         assert record.role == "user"
         assert record.content == "Hello, how are you?"
-        assert record.type == "message"
+        # Google format records directly map role field
         
         message = record.extract_message()
         assert message is not None
@@ -299,10 +290,10 @@ class TestGeminiSession:
         file_path = session_dir / "logs.json"
         
         records = [
-            {"type": "user", "role": "user", "content": "Hello", "session_id": "test-123"},
-            {"type": "assistant", "role": "model", "content": "Hi there!"},
-            {"type": "user", "role": "user", "content": "How are you?"},
-            {"type": "assistant", "role": "model", "content": "I'm doing well!"}
+            {"type": "user", "content": "Hello", "session_id": "test-123"},
+            {"type": "model", "content": "Hi there!"},
+            {"type": "user", "content": "How are you?"},
+            {"type": "model", "content": "I'm doing well!"}
         ]
         
         # Write records as JSON array instead of JSONL
@@ -529,7 +520,7 @@ class TestGeminiStore:
         (session_dir / "logs.json").write_text('[{"type": "user", "content": "Hello"}]')
         # Checkpoint files
         (session_dir / "checkpoint-python-basics.json").write_text('[{"type": "user", "content": "Python help"}]')
-        (session_dir / "checkpoint-final.json").write_text('[{"type": "assistant", "content": "Summary"}]')
+        (session_dir / "checkpoint-final.json").write_text('[{"type": "model", "content": "Summary"}]')
         
         with patch('pathlib.Path.home', return_value=home_dir):
             store = GeminiStore()
@@ -590,8 +581,8 @@ class TestGeminiStore:
         session_dir.mkdir()
         
         checkpoint_data = [
-            {"type": "user", "role": "user", "content": "Checkpoint message 1"},
-            {"type": "assistant", "role": "model", "content": "Checkpoint response 1"}
+            {"type": "user", "content": "Checkpoint message 1"},
+            {"type": "model", "content": "Checkpoint response 1"}
         ]
         (session_dir / "checkpoint-conversation.json").write_text(json.dumps(checkpoint_data))
         

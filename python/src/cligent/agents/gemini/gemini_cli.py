@@ -16,10 +16,9 @@ from ...core.agent import AgentBackend
 class GeminiRecord:
     """A single message record in a Gemini CLI JSON log file."""
 
-    type: str  # user, assistant, system, tool_use, tool_result
+    role: str  # user, assistant, system, tool_use, tool_result, model
     timestamp: Optional[str] = None
     content: str = ""
-    role: Optional[str] = None
     session_id: Optional[str] = None
     message_id: Optional[int] = None
     raw_data: Dict[str, Any] = field(default_factory=dict)
@@ -35,23 +34,20 @@ class GeminiRecord:
                 # Google format: {"role": "user", "parts": [{"text": "..."}]}
                 role = data.get('role', '')
                 content = cls._extract_parts_content(data.get('parts', []))
-                record_type = 'message'  # Treat all as message type
                 timestamp = ''  # No timestamp in Google format
                 session_id = ''
                 message_id = None
             else:
-                # Legacy format for main logs.json
-                record_type = data.get('type', 'unknown')
+                # Legacy format for main logs.json - type field becomes role
+                role = data.get('type', data.get('role', data.get('sender', 'unknown')))
                 content = data.get('content', data.get('text', data.get('message', '')))
-                role = data.get('role', data.get('sender', ''))
                 timestamp = data.get('timestamp', data.get('time', data.get('created_at', '')))
                 session_id = data.get('session_id', data.get('sessionId', data.get('conversation_id', '')))
                 message_id = data.get('message_id', data.get('messageId'))
             
             return cls(
-                type=record_type,
-                content=content,
                 role=role,
+                content=content,
                 timestamp=timestamp,
                 session_id=session_id,
                 message_id=message_id,
@@ -90,9 +86,8 @@ class GeminiRecord:
             'ai': Role.ASSISTANT,  # Alternative assistant role
         }
 
-        # First try explicit role field, then fallback to type field
-        role_source = self.role if self.role else self.type
-        role = role_mapping.get(role_source.lower() if role_source else '', Role.ASSISTANT)
+        # Use role field (which contains the original type value)
+        role = role_mapping.get(self.role.lower() if self.role else '', Role.ASSISTANT)
 
         # Handle different content formats
         content = self.content
@@ -137,7 +132,7 @@ class GeminiRecord:
                 pass
 
         metadata = {
-            'type': self.type,
+            'role': self.role,
             'session_id': self.session_id,
             'raw_data': self.raw_data
         }
@@ -151,12 +146,25 @@ class GeminiRecord:
 
     def is_message(self) -> bool:
         """Check if this record represents a message."""
-        message_types = {
-            'user', 'assistant', 'system', 'human', 'ai', 'model', 'message'
+        message_roles = {
+            'user', 'assistant', 'system', 'human', 'ai', 'model', 'message', 'unknown'
         }
+        # Skip checkpoint and tool records
+        skip_roles = {'tool_use', 'tool_result'}
+        
+        # Check if content has meaningful data
+        has_content = False
+        if isinstance(self.content, str):
+            has_content = bool(self.content.strip())
+        elif isinstance(self.content, (list, dict)):
+            has_content = bool(self.content)  # Non-empty list or dict
+        else:
+            has_content = bool(str(self.content).strip())
+        
         return (
-            self.type.lower() in message_types or
-            (self.role and self.role.lower() in {'user', 'assistant', 'system', 'human', 'ai', 'model'})
+            self.role and self.role.lower() in message_roles and
+            self.role.lower() not in skip_roles and
+            has_content
         )
 
 
