@@ -30,7 +30,7 @@ from cligent import ChatParser
 parser = ChatParser("claude-code")
 
 # List all conversation logs for the current project only
-logs = parser.list_logs()
+logs = parser.list()
 for log_uri, metadata in logs:
     print(f"Session ID: {log_uri}")  # Returns session ID, not full path
     print(f"  Size: {metadata['size']} bytes")
@@ -53,7 +53,7 @@ from cligent import ChatParser
 parser = ChatParser("claude-code")
 
 # List logs and pick one (log_uri is now a session ID)
-logs = parser.list_logs()
+logs = parser.list()
 if logs:
     session_id, metadata = logs[0]  # First available log
     
@@ -73,7 +73,7 @@ from cligent import ChatParser
 
 # Parse logs from a different project directory
 parser = ChatParser("claude-code", location="/home/user/projects/my-app")
-logs = parser.list_logs()  # Returns logs for my-app project
+logs = parser.list()  # Returns logs for my-app project
 ```
 
 ## Advanced Usage
@@ -84,7 +84,7 @@ logs = parser.list_logs()  # Returns logs for my-app project
 from cligent import ChatParser
 
 parser = ChatParser("claude-code")
-logs = parser.list_logs()
+logs = parser.list()
 
 if logs:
     log_uri, _ = logs[0]
@@ -137,7 +137,7 @@ from cligent import ChatParser
 parser = ChatParser("claude-code")
 
 # Select messages from multiple conversations
-logs = parser.list_logs()
+logs = parser.list()
 if len(logs) >= 2:
     # Select first message from first log
     parser.select(logs[0][0], [0])

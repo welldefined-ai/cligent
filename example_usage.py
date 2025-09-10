@@ -64,7 +64,7 @@ def handle_list(agent: AgentBackend):
     """Handle list command."""
     print("\nListing logs...")
     try:
-        logs = agent.list_logs()
+        logs = agent.list()
         if logs:
             # Sort logs by modified time (newest first)
             sorted_logs = sorted(logs, key=lambda x: x[1].get('modified', ''), reverse=True)

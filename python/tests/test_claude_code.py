@@ -42,7 +42,7 @@ class TestChatParserReal:
         mock_cwd = Path("/home/user/projects/myproject/python")
         with patch.object(Path, 'home', return_value=mock_home), \
              patch.object(Path, 'cwd', return_value=mock_cwd):
-            logs = claude_parser.list_logs()
+            logs = claude_parser.list()
 
         # Should find our test logs
         assert len(logs) >= 4  # We created at least 4 test files
@@ -186,13 +186,13 @@ class TestSessionIDFunctionality:
     """Test the new session ID based functionality."""
 
     def test_list_logs_returns_session_ids(self):
-        """Test that list_logs returns session IDs, not full paths."""
+        """Test that list returns session IDs, not full paths."""
         from cligent import ChatParser
         from pathlib import Path
 
         # Use current directory which should have Claude Code logs
         parser = ChatParser("claude-code")
-        logs = parser.list_logs()
+        logs = parser.list()
 
         if logs:  # Only test if there are logs
             for log_uri, metadata in logs:
@@ -208,7 +208,7 @@ class TestSessionIDFunctionality:
         from cligent import ChatParser
 
         parser = ChatParser("claude-code")
-        logs = parser.list_logs()
+        logs = parser.list()
 
         if logs:  # Only test if there are logs
             session_id, _ = logs[0]
@@ -227,10 +227,10 @@ class TestSessionIDFunctionality:
         # Test with different project directories
         with patch.object(Path, 'home', return_value=mock_home):
             parent_parser = ChatParser("claude-code", project_path="/home/user/projects/myproject")
-            parent_logs = parent_parser.list_logs()
+            parent_logs = parent_parser.list()
 
             python_parser = ChatParser("claude-code", project_path="/home/user/projects/myproject/python")
-            python_logs = python_parser.list_logs()
+            python_logs = python_parser.list()
 
             # Different projects should have different logs
             # (unless no logs exist for one of them)

@@ -41,7 +41,7 @@ Attributes:
 - *store*: Log Store for the agent.
 
 Actions:
-- **list_logs**: Show available logs for the agent.
+- **list**: Show available logs for the agent.
 - **parse**: Extract chat from specific or live log URI.
 - **select**: Choose messages from a log URI for composition.
 - **unselect**: Remove messages from selection.
