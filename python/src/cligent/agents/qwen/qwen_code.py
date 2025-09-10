@@ -14,12 +14,11 @@ from ...core.agent import AgentBackend
 
 @dataclass
 class QwenRecord:
-    """A single JSON line in a Qwen Code JSONL log file."""
+    """A single JSON record from a Qwen log file."""
 
-    type: str  # user, assistant, system, checkpoint, tool_use, tool_result
+    role: str  # user, model, assistant, system, etc.
     timestamp: Optional[str] = None
     content: str = ""
-    role: Optional[str] = None
     session_id: Optional[str] = None
     checkpoint_tag: Optional[str] = None
     model: Optional[str] = None
@@ -31,19 +30,27 @@ class QwenRecord:
         try:
             data = json.loads(json_string)
             
-            # Flexible parsing for Qwen Code log formats (based on Gemini CLI fork)
-            record_type = data.get('type', data.get('messageType', 'unknown'))
-            content = data.get('content', data.get('text', data.get('message', '')))
-            role = data.get('role', data.get('sender', data.get('from', '')))
-            timestamp = data.get('timestamp', data.get('time', data.get('created_at', '')))
-            session_id = data.get('session_id', data.get('sessionId', data.get('conversationId', '')))
-            checkpoint_tag = data.get('checkpoint_tag', data.get('checkpointTag', data.get('tag', '')))
-            model = data.get('model', data.get('modelName', ''))
+            # Handle Google conversation format (checkpoint files)
+            if 'role' in data and 'parts' in data:
+                # Google format: {"role": "user", "parts": [{"text": "..."}]}
+                role = data.get('role', '')
+                content = cls._extract_parts_content(data.get('parts', []))
+                timestamp = ''  # No timestamp in Google format
+                session_id = ''
+                checkpoint_tag = ''
+                model = ''
+            else:
+                # Legacy JSONL format - prioritize type/messageType fields for role
+                role = data.get('type', data.get('messageType', data.get('role', data.get('sender', data.get('from', 'unknown')))))
+                content = data.get('content', data.get('text', data.get('message', '')))
+                timestamp = data.get('timestamp', data.get('time', data.get('created_at', '')))
+                session_id = data.get('session_id', data.get('sessionId', data.get('conversationId', '')))
+                checkpoint_tag = data.get('checkpoint_tag', data.get('checkpointTag', data.get('tag', '')))
+                model = data.get('model', data.get('modelName', ''))
             
             return cls(
-                type=record_type,
-                content=content,
                 role=role,
+                content=content,
                 timestamp=timestamp,
                 session_id=session_id,
                 checkpoint_tag=checkpoint_tag,
@@ -52,6 +59,21 @@ class QwenRecord:
             )
         except (json.JSONDecodeError, KeyError) as e:
             raise ValueError(f"Invalid JSON record: {e}")
+
+    @classmethod
+    def _extract_parts_content(cls, parts: List[Dict[str, Any]]) -> str:
+        """Extract text content from Google conversation parts array."""
+        content_parts = []
+        for part in parts:
+            if isinstance(part, dict):
+                # Extract text from parts
+                if 'text' in part:
+                    text = part['text'].strip()
+                    if text:
+                        content_parts.append(text)
+                # Skip function calls and other non-text parts for now
+        
+        return ''.join(content_parts)  # Join without separator for Qwen (parts are often single chars)
 
     def extract_message(self) -> Optional[Message]:
         """Get a Message from this record, if applicable."""
@@ -121,7 +143,7 @@ class QwenRecord:
                 pass
 
         metadata = {
-            'type': self.type,
+            'role': self.role,
             'session_id': self.session_id,
             'checkpoint_tag': self.checkpoint_tag,
             'model': self.model,
@@ -137,14 +159,25 @@ class QwenRecord:
 
     def is_message(self) -> bool:
         """Check if this record represents a message."""
-        message_types = {
-            'user', 'assistant', 'system', 'human', 'ai', 'model', 'qwen', 'message'
+        message_roles = {
+            'user', 'assistant', 'system', 'human', 'ai', 'model', 'qwen', 'message', 'unknown'
         }
+        # Skip checkpoint and tool records
+        skip_roles = {'checkpoint', 'tool_use', 'tool_result'}
+        
+        # Check if content has meaningful data
+        has_content = False
+        if isinstance(self.content, str):
+            has_content = bool(self.content.strip())
+        elif isinstance(self.content, (list, dict)):
+            has_content = bool(self.content)  # Non-empty list or dict
+        else:
+            has_content = bool(str(self.content).strip())
+        
         return (
-            self.type.lower() in message_types or
-            (self.role and self.role.lower() in {'user', 'assistant', 'system', 'human', 'ai', 'model', 'qwen'}) or
-            # Skip checkpoint and tool records
-            (self.type.lower() not in {'checkpoint', 'tool_use', 'tool_result'} and self.content.strip())
+            self.role and self.role.lower() in message_roles and
+            self.role.lower() not in skip_roles and
+            has_content
         )
 
 
@@ -167,27 +200,63 @@ class QwenSession:
         
         try:
             with open(self.file_path, 'r', encoding='utf-8') as f:
-                for line_num, line in enumerate(f, 1):
-                    line = line.strip()
-                    if not line:
-                        continue
+                content = f.read().strip()
+                if not content:
+                    return
 
-                    try:
-                        record = QwenRecord.load(line)
+                try:
+                    # Try to parse as JSON array first (checkpoint files)
+                    data = json.loads(content)
+                    if isinstance(data, list):
+                        # Handle JSON array format
+                        for record_data in data:
+                            try:
+                                record = QwenRecord.load(json.dumps(record_data))
+                                self.records.append(record)
+
+                                # Extract session metadata
+                                if not self.session_id and record.session_id:
+                                    self.session_id = record.session_id
+                                
+                                # Collect checkpoint tags
+                                if record.checkpoint_tag and record.checkpoint_tag not in self.checkpoint_tags:
+                                    self.checkpoint_tags.append(record.checkpoint_tag)
+
+                            except ValueError as e:
+                                print(f"Warning: Skipped invalid record: {e}")
+                                continue
+                    else:
+                        # Handle single JSON object
+                        record = QwenRecord.load(content)
                         self.records.append(record)
-
-                        # Extract session metadata
                         if not self.session_id and record.session_id:
                             self.session_id = record.session_id
-                        
-                        # Collect checkpoint tags
                         if record.checkpoint_tag and record.checkpoint_tag not in self.checkpoint_tags:
                             self.checkpoint_tags.append(record.checkpoint_tag)
 
-                    except ValueError as e:
-                        # Log parsing error but continue
-                        print(f"Warning: Skipped invalid record at line {line_num}: {e}")
-                        continue
+                except json.JSONDecodeError:
+                    # Fall back to JSONL format for backward compatibility
+                    for line_num, line in enumerate(content.split('\n'), 1):
+                        line = line.strip()
+                        if not line:
+                            continue
+
+                        try:
+                            record = QwenRecord.load(line)
+                            self.records.append(record)
+
+                            # Extract session metadata
+                            if not self.session_id and record.session_id:
+                                self.session_id = record.session_id
+                            
+                            # Collect checkpoint tags
+                            if record.checkpoint_tag and record.checkpoint_tag not in self.checkpoint_tags:
+                                self.checkpoint_tags.append(record.checkpoint_tag)
+
+                        except ValueError as e:
+                            # Log parsing error but continue
+                            print(f"Warning: Skipped invalid record at line {line_num}: {e}")
+                            continue
 
         except (IOError, OSError) as e:
             raise FileNotFoundError(f"Cannot read log file: {e}")
@@ -215,46 +284,70 @@ class QwenStore(LogStore):
         # Qwen Code stores logs in ~/.qwen/ directory
         qwen_base = Path.home() / ".qwen"
         
-        # Look for logs in various possible locations
-        possible_dirs = [
-            qwen_base / "logs",
-            qwen_base / "sessions", 
-            qwen_base / "conversations",
-            qwen_base / "tmp",
-            qwen_base,  # Root qwen directory
-        ]
+        # Qwen uses the same structure as Gemini - session directories in tmp folder
+        self._logs_dir = qwen_base / "tmp"
         
-        self._logs_dir = None
-        for dir_path in possible_dirs:
-            if dir_path.exists() and any(dir_path.glob("*.jsonl")):
-                self._logs_dir = dir_path
-                break
-        
-        # Default to logs directory if none found
-        if self._logs_dir is None:
-            self._logs_dir = qwen_base / "logs"
+        # Fallback to other directories if tmp doesn't exist
+        if not self._logs_dir.exists():
+            possible_dirs = [
+                qwen_base / "logs",
+                qwen_base / "sessions", 
+                qwen_base / "conversations",
+                qwen_base,  # Root qwen directory
+            ]
+            
+            for dir_path in possible_dirs:
+                if dir_path.exists():
+                    self._logs_dir = dir_path
+                    break
+            else:
+                # Default to logs directory if none found
+                self._logs_dir = qwen_base / "logs"
 
         # Use current directory for LogStore base class compatibility
         super().__init__("qwen-code", str(Path.cwd()))
-        self.session_pattern = "*.jsonl"
 
     def list(self) -> List[Tuple[str, Dict[str, Any]]]:
-        """Show available session logs."""
+        """Show available session logs, including checkpoint files."""
         logs = []
 
         try:
             if not self._logs_dir.exists():
                 return logs
 
-            # Scan for JSONL files
-            for log_file in self._logs_dir.glob(self.session_pattern):
+            # Scan for all JSON files in session directories (like Gemini)
+            for session_dir in self._logs_dir.iterdir():
+                if not session_dir.is_dir():
+                    continue
+                    
+                session_id = session_dir.name
+                
+                # Find all JSON files in this session directory
+                for json_file in session_dir.glob("*.json"):
+                    if json_file.is_file():
+                        stat = json_file.stat()
+                        # Use <uuid>/<file_name> format as URI
+                        log_uri = f"{session_id}/{json_file.name}"
+                        metadata = {
+                            "size": stat.st_size,
+                            "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                            "accessible": json_file.is_file() and os.access(json_file, os.R_OK),
+                            "file_name": json_file.name,
+                            "session_id": session_id
+                        }
+                        logs.append((log_uri, metadata))
+
+            # Also scan for legacy JSONL files in the logs directory for backward compatibility
+            for log_file in self._logs_dir.glob("*.jsonl"):
                 if log_file.is_file():
                     stat = log_file.stat()
                     session_id = log_file.stem
                     metadata = {
                         "size": stat.st_size,
                         "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
-                        "accessible": log_file.is_file() and os.access(log_file, os.R_OK)
+                        "accessible": log_file.is_file() and os.access(log_file, os.R_OK),
+                        "file_name": log_file.name,
+                        "session_id": session_id
                     }
                     logs.append((session_id, metadata))
 
@@ -268,13 +361,32 @@ class QwenStore(LogStore):
         """Retrieve raw content of a specific log.
 
         Args:
-            session_log_uri: Either a session ID or full path to session log file
+            session_log_uri: Either <uuid>/<file_name> format, session ID, or full path
         """
-        # Handle both session IDs and full paths
-        if "/" in session_log_uri or "\\" in session_log_uri:
+        # Handle new <uuid>/<file_name> format
+        if "/" in session_log_uri and not session_log_uri.startswith("/"):
+            # Format: <uuid>/<file_name>
+            parts = session_log_uri.split("/", 1)
+            if len(parts) == 2:
+                session_id, file_name = parts
+                log_path = self._logs_dir / session_id / file_name
+            else:
+                # Fallback to old format
+                log_path = Path(session_log_uri)
+        elif "\\" in session_log_uri or session_log_uri.startswith("/"):
+            # Full path format
             log_path = Path(session_log_uri)
         else:
-            log_path = self._logs_dir / f"{session_log_uri}.jsonl"
+            # Legacy: just session ID, try JSON first, then JSONL
+            json_path = self._logs_dir / session_log_uri / "logs.json"
+            jsonl_path = self._logs_dir / f"{session_log_uri}.jsonl"
+            
+            if json_path.exists():
+                log_path = json_path
+            elif jsonl_path.exists():
+                log_path = jsonl_path
+            else:
+                log_path = json_path  # Will fail with proper error message
 
         try:
             if not log_path.exists():
@@ -318,11 +430,30 @@ class QwenCodeAgent(AgentBackend):
         return QwenStore()
 
     def parse_content(self, content: str, session_log_uri: str) -> Chat:
-        # Handle both session IDs and full paths
-        if "/" in session_log_uri or "\\" in session_log_uri:
+        # Handle new <uuid>/<file_name> format
+        if "/" in session_log_uri and not session_log_uri.startswith("/"):
+            # Format: <uuid>/<file_name>
+            parts = session_log_uri.split("/", 1)
+            if len(parts) == 2:
+                session_id, file_name = parts
+                file_path = self.store._logs_dir / session_id / file_name
+            else:
+                # Fallback to old format
+                file_path = Path(session_log_uri)
+        elif "\\" in session_log_uri or session_log_uri.startswith("/"):
+            # Full path format
             file_path = Path(session_log_uri)
         else:
-            file_path = self.store._logs_dir / f"{session_log_uri}.jsonl"
+            # Legacy: just session ID, try JSON first, then JSONL
+            json_path = self.store._logs_dir / session_log_uri / "logs.json"
+            jsonl_path = self.store._logs_dir / f"{session_log_uri}.jsonl"
+            
+            if json_path.exists():
+                file_path = json_path
+            elif jsonl_path.exists():
+                file_path = jsonl_path
+            else:
+                file_path = json_path  # Will fail with proper error message
 
         session = QwenSession(file_path=file_path)
         session.load()
