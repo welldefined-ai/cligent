@@ -203,6 +203,90 @@ class TestGeminiRecord:
             message = record.extract_message()
             assert message.role == expected_role
 
+    def test_google_conversation_format(self):
+        """Test parsing Google conversation format (checkpoint files)."""
+        google_format_json = """{
+            "role": "user",
+            "parts": [
+                {
+                    "text": "Hello, how are you?"
+                }
+            ]
+        }"""
+        
+        record = GeminiRecord.load(google_format_json)
+        
+        assert record.role == "user"
+        assert record.content == "Hello, how are you?"
+        assert record.type == "message"
+        
+        message = record.extract_message()
+        assert message is not None
+        assert message.role == Role.USER
+        assert message.content == "Hello, how are you?"
+
+    def test_google_model_role(self):
+        """Test Google 'model' role maps to assistant."""
+        google_format_json = """{
+            "role": "model",
+            "parts": [
+                {
+                    "text": "I'm doing well, thank you!"
+                }
+            ]
+        }"""
+        
+        record = GeminiRecord.load(google_format_json)
+        message = record.extract_message()
+        
+        assert message.role == Role.ASSISTANT
+        assert message.content == "I'm doing well, thank you!"
+
+    def test_google_multiple_parts(self):
+        """Test handling multiple parts in Google format."""
+        google_format_json = """{
+            "role": "user",
+            "parts": [
+                {
+                    "text": "First part."
+                },
+                {
+                    "text": "Second part."
+                }
+            ]
+        }"""
+        
+        record = GeminiRecord.load(google_format_json)
+        message = record.extract_message()
+        
+        assert message.content == "First part.\nSecond part."
+
+    def test_google_parts_with_function_calls(self):
+        """Test that function calls are filtered out from parts."""
+        google_format_json = """{
+            "role": "model",
+            "parts": [
+                {
+                    "text": "Let me help you with that."
+                },
+                {
+                    "functionCall": {
+                        "name": "search",
+                        "args": {"query": "test"}
+                    }
+                },
+                {
+                    "text": "Here's the result."
+                }
+            ]
+        }"""
+        
+        record = GeminiRecord.load(google_format_json)
+        message = record.extract_message()
+        
+        # Should only extract text parts, skip function calls
+        assert message.content == "Let me help you with that.\nHere's the result."
+
 
 class TestGeminiSession:
     """Test GeminiSession class functionality."""

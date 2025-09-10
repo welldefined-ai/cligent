@@ -1,23 +1,26 @@
 [
   {
-    "sessionId": "gemini-session-001",
-    "messageId": 0,
-    "type": "user",
-    "message": "Hello, Gemini! Can you help me with Python?",
-    "timestamp": "2024-01-01T10:00:00Z"
+    "role": "user",
+    "parts": [
+      {
+        "text": "Hello, Gemini! Can you help me with Python?"
+      }
+    ]
   },
   {
-    "sessionId": "gemini-session-001", 
-    "messageId": 1,
-    "type": "assistant",
-    "message": "Hello! I'd be happy to help you with Python. What specific topic or problem would you like assistance with?",
-    "timestamp": "2024-01-01T10:00:05Z"
+    "role": "model",
+    "parts": [
+      {
+        "text": "Hello! I'd be happy to help you with Python. What specific topic or problem would you like assistance with?"
+      }
+    ]
   },
   {
-    "sessionId": "gemini-session-001",
-    "messageId": 2,
-    "type": "user", 
-    "message": "How do I create a list comprehension?",
-    "timestamp": "2024-01-01T10:01:00Z"
+    "role": "user",
+    "parts": [
+      {
+        "text": "How do I create a list comprehension?"
+      }
+    ]
   }
 ]

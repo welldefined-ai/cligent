@@ -30,13 +30,23 @@ class GeminiRecord:
         try:
             data = json.loads(json_string)
             
-            # Flexible parsing for different Gemini CLI log formats
-            record_type = data.get('type', 'unknown')
-            content = data.get('content', data.get('text', data.get('message', '')))
-            role = data.get('role', data.get('sender', ''))
-            timestamp = data.get('timestamp', data.get('time', data.get('created_at', '')))
-            session_id = data.get('session_id', data.get('sessionId', data.get('conversation_id', '')))
-            message_id = data.get('message_id', data.get('messageId'))
+            # Handle Google conversation format (checkpoint files)
+            if 'role' in data and 'parts' in data:
+                # Google format: {"role": "user", "parts": [{"text": "..."}]}
+                role = data.get('role', '')
+                content = cls._extract_parts_content(data.get('parts', []))
+                record_type = 'message'  # Treat all as message type
+                timestamp = ''  # No timestamp in Google format
+                session_id = ''
+                message_id = None
+            else:
+                # Legacy format for main logs.json
+                record_type = data.get('type', 'unknown')
+                content = data.get('content', data.get('text', data.get('message', '')))
+                role = data.get('role', data.get('sender', ''))
+                timestamp = data.get('timestamp', data.get('time', data.get('created_at', '')))
+                session_id = data.get('session_id', data.get('sessionId', data.get('conversation_id', '')))
+                message_id = data.get('message_id', data.get('messageId'))
             
             return cls(
                 type=record_type,
@@ -49,6 +59,21 @@ class GeminiRecord:
             )
         except (json.JSONDecodeError, KeyError) as e:
             raise ValueError(f"Invalid JSON record: {e}")
+
+    @classmethod
+    def _extract_parts_content(cls, parts: List[Dict[str, Any]]) -> str:
+        """Extract text content from Google conversation parts array."""
+        content_parts = []
+        for part in parts:
+            if isinstance(part, dict):
+                # Extract text from parts
+                if 'text' in part:
+                    text = part['text'].strip()
+                    if text:
+                        content_parts.append(text)
+                # Skip function calls and other non-text parts for now
+        
+        return '\n'.join(content_parts)
 
     def extract_message(self) -> Optional[Message]:
         """Get a Message from this record, if applicable."""
