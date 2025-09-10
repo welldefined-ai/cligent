@@ -111,7 +111,7 @@ class ErrorReport:
 
 
 class LogStore(ABC):
-    """Manager for an agent's logs."""
+    """Manager for an agent's session logs."""
     
     def __init__(self, agent: str, location: str = None):
         """Initialize log store for a specific agent.
@@ -125,7 +125,7 @@ class LogStore(ABC):
     
     @abstractmethod
     def list(self) -> List[Tuple[str, Dict[str, Any]]]:
-        """Show available logs for the agent.
+        """Show available session logs for the agent.
         
         Returns:
             List of (log_uri, metadata) tuples with implementation-specific metadata.
@@ -133,11 +133,11 @@ class LogStore(ABC):
         raise NotImplementedError
     
     @abstractmethod
-    def get(self, log_uri: str) -> str:
+    def get(self, session_log_uri: str) -> str:
         """Retrieve raw content of a specific log.
         
         Args:
-            log_uri: Log URI
+            session_log_uri: Session log URI
             
         Returns:
             Raw log content as string

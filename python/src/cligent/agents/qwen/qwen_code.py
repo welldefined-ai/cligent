@@ -1,4 +1,4 @@
-"""Qwen Code specific implementation for parsing JSONL logs."""
+"""Qwen Code specific implementation for parsing JSONL session logs."""
 
 import json
 import os
@@ -239,7 +239,7 @@ class QwenStore(LogStore):
         self.session_pattern = "*.jsonl"
 
     def list(self) -> List[Tuple[str, Dict[str, Any]]]:
-        """Show available logs."""
+        """Show available session logs."""
         logs = []
 
         try:
@@ -264,21 +264,21 @@ class QwenStore(LogStore):
 
         return logs
 
-    def get(self, log_uri: str) -> str:
+    def get(self, session_log_uri: str) -> str:
         """Retrieve raw content of a specific log.
 
         Args:
-            log_uri: Either a session ID or full path to log file
+            session_log_uri: Either a session ID or full path to session log file
         """
         # Handle both session IDs and full paths
-        if "/" in log_uri or "\\" in log_uri:
-            log_path = Path(log_uri)
+        if "/" in session_log_uri or "\\" in session_log_uri:
+            log_path = Path(session_log_uri)
         else:
-            log_path = self._logs_dir / f"{log_uri}.jsonl"
+            log_path = self._logs_dir / f"{session_log_uri}.jsonl"
 
         try:
             if not log_path.exists():
-                raise FileNotFoundError(f"Log file not found: {log_uri}")
+                raise FileNotFoundError(f"Session log file not found: {session_log_uri}")
 
             with open(log_path, 'r', encoding='utf-8') as f:
                 return f.read()
@@ -286,7 +286,7 @@ class QwenStore(LogStore):
         except (OSError, PermissionError, UnicodeDecodeError) as e:
             if isinstance(e, FileNotFoundError):
                 raise
-            raise IOError(f"Cannot read log file {log_uri}: {e}")
+            raise IOError(f"Cannot read session log file {session_log_uri}: {e}")
 
     def live(self) -> Optional[str]:
         """Get URI of currently active log (most recent)."""
@@ -317,12 +317,12 @@ class QwenCodeAgent(AgentBackend):
     def _create_store(self, project_path: Optional[str] = None) -> LogStore:
         return QwenStore()
 
-    def parse_content(self, content: str, log_uri: str) -> Chat:
+    def parse_content(self, content: str, session_log_uri: str) -> Chat:
         # Handle both session IDs and full paths
-        if "/" in log_uri or "\\" in log_uri:
-            file_path = Path(log_uri)
+        if "/" in session_log_uri or "\\" in session_log_uri:
+            file_path = Path(session_log_uri)
         else:
-            file_path = self.store._logs_dir / f"{log_uri}.jsonl"
+            file_path = self.store._logs_dir / f"{session_log_uri}.jsonl"
 
         session = QwenSession(file_path=file_path)
         session.load()

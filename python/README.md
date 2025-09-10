@@ -1,6 +1,6 @@
 # Cligent - Chat Parser Library
 
-A Python library for parsing AI agent conversation logs, with specialized support for Claude Code conversations.
+A Python library for parsing AI agent session logs, with specialized support for Claude Code conversations.
 
 ## Installation
 
@@ -10,18 +10,18 @@ pip install cligent
 
 ## Features
 
-- Parse Claude Code conversation logs from JSONL format
+- Parse Claude Code session logs from JSONL format
 - Support for multi-turn conversations with user, assistant, and system messages
 - Handle tool usage and function calls in conversations
 - Filter and process Claude-specific message formats
 - Export conversations to YAML format
-- Robust error handling for malformed logs
+- Robust error handling for malformed session logs
 
 ## Quick Start
 
 ### Basic Usage - Parse Claude Code Logs
 
-If you're working in a directory where you've used Claude Code, you can easily access all your conversation logs for that specific project:
+If you're working in a directory where you've used Claude Code, you can easily access all your session logs for that specific project:
 
 ```python
 from cligent import ChatParser
@@ -29,7 +29,7 @@ from cligent import ChatParser
 # Initialize parser for Claude Code (uses current working directory)
 parser = ChatParser("claude-code")
 
-# List all conversation logs for the current project only
+# List all session logs for the current project only
 logs = parser.list()
 for log_uri, metadata in logs:
     print(f"Session ID: {log_uri}")  # Returns session ID, not full path
@@ -52,7 +52,7 @@ from cligent import ChatParser
 
 parser = ChatParser("claude-code")
 
-# List logs and pick one (log_uri is now a session ID)
+# List session logs and pick one (log_uri is now a session ID)
 logs = parser.list()
 if logs:
     session_id, metadata = logs[0]  # First available log
@@ -71,9 +71,9 @@ if logs:
 ```python
 from cligent import ChatParser
 
-# Parse logs from a different project directory
+# Parse session logs from a different project directory
 parser = ChatParser("claude-code", location="/home/user/projects/my-app")
-logs = parser.list()  # Returns logs for my-app project
+logs = parser.list()  # Returns session logs for my-app project
 ```
 
 ## Advanced Usage
@@ -175,7 +175,7 @@ except ChatParserError as e:
 - `ChatParser`: Main parser class for processing conversation logs
 - `Chat`: Represents a complete conversation
 - `Message`: Individual message within a conversation
-- `LogStore`: Represents a storage location for conversation logs
+- `LogStore`: Represents a storage location for session logs
 
 ### Exceptions
 

@@ -1,4 +1,4 @@
-"""Claude Code specific implementation for parsing JSONL logs."""
+"""Claude Code specific implementation for parsing JSONL session logs."""
 
 import json
 import os
@@ -162,10 +162,10 @@ class ClaudeStore(LogStore):
     """Claude Code log store implementation."""
 
     def __init__(self, project_path: Path = None):
-        """Initialize with base path for Claude logs.
+        """Initialize with base path for Claude session logs.
 
         Args:
-            project_path: Working directory to find Claude logs for
+            project_path: Working directory to find Claude session logs for
                          (default: current working directory)
         """
         # Determine the working directory
@@ -178,7 +178,7 @@ class ClaudeStore(LogStore):
         # Claude uses path with / replaced by -
         project_folder_name = str(working_dir.absolute()).replace("/", "-")
 
-        # Find the Claude logs directory for this project
+        # Find the Claude session logs directory for this project
         claude_base = Path.home() / ".claude" / "projects"
         self._project_dir = claude_base / project_folder_name
 
@@ -187,7 +187,7 @@ class ClaudeStore(LogStore):
         self.session_pattern = "*.jsonl"  # Pattern for session file names
 
     def list(self) -> List[Tuple[str, Dict[str, Any]]]:
-        """Show available logs for the current project."""
+        """Show available session logs for the current project."""
         logs = []
 
         try:
@@ -215,23 +215,23 @@ class ClaudeStore(LogStore):
 
         return logs
 
-    def get(self, log_uri: str) -> str:
+    def get(self, session_log_uri: str) -> str:
         """Retrieve raw content of a specific log.
 
         Args:
-            log_uri: Either a session ID or full path to log file
+            session_log_uri: Either a session ID or full path to session log file
         """
         # Handle both session IDs and full paths for compatibility
-        if "/" in log_uri or "\\" in log_uri:
+        if "/" in session_log_uri or "\\" in session_log_uri:
             # Full path provided (backwards compatibility)
-            log_path = Path(log_uri)
+            log_path = Path(session_log_uri)
         else:
             # Session ID provided - construct full path
-            log_path = self._project_dir / f"{log_uri}.jsonl"
+            log_path = self._project_dir / f"{session_log_uri}.jsonl"
 
         try:
             if not log_path.exists():
-                raise FileNotFoundError(f"Log file not found: {log_uri}")
+                raise FileNotFoundError(f"Session log file not found: {session_log_uri}")
 
             with open(log_path, 'r', encoding='utf-8') as f:
                 return f.read()
@@ -239,7 +239,7 @@ class ClaudeStore(LogStore):
         except (OSError, PermissionError, UnicodeDecodeError) as e:
             if isinstance(e, FileNotFoundError):
                 raise  # Re-raise FileNotFoundError as-is
-            raise IOError(f"Cannot read log file {log_uri}: {e}")
+            raise IOError(f"Cannot read session log file {session_log_uri}: {e}")
 
     def live(self) -> Optional[str]:
         """Get URI of currently active log (most recent)."""
@@ -275,12 +275,12 @@ class ClaudeCodeAgent(AgentBackend):
     def _create_store(self, project_path: Optional[str] = None) -> LogStore:
         return ClaudeStore(project_path=project_path)
 
-    def parse_content(self, content: str, log_uri: str) -> Chat:
+    def parse_content(self, content: str, session_log_uri: str) -> Chat:
         # 使用现有的Session逻辑
-        if "/" in log_uri or "\\" in log_uri:
-            file_path = Path(log_uri)
+        if "/" in session_log_uri or "\\" in session_log_uri:
+            file_path = Path(session_log_uri)
         else:
-            file_path = self.store._project_dir / f"{log_uri}.jsonl"
+            file_path = self.store._project_dir / f"{session_log_uri}.jsonl"
 
         session = Session(file_path=file_path)
         session.load()
