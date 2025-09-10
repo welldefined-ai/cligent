@@ -235,27 +235,36 @@ class GeminiStore(LogStore):
 
         # Use current directory for LogStore base class compatibility
         super().__init__("gemini-cli", str(Path.cwd()))
-        self.session_pattern = "*/logs.json"  # Pattern for session file names in folders
 
     def list(self) -> List[Tuple[str, Dict[str, Any]]]:
-        """Show available session logs."""
+        """Show available session logs, including checkpoint files."""
         logs = []
 
         try:
             if not self._logs_dir.exists():
                 return logs
 
-            # Scan for logs.json files in session folders
-            for log_file in self._logs_dir.glob(self.session_pattern):
-                if log_file.is_file():
-                    stat = log_file.stat()
-                    session_id = log_file.parent.name  # Get session ID from folder name
-                    metadata = {
-                        "size": stat.st_size,
-                        "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
-                        "accessible": log_file.is_file() and os.access(log_file, os.R_OK)
-                    }
-                    logs.append((session_id, metadata))
+            # Scan for all JSON files in session directories
+            for session_dir in self._logs_dir.iterdir():
+                if not session_dir.is_dir():
+                    continue
+                    
+                session_id = session_dir.name
+                
+                # Find all JSON files in this session directory
+                for json_file in session_dir.glob("*.json"):
+                    if json_file.is_file():
+                        stat = json_file.stat()
+                        # Use <uuid>/<file_name> format as URI
+                        log_uri = f"{session_id}/{json_file.name}"
+                        metadata = {
+                            "size": stat.st_size,
+                            "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                            "accessible": json_file.is_file() and os.access(json_file, os.R_OK),
+                            "file_name": json_file.name,
+                            "session_id": session_id
+                        }
+                        logs.append((log_uri, metadata))
 
         except (OSError, PermissionError):
             # Return empty list if we can't access the directory
@@ -267,12 +276,23 @@ class GeminiStore(LogStore):
         """Retrieve raw content of a specific log.
 
         Args:
-            session_log_uri: Either a session ID or full path to session log file
+            session_log_uri: Either <uuid>/<file_name> format, session ID, or full path
         """
-        # Handle both session IDs and full paths
-        if "/" in session_log_uri or "\\" in session_log_uri:
+        # Handle new <uuid>/<file_name> format
+        if "/" in session_log_uri and not session_log_uri.startswith("/"):
+            # Format: <uuid>/<file_name>
+            parts = session_log_uri.split("/", 1)
+            if len(parts) == 2:
+                session_id, file_name = parts
+                log_path = self._logs_dir / session_id / file_name
+            else:
+                # Fallback to old format
+                log_path = Path(session_log_uri)
+        elif "\\" in session_log_uri or session_log_uri.startswith("/"):
+            # Full path format
             log_path = Path(session_log_uri)
         else:
+            # Legacy: just session ID, assume logs.json
             log_path = self._logs_dir / session_log_uri / "logs.json"
 
         try:
@@ -317,10 +337,21 @@ class GeminiCliAgent(AgentBackend):
         return GeminiStore()
 
     def parse_content(self, content: str, session_log_uri: str) -> Chat:
-        # Handle both session IDs and full paths
-        if "/" in session_log_uri or "\\" in session_log_uri:
+        # Handle new <uuid>/<file_name> format
+        if "/" in session_log_uri and not session_log_uri.startswith("/"):
+            # Format: <uuid>/<file_name>
+            parts = session_log_uri.split("/", 1)
+            if len(parts) == 2:
+                session_id, file_name = parts
+                file_path = self.store._logs_dir / session_id / file_name
+            else:
+                # Fallback to old format
+                file_path = Path(session_log_uri)
+        elif "\\" in session_log_uri or session_log_uri.startswith("/"):
+            # Full path format
             file_path = Path(session_log_uri)
         else:
+            # Legacy: just session ID, assume logs.json
             file_path = self.store._logs_dir / session_log_uri / "logs.json"
 
         session = GeminiSession(file_path=file_path)

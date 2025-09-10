@@ -331,15 +331,17 @@ class TestGeminiStore:
             logs = store.list()
         
         assert len(logs) == 2
-        session_ids = [log[0] for log in logs]
-        assert "session1" in session_ids
-        assert "session2" in session_ids
+        log_uris = [log[0] for log in logs]
+        assert "session1/logs.json" in log_uris
+        assert "session2/logs.json" in log_uris
         
         # Check metadata structure
         metadata = logs[0][1]
         assert "size" in metadata
         assert "modified" in metadata
         assert "accessible" in metadata
+        assert "file_name" in metadata
+        assert "session_id" in metadata
 
     def test_list_logs_no_directory(self, tmp_path):
         """Test listing logs when directory doesn't exist."""
@@ -373,7 +375,7 @@ class TestGeminiStore:
         with patch('pathlib.Path.home', return_value=mock_home_dir):
             store = GeminiStore()
             
-            with pytest.raises(FileNotFoundError, match="Log file not found"):
+            with pytest.raises(FileNotFoundError, match="Session log file not found"):
                 store.get("nonexistent")
 
     def test_live_log(self, mock_home_dir):
@@ -382,8 +384,8 @@ class TestGeminiStore:
             store = GeminiStore()
             live_log = store.live()
         
-        # Should return one of the sessions (most recent)
-        assert live_log in ["session1", "session2"]
+        # Should return one of the sessions with new URI format
+        assert live_log in ["session1/logs.json", "session2/logs.json"]
 
     def test_live_log_no_logs(self, tmp_path):
         """Test getting live log when no logs exist."""
@@ -428,6 +430,96 @@ class TestGeminiStore:
             assert store._logs_dir == logs_dir
             logs = store.list()
             assert len(logs) == 1
+
+    def test_checkpoint_files_handling(self, tmp_path):
+        """Test that checkpoint files are listed and accessible."""
+        home_dir = tmp_path / "home"
+        gemini_dir = home_dir / ".gemini" / "tmp"
+        gemini_dir.mkdir(parents=True)
+        
+        # Create session with multiple files
+        session_dir = gemini_dir / "session-123"
+        session_dir.mkdir()
+        
+        # Main logs.json
+        (session_dir / "logs.json").write_text('[{"type": "user", "content": "Hello"}]')
+        # Checkpoint files
+        (session_dir / "checkpoint-python-basics.json").write_text('[{"type": "user", "content": "Python help"}]')
+        (session_dir / "checkpoint-final.json").write_text('[{"type": "assistant", "content": "Summary"}]')
+        
+        with patch('pathlib.Path.home', return_value=home_dir):
+            store = GeminiStore()
+            logs = store.list()
+        
+        # Should find all JSON files
+        assert len(logs) == 3
+        
+        # Check that URIs use <uuid>/<filename> format
+        log_uris = [log[0] for log in logs]
+        expected_uris = [
+            "session-123/logs.json",
+            "session-123/checkpoint-python-basics.json", 
+            "session-123/checkpoint-final.json"
+        ]
+        
+        for expected_uri in expected_uris:
+            assert expected_uri in log_uris
+        
+        # Check metadata includes file information
+        for uri, metadata in logs:
+            assert "file_name" in metadata
+            assert "session_id" in metadata
+            assert metadata["session_id"] == "session-123"
+
+    def test_get_checkpoint_file_by_uri(self, tmp_path):
+        """Test retrieving checkpoint file using <uuid>/<filename> URI format."""
+        home_dir = tmp_path / "home"
+        gemini_dir = home_dir / ".gemini" / "tmp"
+        gemini_dir.mkdir(parents=True)
+        
+        session_dir = gemini_dir / "session-456"
+        session_dir.mkdir()
+        
+        checkpoint_content = '[{"type": "user", "content": "Checkpoint test"}]'
+        (session_dir / "checkpoint-test.json").write_text(checkpoint_content)
+        
+        with patch('pathlib.Path.home', return_value=home_dir):
+            store = GeminiStore()
+            
+            # Test new URI format
+            content = store.get("session-456/checkpoint-test.json")
+            assert content == checkpoint_content
+            
+            # Test that old format still works (backward compatibility)
+            main_content = '[{"type": "user", "content": "Main conversation"}]'
+            (session_dir / "logs.json").write_text(main_content)
+            legacy_content = store.get("session-456")  # Should default to logs.json
+            assert legacy_content == main_content
+
+    def test_parse_checkpoint_content(self, tmp_path):
+        """Test that checkpoint files can be parsed correctly."""
+        home_dir = tmp_path / "home"
+        gemini_dir = home_dir / ".gemini" / "tmp"
+        gemini_dir.mkdir(parents=True)
+        
+        session_dir = gemini_dir / "session-789"
+        session_dir.mkdir()
+        
+        checkpoint_data = [
+            {"type": "user", "role": "user", "content": "Checkpoint message 1"},
+            {"type": "assistant", "role": "model", "content": "Checkpoint response 1"}
+        ]
+        (session_dir / "checkpoint-conversation.json").write_text(json.dumps(checkpoint_data))
+        
+        with patch('pathlib.Path.home', return_value=home_dir):
+            agent = GeminiCliAgent()
+            
+            # Parse using the new URI format
+            chat = agent.parse("session-789/checkpoint-conversation.json")
+            
+            assert len(chat.messages) == 2
+            assert chat.messages[0].content == "Checkpoint message 1"
+            assert chat.messages[1].content == "Checkpoint response 1"
 
 
 class TestGeminiCliAgent:
