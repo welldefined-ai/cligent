@@ -245,6 +245,238 @@ class TestSessionIDFunctionality:
                 assert parent_ids != python_ids, "Different projects returned same logs"
 
 
+class TestPlanHandling:
+    """Test ExitPlanMode and plan response handling."""
+
+    def test_exit_plan_mode_detection(self):
+        """Test that ExitPlanMode tool use is correctly detected."""
+        from agents.claude.claude_code import Record
+        
+        # Mock ExitPlanMode record
+        exit_plan_data = {
+            "type": "assistant",
+            "uuid": "test-uuid",
+            "message": {
+                "role": "assistant",
+                "content": [
+                    {
+                        "type": "text", 
+                        "text": "Let me create a plan:"
+                    },
+                    {
+                        "type": "tool_use",
+                        "id": "tool-id",
+                        "name": "ExitPlanMode",
+                        "input": {
+                            "plan": "## Test Plan\n\n1. Do something\n2. Do something else"
+                        }
+                    }
+                ]
+            },
+            "timestamp": "2024-01-01T12:00:00Z"
+        }
+        
+        record = Record(
+            type="assistant",
+            uuid="test-uuid", 
+            raw_data=exit_plan_data,
+            timestamp="2024-01-01T12:00:00Z"
+        )
+        
+        # Test detection
+        assert record.is_exit_plan_mode()
+        
+        # Test message extraction
+        message = record.extract_message()
+        assert message is not None
+        assert message.role == Role.ASSISTANT
+        assert "📋 **Plan Proposal**" in message.content
+        assert "## Test Plan" in message.content
+        assert message.metadata['is_plan'] == True
+        assert message.metadata['tool_type'] == 'ExitPlanMode'
+
+    def test_plan_response_detection(self):
+        """Test that plan approval responses are correctly detected."""
+        from agents.claude.claude_code import Record
+        
+        # Mock plan approval record
+        plan_response_data = {
+            "type": "user",
+            "uuid": "test-uuid",
+            "message": {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": "tool-id",
+                        "content": "User has approved your plan. You can now start coding."
+                    }
+                ]
+            },
+            "timestamp": "2024-01-01T12:01:00Z"
+        }
+        
+        record = Record(
+            type="user",
+            uuid="test-uuid",
+            raw_data=plan_response_data,
+            timestamp="2024-01-01T12:01:00Z" 
+        )
+        
+        # Test detection
+        assert record.is_plan_response()
+        
+        # Test message extraction
+        message = record.extract_message()
+        assert message is not None
+        assert message.role == Role.USER
+        assert "✅ **Plan Approved**" in message.content
+        assert message.metadata['is_plan_response'] == True
+        assert message.metadata['tool_type'] == 'plan_response'
+
+    def test_plan_rejection_detection(self):
+        """Test that plan rejection responses are correctly detected."""
+        from agents.claude.claude_code import Record
+        
+        # Mock plan rejection record (actual format from real log)
+        plan_rejection_data = {
+            "type": "user",
+            "uuid": "test-uuid",
+            "message": {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": "tool-id",
+                        "content": "The user doesn't want to proceed with this tool use. The tool use was rejected (eg. if it was a file edit, the new_string was NOT written to the file). STOP what you are doing and wait for the user to tell you how to proceed.",
+                        "is_error": True
+                    }
+                ]
+            },
+            "timestamp": "2024-01-01T12:01:00Z"
+        }
+        
+        record = Record(
+            type="user",
+            uuid="test-uuid",
+            raw_data=plan_rejection_data,
+            timestamp="2024-01-01T12:01:00Z" 
+        )
+        
+        # Test detection
+        assert record.is_plan_response()
+        
+        # Test message extraction
+        message = record.extract_message()
+        assert message is not None
+        assert message.role == Role.USER
+        assert "❌ **Plan Rejected**" in message.content
+        assert "User has rejected the plan proposal" in message.content
+        assert message.metadata['is_plan_response'] == True
+        assert message.metadata['tool_type'] == 'plan_response'
+
+    def test_generic_rejection_detection(self):
+        """Test that generic tool rejection is also detected as plan response."""
+        from agents.claude.claude_code import Record
+        
+        # Mock generic tool rejection
+        rejection_data = {
+            "type": "user",
+            "uuid": "test-uuid",
+            "message": {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": "tool-id",
+                        "content": "tool use was rejected",
+                        "is_error": True
+                    }
+                ]
+            },
+            "timestamp": "2024-01-01T12:01:00Z"
+        }
+        
+        record = Record(
+            type="user",
+            uuid="test-uuid",
+            raw_data=rejection_data,
+            timestamp="2024-01-01T12:01:00Z" 
+        )
+        
+        # Test detection
+        assert record.is_plan_response()
+        
+        # Test message extraction  
+        message = record.extract_message()
+        assert message is not None
+        assert message.role == Role.USER
+        assert "❌ **Plan Rejected**" in message.content
+
+    def test_regular_assistant_message_with_plan_present(self):
+        """Test that assistant messages with ExitPlanMode are converted to plan messages."""
+        from agents.claude.claude_code import Record
+        
+        # Mock assistant message that contains both text and ExitPlanMode
+        mixed_data = {
+            "type": "assistant",
+            "uuid": "test-uuid",
+            "message": {
+                "role": "assistant",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": "I'll create a plan for this task:"
+                    },
+                    {
+                        "type": "tool_use", 
+                        "name": "ExitPlanMode",
+                        "input": {
+                            "plan": "## My Plan\nStep 1\nStep 2"
+                        }
+                    }
+                ]
+            }
+        }
+        
+        record = Record(type="assistant", uuid="test-uuid", raw_data=mixed_data)
+        message = record.extract_message()
+        
+        # Should extract as plan message, not regular text message
+        assert message is not None
+        assert message.metadata['is_plan'] == True
+        assert "📋 **Plan Proposal**" in message.content
+        assert "## My Plan" in message.content
+
+    def test_regular_message_without_plan_tools(self):
+        """Test that regular messages without plan tools are processed normally."""
+        from agents.claude.claude_code import Record
+        
+        # Mock regular assistant message
+        regular_data = {
+            "type": "assistant", 
+            "uuid": "test-uuid",
+            "message": {
+                "role": "assistant",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": "This is a regular message without any planning tools."
+                    }
+                ]
+            }
+        }
+        
+        record = Record(type="assistant", uuid="test-uuid", raw_data=regular_data)
+        message = record.extract_message()
+        
+        assert message is not None
+        assert message.role == Role.ASSISTANT
+        assert message.content == "This is a regular message without any planning tools."
+        assert not message.metadata.get('is_plan', False)
+        assert not message.metadata.get('is_plan_response', False)
+
+
 class TestClaudeImplementation:
     """Test Claude-specific implementation details."""
 
