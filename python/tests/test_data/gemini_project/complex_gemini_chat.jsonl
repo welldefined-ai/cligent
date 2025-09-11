@@ -1,5 +1,0 @@
-{"type": "user", "role": "human", "content": "Explain machine learning", "timestamp": "1704103200", "conversation_id": "ml-discussion-002"}
-{"type": "assistant", "role": "model", "content": {"text": "Machine learning is a subset of artificial intelligence that enables computers to learn and improve from experience without being explicitly programmed."}, "timestamp": "1704103205", "conversation_id": "ml-discussion-002"}
-{"type": "user", "role": "user", "text": "What are the main types?", "time": "1704103300", "sessionId": "ml-discussion-002"}
-{"type": "system", "role": "system", "message": "Conversation context: Educational discussion about ML types", "created_at": "2024-01-01T10:05:00+00:00"}
-{"type": "assistant", "role": "ai", "content": "The main types of machine learning are:\n1. Supervised Learning\n2. Unsupervised Learning\n3. Reinforcement Learning", "timestamp": "2024-01-01T10:05:10Z", "conversation_id": "ml-discussion-002"}

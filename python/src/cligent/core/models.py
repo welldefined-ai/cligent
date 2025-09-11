@@ -1,9 +1,25 @@
 """Core data models for the chat parser."""
 
+import re
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 from enum import Enum
+
+
+def _strip_ansi_codes(text: str) -> str:
+    """Strip ANSI escape codes from text to ensure YAML compatibility.
+    
+    Args:
+        text: Text that may contain ANSI escape codes
+        
+    Returns:
+        Text with ANSI escape codes removed
+    """
+    # ANSI escape sequence pattern: ESC[ followed by parameter bytes and final byte
+    ansi_pattern = re.compile(r'\x1b\[[0-9;]*[A-Za-z]')
+    return ansi_pattern.sub('', text)
 
 
 class Role(Enum):
@@ -52,19 +68,6 @@ class Chat:
         if message in self.messages:
             self.messages.remove(message)
     
-    def parse(self, log_content: str) -> None:
-        """Extract chat from a log."""
-        # This is a placeholder - actual parsing would be agent-specific
-        # In practice, this would delegate to agent-specific parsers
-        lines = log_content.strip().split('\n')
-        for line in lines:
-            if line.strip():
-                # Simple text-based parsing for demo
-                role = Role.USER if line.startswith('User:') else Role.ASSISTANT
-                content = line.split(':', 1)[1].strip() if ':' in line else line
-                message = Message(role=role, content=content)
-                self.messages.append(message)
-    
     def merge(self, other: 'Chat') -> 'Chat':
         """Combine with another chat."""
         merged_messages = self.messages + other.messages
@@ -86,14 +89,16 @@ class Chat:
             
             # Always use literal block style for content
             lines.append("  content: |")
+            # Strip ANSI codes to ensure YAML compatibility
+            clean_content = _strip_ansi_codes(message.content)
             # Split content by any line ending style (cross-platform)
-            content_lines = message.content.splitlines()
+            content_lines = clean_content.splitlines()
             if content_lines:
                 for content_line in content_lines:
                     lines.append(f"    {content_line}")
             else:
                 # Handle empty content
-                lines.append(f"    {message.content}")
+                lines.append(f"    {clean_content}")
             
             # Add timestamp if available
             if message.timestamp:
@@ -120,3 +125,47 @@ class ErrorReport:
         location_str = f" at {self.location}" if self.location else ""
         recovery_str = " (recoverable)" if self.recoverable else " (fatal)"
         return f"Error{location_str}: {self.error}{recovery_str}\nLog snippet: {self.log}"
+
+
+class LogStore(ABC):
+    """Manager for an agent's session logs."""
+    
+    def __init__(self, agent: str, location: str = None):
+        """Initialize log store for a specific agent.
+        
+        Args:
+            agent: Name of the agent (e.g., "claude-code")
+            location: Location of the agent's logs (optional, implementation-specific)
+        """
+        self.agent = agent
+        self.location = location
+    
+    @abstractmethod
+    def list(self) -> List[Tuple[str, Dict[str, Any]]]:
+        """Show available session logs for the agent.
+        
+        Returns:
+            List of (log_uri, metadata) tuples with implementation-specific metadata.
+        """
+        raise NotImplementedError
+    
+    @abstractmethod
+    def get(self, session_log_uri: str) -> str:
+        """Retrieve raw content of a specific log.
+        
+        Args:
+            session_log_uri: Session log URI
+            
+        Returns:
+            Raw log content as string
+        """
+        raise NotImplementedError
+    
+    @abstractmethod
+    def live(self) -> Optional[str]:
+        """Get URI of currently active log.
+        
+        Returns:
+            Log URI for active log or None if no active log
+        """
+        raise NotImplementedError

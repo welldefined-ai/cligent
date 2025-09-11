@@ -6,9 +6,9 @@ import sys
 import os
 from unittest.mock import patch
 
-from chat_parser import ChatParser, Chat, Message, Role
-from chat_parser.errors import ChatParserError
-from chat_parser.claude.claude_code import ClaudeStore, Session, Record
+from cligent import ChatParser, Chat, Message, Role
+from cligent.core.errors import ChatParserError
+from cligent.agents.claude.claude_code import ClaudeStore, Session, Record
 
 
 class TestChatParserReal:
@@ -27,7 +27,9 @@ class TestChatParserReal:
     @pytest.fixture
     def parser(self, test_data_path):
         """ChatParser instance using test data."""
-        return ChatParser("claude-code", location=str(test_data_path))
+        # Mock the current working directory to point to test data
+        with patch.object(Path, 'cwd', return_value=test_data_path):
+            return ChatParser("claude-code")
 
     @pytest.fixture
     def claude_parser(self, mock_home):
@@ -42,7 +44,7 @@ class TestChatParserReal:
         mock_cwd = Path("/home/user/projects/myproject/python")
         with patch.object(Path, 'home', return_value=mock_home), \
              patch.object(Path, 'cwd', return_value=mock_cwd):
-            logs = claude_parser.list_logs()
+            logs = claude_parser.list()
 
         # Should find our test logs
         assert len(logs) >= 4  # We created at least 4 test files
@@ -186,13 +188,13 @@ class TestSessionIDFunctionality:
     """Test the new session ID based functionality."""
 
     def test_list_logs_returns_session_ids(self):
-        """Test that list_logs returns session IDs, not full paths."""
+        """Test that list returns session IDs, not full paths."""
         from cligent import ChatParser
         from pathlib import Path
 
         # Use current directory which should have Claude Code logs
         parser = ChatParser("claude-code")
-        logs = parser.list_logs()
+        logs = parser.list()
 
         if logs:  # Only test if there are logs
             for log_uri, metadata in logs:
@@ -208,7 +210,7 @@ class TestSessionIDFunctionality:
         from cligent import ChatParser
 
         parser = ChatParser("claude-code")
-        logs = parser.list_logs()
+        logs = parser.list()
 
         if logs:  # Only test if there are logs
             session_id, _ = logs[0]
@@ -226,11 +228,14 @@ class TestSessionIDFunctionality:
         
         # Test with different project directories
         with patch.object(Path, 'home', return_value=mock_home):
-            parent_parser = ChatParser("claude-code", location="/home/user/projects/myproject")
-            parent_logs = parent_parser.list_logs()
+            # Mock different working directories to simulate different projects
+            with patch.object(Path, 'cwd', return_value=Path("/home/user/projects/myproject")):
+                parent_parser = ChatParser("claude-code")
+                parent_logs = parent_parser.list()
 
-            python_parser = ChatParser("claude-code", location="/home/user/projects/myproject/python")
-            python_logs = python_parser.list_logs()
+            with patch.object(Path, 'cwd', return_value=Path("/home/user/projects/myproject/python")):
+                python_parser = ChatParser("claude-code")
+                python_logs = python_parser.list()
 
             # Different projects should have different logs
             # (unless no logs exist for one of them)
@@ -307,7 +312,9 @@ class TestClaudeImplementation:
         """Test that tool use messages are filtered out correctly."""
         from cligent import ChatParser
 
-        parser = ChatParser("claude-code", location=str(test_data_path))
+        # Mock the current working directory to point to test data
+        with patch.object(Path, 'cwd', return_value=test_data_path):
+            parser = ChatParser("claude-code")
         tool_log = (
             test_data_path / "claude_code_project" / "tool_filtering_chat.jsonl"
         )
@@ -332,7 +339,7 @@ class TestClaudeImplementation:
 
     def test_mixed_content_messages(self) -> None:
         """Test messages with both text and tool content extract only text."""
-        from chat_parser.claude.claude_code import Record
+        from cligent.agents.claude.claude_code import Record
 
         # Simulate a message with both text and tool_use blocks
         mixed_data = {
@@ -384,7 +391,9 @@ class TestErrorHandling:
 
     def test_file_permission_errors(self):
         """Test handling file access errors."""
-        store = ClaudeStore(location="/nonexistent/directory")
+        # Mock current working directory to nonexistent path
+        with patch.object(Path, 'cwd', return_value=Path("/nonexistent/directory")):
+            store = ClaudeStore()
 
         # Should return empty list, not raise error
         logs = store.list()

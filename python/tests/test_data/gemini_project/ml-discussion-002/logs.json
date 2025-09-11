@@ -1,0 +1,37 @@
+[
+  {
+    "sessionId": "ml-discussion-002",
+    "messageId": 0,
+    "type": "user",
+    "message": "Explain machine learning",
+    "timestamp": "2024-01-01T10:00:00Z"
+  },
+  {
+    "sessionId": "ml-discussion-002",
+    "messageId": 1,
+    "type": "assistant", 
+    "message": "Machine learning is a subset of artificial intelligence that enables computers to learn and improve from experience without being explicitly programmed.",
+    "timestamp": "2024-01-01T10:00:05Z"
+  },
+  {
+    "sessionId": "ml-discussion-002",
+    "messageId": 2,
+    "type": "user",
+    "message": "What are the main types?",
+    "timestamp": "2024-01-01T10:05:00Z"
+  },
+  {
+    "sessionId": "ml-discussion-002",
+    "messageId": 3,
+    "type": "system",
+    "message": "Conversation context: Educational discussion about ML types",
+    "timestamp": "2024-01-01T10:05:00Z"
+  },
+  {
+    "sessionId": "ml-discussion-002",
+    "messageId": 4,
+    "type": "assistant",
+    "message": "The main types of machine learning are:\n1. Supervised Learning\n2. Unsupervised Learning\n3. Reinforcement Learning",
+    "timestamp": "2024-01-01T10:05:10Z"
+  }
+]

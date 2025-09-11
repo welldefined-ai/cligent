@@ -1,4 +1,4 @@
-"""Claude Code specific implementation for parsing JSONL logs."""
+"""Claude Code specific implementation for parsing JSONL session logs."""
 
 import json
 import os
@@ -7,10 +7,10 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime
 
-from ..models import Message, Chat, ErrorReport, Role
-from ..store import LogStore
+from ...core.models import Message, Chat, ErrorReport, Role
+from ...core.models import LogStore
 
-from ..agent import AgentBackend, AgentConfig
+from ...core.agent import AgentBackend
 
 
 @dataclass
@@ -161,24 +161,19 @@ class Session:
 class ClaudeStore(LogStore):
     """Claude Code log store implementation."""
 
-    def __init__(self, location: Path = None):
-        """Initialize with base path for Claude logs.
+    def __init__(self):
+        """Initialize with base path for Claude session logs.
 
-        Args:
-            location: Working directory to find Claude logs for
-                     (default: current working directory)
+        Uses current working directory to find Claude session logs.
         """
-        # Determine the working directory
-        if location is None:
-            working_dir = Path.cwd()
-        else:
-            working_dir = Path(location)
+        # Use current working directory
+        working_dir = Path.cwd()
 
         # Convert working directory to Claude project folder name
         # Claude uses path with / replaced by -
         project_folder_name = str(working_dir.absolute()).replace("/", "-")
 
-        # Find the Claude logs directory for this project
+        # Find the Claude session logs directory for this project
         claude_base = Path.home() / ".claude" / "projects"
         self._project_dir = claude_base / project_folder_name
 
@@ -187,7 +182,7 @@ class ClaudeStore(LogStore):
         self.session_pattern = "*.jsonl"  # Pattern for session file names
 
     def list(self) -> List[Tuple[str, Dict[str, Any]]]:
-        """Show available logs for the current project."""
+        """Show available session logs for the current project."""
         logs = []
 
         try:
@@ -215,23 +210,23 @@ class ClaudeStore(LogStore):
 
         return logs
 
-    def get(self, log_uri: str) -> str:
+    def get(self, session_log_uri: str) -> str:
         """Retrieve raw content of a specific log.
 
         Args:
-            log_uri: Either a session ID or full path to log file
+            session_log_uri: Either a session ID or full path to session log file
         """
         # Handle both session IDs and full paths for compatibility
-        if "/" in log_uri or "\\" in log_uri:
+        if "/" in session_log_uri or "\\" in session_log_uri:
             # Full path provided (backwards compatibility)
-            log_path = Path(log_uri)
+            log_path = Path(session_log_uri)
         else:
             # Session ID provided - construct full path
-            log_path = self._project_dir / f"{log_uri}.jsonl"
+            log_path = self._project_dir / f"{session_log_uri}.jsonl"
 
         try:
             if not log_path.exists():
-                raise FileNotFoundError(f"Log file not found: {log_uri}")
+                raise FileNotFoundError(f"Session log file not found: {session_log_uri}")
 
             with open(log_path, 'r', encoding='utf-8') as f:
                 return f.read()
@@ -239,7 +234,7 @@ class ClaudeStore(LogStore):
         except (OSError, PermissionError, UnicodeDecodeError) as e:
             if isinstance(e, FileNotFoundError):
                 raise  # Re-raise FileNotFoundError as-is
-            raise IOError(f"Cannot read log file {log_uri}: {e}")
+            raise IOError(f"Cannot read session log file {session_log_uri}: {e}")
 
     def live(self) -> Optional[str]:
         """Get URI of currently active log (most recent)."""
@@ -256,55 +251,31 @@ class ClaudeStore(LogStore):
 class ClaudeCodeAgent(AgentBackend):
     """Claude Code agent implementation."""
 
+    def __init__(self):
+        """Initialize Claude Code agent."""
+        super().__init__()
+
     @property
-    def config(self) -> AgentConfig:
-        return AgentConfig(
-            name="claude-code",
-            display_name="Claude Code",
-            log_extensions=[".jsonl"],
-            requires_session_id=True,
-            metadata={
-                "log_format": "jsonl",
-                "project_based": True,
-                "base_dir": "~/.claude/projects/"
-            }
-        )
+    def name(self) -> str:
+        return "claude-code"
+        
+    @property
+    def display_name(self) -> str:
+        return "Claude Code"
 
-    def create_store(self, location: Optional[str] = None) -> LogStore:
-        from .claude_code import ClaudeStore
-        return ClaudeStore(location=location)
+    def _create_store(self) -> LogStore:
+        return ClaudeStore()
 
-    def parse_content(self, content: str, log_uri: str, store: LogStore) -> Chat:
-        from .claude_code import Session
-        from pathlib import Path
-
+    def parse_content(self, content: str, session_log_uri: str) -> Chat:
         # 使用现有的Session逻辑
-        if "/" in log_uri or "\\" in log_uri:
-            file_path = Path(log_uri)
+        if "/" in session_log_uri or "\\" in session_log_uri:
+            file_path = Path(session_log_uri)
         else:
-            file_path = store._project_dir / f"{log_uri}.jsonl"
+            file_path = self.store._project_dir / f"{session_log_uri}.jsonl"
 
         session = Session(file_path=file_path)
         session.load()
         return session.to_chat()
 
-    def detect_agent(self, log_path: Path) -> bool:
-        """Detect Claude Code logs by checking JSON structure."""
-        if log_path.suffix != ".jsonl":
-            return False
 
-        try:
-            with open(log_path, 'r', encoding='utf-8') as f:
-                # Check first few lines
-                for i, line in enumerate(f):
-                    if i >= 3:  # Only check first 3 lines
-                        break
-                    if line.strip():
-                        data = json.loads(line.strip())
-                        # Claude Code specific fields
-                        if 'type' in data and 'uuid' in data and data['type'] in ['user', 'assistant', 'tool_use']:
-                           return True
-        except:
-            pass
 
-        return False

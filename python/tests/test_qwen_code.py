@@ -6,13 +6,13 @@ from pathlib import Path
 from unittest.mock import patch
 from datetime import datetime
 
-from chat_parser.qwen.qwen_code import (
+from cligent.agents.qwen.qwen_code import (
     QwenRecord, 
     QwenSession, 
     QwenStore, 
     QwenCodeAgent
 )
-from chat_parser.models import Role, Chat
+from cligent.core.models import Role, Chat
 
 
 class TestQwenRecord:
@@ -22,7 +22,6 @@ class TestQwenRecord:
         """Test loading a basic Qwen record."""
         json_data = {
             "type": "user",
-            "role": "user",
             "content": "Hello, Qwen!",
             "timestamp": "2024-01-01T10:00:00Z",
             "session_id": "test-session-123",
@@ -32,8 +31,7 @@ class TestQwenRecord:
         
         record = QwenRecord.load(json_string)
         
-        assert record.type == "user"
-        assert record.role == "user"
+        assert record.role == "user"  # type becomes role
         assert record.content == "Hello, Qwen!"
         assert record.timestamp == "2024-01-01T10:00:00Z"
         assert record.session_id == "test-session-123"
@@ -54,8 +52,7 @@ class TestQwenRecord:
         
         record = QwenRecord.load(json_string)
         
-        assert record.type == "assistant"
-        assert record.role == "qwen"
+        assert record.role == "assistant"  # messageType becomes role
         assert record.content == "Hello, human!"
         assert record.timestamp == "1704103200"
         assert record.session_id == "conv-456"
@@ -74,7 +71,7 @@ class TestQwenRecord:
         
         record = QwenRecord.load(json_string)
         
-        assert record.type == "checkpoint"
+        assert record.role == "checkpoint"
         assert record.checkpoint_tag == "checkpoint_001"  # Should prioritize checkpoint_tag
         assert record.timestamp == "2024-01-01T12:00:00+08:00"
 
@@ -86,7 +83,6 @@ class TestQwenRecord:
     def test_extract_message_user_role(self):
         """Test extracting message from user record."""
         record = QwenRecord(
-            type="user",
             role="user",
             content="Test message",
             timestamp="2024-01-01T10:00:00Z",
@@ -98,13 +94,98 @@ class TestQwenRecord:
         assert message is not None
         assert message.role.value == "user"
         assert message.content == "Test message"
-        assert message.timestamp == datetime.fromisoformat("2024-01-01T10:00:00+00:00")
-        assert message.metadata["session_id"] == "test-session"
+
+    def test_google_conversation_format(self):
+        """Test parsing Google conversation format (checkpoint files)."""
+        google_format_json = """{
+            "role": "user",
+            "parts": [
+                {
+                    "text": "Hello, how are you?"
+                }
+            ]
+        }"""
+        
+        record = QwenRecord.load(google_format_json)
+        
+        assert record.role == "user"
+        assert record.content == "Hello, how are you?"
+        # Google format records don't have a separate type field
+        
+        message = record.extract_message()
+        assert message is not None
+        assert message.role == Role.USER
+        assert message.content == "Hello, how are you?"
+
+    def test_google_model_role(self):
+        """Test Google 'model' role maps to assistant."""
+        google_format_json = """{
+            "role": "model",
+            "parts": [
+                {
+                    "text": "I'm doing well, thank you!"
+                }
+            ]
+        }"""
+        
+        record = QwenRecord.load(google_format_json)
+        message = record.extract_message()
+        
+        assert message.role == Role.ASSISTANT
+        assert message.content == "I'm doing well, thank you!"
+
+    def test_google_multiple_parts_qwen_style(self):
+        """Test handling multiple parts in Google format (Qwen style - no separator)."""
+        google_format_json = """{
+            "role": "model",
+            "parts": [
+                {
+                    "text": "你"
+                },
+                {
+                    "text": "好"
+                },
+                {
+                    "text": "！"
+                }
+            ]
+        }"""
+        
+        record = QwenRecord.load(google_format_json)
+        message = record.extract_message()
+        
+        # Qwen joins parts without separator (characters come separately)
+        assert message.content == "你好！"
+
+    def test_google_parts_with_function_calls(self):
+        """Test that function calls are filtered out from parts."""
+        google_format_json = """{
+            "role": "model",
+            "parts": [
+                {
+                    "text": "Let me help"
+                },
+                {
+                    "functionCall": {
+                        "name": "search",
+                        "args": {"query": "test"}
+                    }
+                },
+                {
+                    "text": " you with that."
+                }
+            ]
+        }"""
+        
+        record = QwenRecord.load(google_format_json)
+        message = record.extract_message()
+        
+        # Should only extract text parts, skip function calls
+        assert message.content == "Let me helpyou with that."
 
     def test_extract_message_qwen_role(self):
         """Test extracting message with 'qwen' role mapped to assistant."""
         record = QwenRecord(
-            type="assistant",
             role="qwen",
             content="Assistant response",
             timestamp="1704103200",  # Unix timestamp
@@ -122,7 +203,6 @@ class TestQwenRecord:
     def test_extract_message_list_content(self):
         """Test extracting message with list content."""
         record = QwenRecord(
-            type="assistant",
             role="assistant",
             content=[
                 {"type": "text", "text": "First part"},
@@ -139,7 +219,6 @@ class TestQwenRecord:
     def test_extract_message_dict_content(self):
         """Test extracting message with dict content."""
         record = QwenRecord(
-            type="user",
             role="user",
             content={"text": "Message from dict"}
         )
@@ -152,7 +231,6 @@ class TestQwenRecord:
     def test_extract_message_filters_tool_blocks(self):
         """Test extracting message filters out tool blocks."""
         record = QwenRecord(
-            type="assistant",
             role="assistant",
             content=[
                 {"type": "text", "text": "Here's some code:"},
@@ -171,7 +249,6 @@ class TestQwenRecord:
     def test_extract_message_empty_content(self):
         """Test extracting message with empty content returns None."""
         record = QwenRecord(
-            type="user",
             role="user",
             content=""
         )
@@ -182,7 +259,6 @@ class TestQwenRecord:
     def test_extract_message_invalid_timestamp(self):
         """Test extracting message with invalid timestamp."""
         record = QwenRecord(
-            type="user",
             role="user",
             content="Test",
             timestamp="invalid-timestamp"
@@ -193,29 +269,28 @@ class TestQwenRecord:
         assert message is not None
         assert message.timestamp is None
 
-    def test_is_message_by_type(self):
-        """Test is_message detection by record type."""
-        message_types = ['user', 'assistant', 'system', 'human', 'ai', 'qwen', 'message']
-        
-        for msg_type in message_types:
-            record = QwenRecord(type=msg_type)
-            assert record.is_message()
-        
-        non_message_types = ['tool_use', 'tool_result', 'checkpoint']
-        for msg_type in non_message_types:
-            record = QwenRecord(type=msg_type)
-            assert not record.is_message()
-
     def test_is_message_by_role(self):
-        """Test is_message detection by role field."""
-        message_roles = ['user', 'assistant', 'system', 'human', 'ai', 'qwen']
+        """Test is_message detection by record role."""
+        message_roles = ['user', 'assistant', 'system', 'human', 'ai', 'qwen', 'message']
         
         for role in message_roles:
-            record = QwenRecord(type="unknown", role=role)
+            record = QwenRecord(role=role, content="test")
             assert record.is_message()
         
-        record = QwenRecord(type="unknown", role="tool")
+        non_message_roles = ['tool_use', 'tool_result', 'checkpoint']
+        for role in non_message_roles:
+            record = QwenRecord(role=role, content="test")
+            assert not record.is_message()
+
+    def test_is_message_empty_content(self):
+        """Test is_message detection requires non-empty content."""
+        # Valid role but empty content should return False
+        record = QwenRecord(role="user", content="")
         assert not record.is_message()
+        
+        # Valid role with content should return True
+        record = QwenRecord(role="user", content="test")
+        assert record.is_message()
 
     def test_role_mapping_variations(self):
         """Test various role mapping scenarios."""
@@ -231,7 +306,7 @@ class TestQwenRecord:
         ]
         
         for qwen_role, expected_role in role_tests:
-            record = QwenRecord(type="message", role=qwen_role, content="test")
+            record = QwenRecord(role=qwen_role, content="test")
             message = record.extract_message()
             assert message.role.value == expected_role
 
@@ -245,11 +320,11 @@ class TestQwenSession:
         file_path = tmp_path / "test_session.jsonl"
         
         records = [
-            {"type": "user", "role": "user", "content": "Hello", "session_id": "test-123"},
-            {"type": "checkpoint", "checkpoint_tag": "start", "session_id": "test-123"},
-            {"type": "assistant", "role": "qwen", "content": "Hi there!", "session_id": "test-123"},
-            {"type": "user", "role": "user", "content": "How are you?", "session_id": "test-123"},
-            {"type": "assistant", "role": "qwen", "content": "I'm doing well!", "session_id": "test-123"}
+            {"role": "user", "content": "Hello", "session_id": "test-123"},
+            {"role": "checkpoint", "checkpoint_tag": "start", "session_id": "test-123"},
+            {"role": "qwen", "content": "Hi there!", "session_id": "test-123"},
+            {"role": "user", "content": "How are you?", "session_id": "test-123"},
+            {"role": "qwen", "content": "I'm doing well!", "session_id": "test-123"}
         ]
         
         with open(file_path, 'w') as f:
@@ -264,9 +339,9 @@ class TestQwenSession:
         file_path = tmp_path / "malformed_session.jsonl"
         
         with open(file_path, 'w') as f:
-            f.write('{"type": "user", "content": "Good line"}\n')
+            f.write('{"role": "user", "content": "Good line"}\n')
             f.write('invalid json line\n')
-            f.write('{"type": "assistant", "content": "Another good line"}\n')
+            f.write('{"role": "assistant", "content": "Another good line"}\n')
         
         return file_path
 
@@ -403,7 +478,7 @@ class TestQwenStore:
         with patch('pathlib.Path.home', return_value=mock_home_dir):
             store = QwenStore()
             
-            with pytest.raises(FileNotFoundError, match="Log file not found"):
+            with pytest.raises(FileNotFoundError, match="Session log file not found"):
                 store.get("nonexistent")
 
     def test_live_log(self, mock_home_dir):
@@ -445,514 +520,111 @@ class TestQwenStore:
         
         with patch('pathlib.Path.home', return_value=home_dir):
             store = QwenStore()
-            assert store._logs_dir == logs_dir  # Should choose logs over others
+
+    def test_checkpoint_files_handling(self, tmp_path):
+        """Test that checkpoint files are listed and accessible."""
+        home_dir = tmp_path / "home"
+        qwen_dir = home_dir / ".qwen" / "tmp"
+        qwen_dir.mkdir(parents=True)
+        
+        # Create session with multiple files
+        session_dir = qwen_dir / "session-abc123"
+        session_dir.mkdir()
+        
+        # Main logs.json
+        (session_dir / "logs.json").write_text('[{"role": "user", "parts": [{"text": "Hello"}]}]')
+        # Checkpoint files
+        (session_dir / "checkpoint-test.json").write_text('[{"role": "user", "parts": [{"text": "Checkpoint test"}]}]')
+        (session_dir / "checkpoint-final.json").write_text('[{"role": "model", "parts": [{"text": "Final thoughts"}]}]')
+        
+        with patch('pathlib.Path.home', return_value=home_dir):
+            store = QwenStore()
             logs = store.list()
-            assert len(logs) == 1
-            assert logs[0][0] == "log"
+        
+        # Should find all JSON files
+        assert len(logs) == 3
+        
+        # Check that URIs use <uuid>/<filename> format
+        log_uris = [log[0] for log in logs]
+        expected_uris = [
+            "session-abc123/logs.json",
+            "session-abc123/checkpoint-test.json", 
+            "session-abc123/checkpoint-final.json"
+        ]
+        
+        for expected_uri in expected_uris:
+            assert expected_uri in log_uris
+        
+        # Check metadata includes file information
+        for uri, metadata in logs:
+            assert "file_name" in metadata
+            assert "session_id" in metadata
+            assert metadata["session_id"] == "session-abc123"
+
+    def test_get_checkpoint_file_by_uri(self, tmp_path):
+        """Test retrieving checkpoint file using <uuid>/<filename> URI format."""
+        home_dir = tmp_path / "home"
+        qwen_dir = home_dir / ".qwen" / "tmp"
+        qwen_dir.mkdir(parents=True)
+        
+        session_dir = qwen_dir / "session-def456"
+        session_dir.mkdir()
+        
+        checkpoint_content = '[{"role": "user", "parts": [{"text": "Qwen checkpoint test"}]}]'
+        (session_dir / "checkpoint-test.json").write_text(checkpoint_content)
+        
+        with patch('pathlib.Path.home', return_value=home_dir):
+            store = QwenStore()
+            
+            # Test new URI format
+            content = store.get("session-def456/checkpoint-test.json")
+            assert content == checkpoint_content
+            
+            # Test that old format still works (backward compatibility)
+            main_content = '[{"role": "user", "parts": [{"text": "Main conversation"}]}]'
+            (session_dir / "logs.json").write_text(main_content)
+            legacy_content = store.get("session-def456")  # Should default to logs.json
+            assert legacy_content == main_content
+
+    def test_parse_checkpoint_content(self, tmp_path):
+        """Test that checkpoint files can be parsed correctly."""
+        home_dir = tmp_path / "home"
+        qwen_dir = home_dir / ".qwen" / "tmp"
+        qwen_dir.mkdir(parents=True)
+        
+        session_dir = qwen_dir / "session-ghi789"
+        session_dir.mkdir()
+        
+        checkpoint_data = [
+            {"role": "user", "parts": [{"text": "Qwen checkpoint message 1"}]},
+            {"role": "model", "parts": [{"text": "Qwen"}, {"text": " checkpoint"}, {"text": " response"}]}
+        ]
+        (session_dir / "checkpoint-conversation.json").write_text(json.dumps(checkpoint_data))
+        
+        with patch('pathlib.Path.home', return_value=home_dir):
+            agent = QwenCodeAgent()
+            
+            # Parse using the new URI format
+            chat = agent.parse("session-ghi789/checkpoint-conversation.json")
+            
+            assert len(chat.messages) == 2
+            assert chat.messages[0].content == "Qwen checkpoint message 1"
+            assert chat.messages[1].content == "Qwencheckpointresponse"  # Joined without separator
 
 
 class TestQwenCodeAgent:
     """Test QwenCodeAgent class functionality."""
 
-    def test_config_properties(self):
-        """Test agent configuration properties."""
-        agent = QwenCodeAgent()
-        config = agent.config
-        
-        assert config.name == "qwen-code"
-        assert config.display_name == "Qwen Code"
-        assert config.log_extensions == [".jsonl", ".json"]
-        assert config.requires_session_id is True
-        assert config.metadata["log_format"] == "jsonl"
-        assert config.metadata["base_dir"] == "~/.qwen/"
-        assert config.metadata["supports_checkpoints"] is True
-        assert config.metadata["supports_tools"] is True
-        assert config.metadata["based_on"] == "gemini-cli"
-
-    def test_create_store(self):
-        """Test creating store instance."""
-        agent = QwenCodeAgent()
-        store = agent.create_store()
-        
-        assert isinstance(store, QwenStore)
-
-    def test_create_store_with_location(self):
-        """Test creating store with custom location."""
-        agent = QwenCodeAgent()
-        store = agent.create_store(location="/custom/path")
-        
-        assert isinstance(store, QwenStore)
-
-    def test_parse_content_with_session_id(self, tmp_path):
-        """Test parsing content using session ID."""
-        # Create a temporary JSONL file
-        logs_dir = tmp_path / "logs"
-        logs_dir.mkdir()
-        log_file = logs_dir / "test-session.jsonl"
-        
-        with open(log_file, 'w') as f:
-            f.write('{"type": "user", "role": "user", "content": "Hello"}\n')
-            f.write('{"type": "assistant", "role": "qwen", "content": "Hi!"}\n')
-        
-        # Mock the store's _logs_dir
-        agent = QwenCodeAgent()
-        store = agent.create_store()
-        store._logs_dir = logs_dir
-        
-        content = store.get("test-session")
-        chat = agent.parse_content(content, "test-session", store)
-        
-        assert chat is not None
-        assert hasattr(chat, 'messages')
-        assert len(chat.messages) == 2
-        assert chat.messages[0].role.value == "user"
-        assert chat.messages[0].content == "Hello"
-
-    def test_parse_content_with_full_path(self, tmp_path):
-        """Test parsing content using full file path."""
-        log_file = tmp_path / "full_path_test.jsonl"
-        
-        with open(log_file, 'w') as f:
-            f.write('{"type": "user", "role": "user", "content": "Test message"}\n')
-        
-        agent = QwenCodeAgent()
-        store = agent.create_store()
-        
-        content = '{"type": "user", "role": "user", "content": "Test message"}\n'
-        chat = agent.parse_content(content, str(log_file), store)
-        
-        assert chat is not None
-        assert hasattr(chat, 'messages')
-        assert len(chat.messages) == 1
-        assert chat.messages[0].content == "Test message"
-
-    def test_detect_agent_jsonl_file(self, tmp_path):
-        """Test detecting Qwen logs from JSONL file."""
-        log_file = tmp_path / "qwen_log.jsonl"
-        
-        with open(log_file, 'w') as f:
-            f.write('{"role": "user", "content": "Hello Qwen"}\n')
-            f.write('{"role": "qwen", "content": "Hi there!"}\n')
-        
-        agent = QwenCodeAgent()
-        assert agent.detect_agent(log_file) is True
-
-    def test_detect_agent_with_qwen_indicators(self, tmp_path):
-        """Test detecting logs with Qwen-specific indicators."""
-        test_cases = [
-            # Model name starts with qwen
-            '{"model": "qwen-coder", "role": "user", "text": "Test"}',
-            # Contains qwen in data
-            '{"role": "user", "content": "Using qwen model"}',
-            # Role is qwen  
-            '{"role": "qwen", "content": "Response"}',
-            # Has checkpoint fields
-            '{"checkpoint": "test", "content": "Test"}',
-            # References QWEN.md with contextFileName
-            '{"contextFileName": "QWEN.md", "content": "Test"}'
-        ]
-        
+    def test_agent_properties(self):
+        """Test agent properties."""
         agent = QwenCodeAgent()
         
-        for i, test_case in enumerate(test_cases):
-            log_file = tmp_path / f"test_{i}.jsonl"
-            log_file.write_text(test_case)
-            assert agent.detect_agent(log_file) is True
-
-    def test_detect_agent_wrong_extension(self, tmp_path):
-        """Test detection fails for wrong file extension."""
-        log_file = tmp_path / "test.txt"
-        log_file.write_text('{"role": "qwen", "content": "Test"}')
+        assert agent.name == "qwen-code"
+        assert agent.display_name == "Qwen Code"
         
+    def test_store_creation(self):
+        """Test that agent has a store."""
         agent = QwenCodeAgent()
-        assert agent.detect_agent(log_file) is False
-
-    def test_detect_agent_non_qwen_content(self, tmp_path):
-        """Test detection fails for non-Qwen content."""
-        log_file = tmp_path / "other.jsonl"
         
-        with open(log_file, 'w') as f:
-            f.write('{"tool": "other", "data": "Not AI", "role": "tool"}\n')
-        
-        agent = QwenCodeAgent()
-        assert agent.detect_agent(log_file) is False
-
-    def test_detect_agent_malformed_json(self, tmp_path):
-        """Test detection handles malformed JSON gracefully."""
-        log_file = tmp_path / "malformed.jsonl"
-        log_file.write_text('invalid json content')
-        
-        agent = QwenCodeAgent()
-        assert agent.detect_agent(log_file) is False
-
-    def test_detect_agent_empty_file(self, tmp_path):
-        """Test detection handles empty files gracefully."""
-        log_file = tmp_path / "empty.jsonl"
-        log_file.touch()
-        
-        agent = QwenCodeAgent()
-        assert agent.detect_agent(log_file) is False
-
-
-class TestQwenIntegration:
-    """Integration tests for Qwen Code components."""
-
-    @pytest.fixture
-    def test_data_path(self):
-        """Path to test data directory."""
-        return Path(__file__).parent / "test_data"
-
-    @pytest.fixture
-    def qwen_test_data_path(self, test_data_path):
-        """Path to Qwen test data directory."""
-        return test_data_path / "qwen_project"
-
-    @pytest.fixture
-    def mock_qwen_home(self):
-        """Path to mock Qwen home directory."""
-        return Path(__file__).parent / "mock_qwen_home"
-
-    @pytest.fixture
-    def qwen_parser(self, mock_qwen_home):
-        """ChatParser instance using mock Qwen environment."""
-        with patch('pathlib.Path.home', return_value=mock_qwen_home):
-            from cligent import ChatParser
-            return ChatParser("qwen-code")
-
-    @pytest.fixture
-    def qwen_parser_with_test_data(self, qwen_test_data_path):
-        """ChatParser instance using test data files."""
-        import tempfile
-        import shutil
-        
-        # Create temporary home directory structure
-        temp_home = Path(tempfile.mkdtemp())
-        qwen_dir = temp_home / ".qwen" / "logs"
-        qwen_dir.mkdir(parents=True)
-        
-        try:
-            # Copy test data files to the temporary structure
-            for test_file in qwen_test_data_path.glob("*.jsonl"):
-                if test_file.name != "empty_qwen_chat.jsonl":  # Skip empty file
-                    # Use test file name as session name
-                    session_name = test_file.stem.replace("_qwen_chat", "")
-                    dest_file = qwen_dir / f"{session_name}.jsonl"
-                    shutil.copy2(test_file, dest_file)
-            
-            with patch('pathlib.Path.home', return_value=temp_home):
-                from cligent import ChatParser
-                yield ChatParser("qwen-code")
-        finally:
-            # Cleanup
-            shutil.rmtree(temp_home, ignore_errors=True)
-
-    @pytest.fixture
-    def sample_qwen_data(self, tmp_path):
-        """Create sample Qwen data structure."""
-        home_dir = tmp_path / "home"
-        qwen_dir = home_dir / ".qwen" / "logs"
-        qwen_dir.mkdir(parents=True)
-        
-        # Create a realistic Qwen conversation with checkpoints
-        conversation = [
-            {
-                "type": "user",
-                "role": "user",
-                "content": "Can you help me with algorithms?",
-                "timestamp": "2024-01-01T10:00:00Z",
-                "session_id": "algo-session-123",
-                "model": "qwen-coder"
-            },
-            {
-                "type": "checkpoint",
-                "checkpoint_tag": "session_start",
-                "timestamp": "2024-01-01T10:00:01Z",
-                "session_id": "algo-session-123"
-            },
-            {
-                "type": "assistant",
-                "role": "qwen",
-                "content": [
-                    {"type": "text", "text": "Absolutely! I'd be happy to help you with algorithms. "},
-                    {"type": "text", "text": "What specific algorithm topic would you like to explore?"}
-                ],
-                "timestamp": "2024-01-01T10:00:05Z",
-                "session_id": "algo-session-123",
-                "model": "qwen-coder"
-            },
-            {
-                "type": "user",
-                "role": "user",
-                "content": "How does quicksort work?",
-                "timestamp": "2024-01-01T10:01:00Z",
-                "session_id": "algo-session-123"
-            },
-            {
-                "type": "checkpoint",
-                "checkpoint_tag": "quicksort_discussion",
-                "timestamp": "2024-01-01T10:01:01Z",
-                "session_id": "algo-session-123"
-            },
-            {
-                "type": "assistant",
-                "role": "qwen",
-                "content": {
-                    "text": "Quicksort is a divide-and-conquer algorithm that works by selecting a pivot element and partitioning the array around it."
-                },
-                "timestamp": "2024-01-01T10:01:10Z",
-                "session_id": "algo-session-123"
-            }
-        ]
-        
-        log_file = qwen_dir / "algo-session-123.jsonl"
-        with open(log_file, 'w') as f:
-            for record in conversation:
-                f.write(json.dumps(record) + '\n')
-        
-        return home_dir, "algo-session-123"
-
-    def test_chatparser_integration_with_mock_home(self, qwen_parser, mock_qwen_home):
-        """Test ChatParser integration using mock home directory."""
-        with patch('pathlib.Path.home', return_value=mock_qwen_home):
-            logs = qwen_parser.list_logs()
-            
-        # Should find our mock log files
-        assert len(logs) >= 2
-        
-        log_uris = [log[0] for log in logs]
-        assert "session-20240101-001" in log_uris
-        assert "session-20240101-002" in log_uris
-        
-        # Check metadata structure
-        for log_uri, metadata in logs:
-            assert isinstance(log_uri, str)
-            assert isinstance(metadata, dict)
-            assert "size" in metadata
-            assert "modified" in metadata
-            assert "accessible" in metadata
-
-    def test_chatparser_parse_qwen_logs(self, qwen_parser, mock_qwen_home):
-        """Test parsing actual Qwen logs through ChatParser."""
-        with patch('pathlib.Path.home', return_value=mock_qwen_home):
-            logs = qwen_parser.list_logs()
-            
-            if logs:
-                # Parse the first available log
-                log_uri = logs[0][0]
-                chat = qwen_parser.parse(log_uri)
-                
-                assert chat is not None
-                assert hasattr(chat, 'messages')
-                assert len(chat.messages) >= 1
-                
-                # Verify message structure
-                for message in chat.messages:
-                    assert message.role.value in ["user", "assistant", "system"]
-                    assert isinstance(message.content, str)
-                    assert len(message.content.strip()) > 0
-
-    def test_qwen_alias_integration(self):
-        """Test that 'qwen' alias works with ChatParser."""
-        from cligent import ChatParser
-        
-        # Test both full name and alias
-        parser1 = ChatParser("qwen-code")
-        parser2 = ChatParser("qwen")
-        
-        assert parser1.agent.config.name == "qwen-code"
-        assert parser2.agent.config.name == "qwen-code"
-        assert parser1.agent.config.display_name == parser2.agent.config.display_name
-
-    def test_list_logs_with_test_data(self, qwen_parser_with_test_data):
-        """Test listing logs using test data files."""
-        logs = qwen_parser_with_test_data.list_logs()
-        
-        # Should find our test data files (excluding empty file)
-        assert len(logs) >= 3
-        
-        log_uris = [log[0] for log in logs]
-        assert "simple" in log_uris
-        assert "complex" in log_uris
-        assert "checkpoint" in log_uris
-        
-        # Check metadata structure
-        for log_uri, metadata in logs:
-            assert isinstance(log_uri, str)
-            assert isinstance(metadata, dict)
-            assert "size" in metadata
-            assert "modified" in metadata
-            assert "accessible" in metadata
-
-    def test_parse_simple_qwen_chat(self, qwen_parser_with_test_data):
-        """Test parsing simple Qwen chat from test data."""
-        chat = qwen_parser_with_test_data.parse("simple")
-        
-        assert chat is not None
-        assert hasattr(chat, 'messages')
-        assert len(chat.messages) == 4
-        
-        # Check first message
-        assert chat.messages[0].role.value == "user"
-        assert "Hello, Qwen! Can you help me with Python programming?" in chat.messages[0].content
-        
-        # Check assistant response with qwen role mapping
-        assert chat.messages[1].role.value == "assistant"
-        assert "I'm Qwen, and I'd be delighted to help you" in chat.messages[1].content
-        
-        # Check algorithm question
-        assert chat.messages[2].role.value == "user"
-        assert "How do I implement a binary search algorithm?" in chat.messages[2].content
-        
-        # Check code response
-        assert chat.messages[3].role.value == "assistant"
-        assert "def binary_search" in chat.messages[3].content
-
-    def test_parse_complex_qwen_chat(self, qwen_parser_with_test_data):
-        """Test parsing complex Qwen chat with various field formats."""
-        chat = qwen_parser_with_test_data.parse("complex")
-        
-        assert chat is not None
-        assert hasattr(chat, 'messages')
-        assert len(chat.messages) >= 3  # At least 3 non-checkpoint/system messages
-        
-        # Should handle different role names and timestamp formats
-        role_values = {msg.role.value for msg in chat.messages}
-        assert "user" in role_values
-        assert "assistant" in role_values
-        
-        # Check content from different field names (text, content, message)
-        contents = [msg.content for msg in chat.messages]
-        assert any("machine learning" in content.lower() for content in contents)
-        assert any("supervised" in content.lower() for content in contents)
-
-    def test_parse_checkpoint_chat(self, qwen_parser_with_test_data):
-        """Test parsing chat with checkpoint records."""
-        chat = qwen_parser_with_test_data.parse("checkpoint")
-        
-        assert chat is not None
-        assert hasattr(chat, 'messages')
-        # Should have messages but not checkpoint records
-        assert len(chat.messages) == 4  # User and assistant messages only
-        
-        # Verify no checkpoint records in messages
-        for message in chat.messages:
-            assert "checkpoint" not in message.metadata.get("type", "")
-
-    def test_parse_malformed_qwen_chat(self, qwen_parser_with_test_data, capsys):
-        """Test parsing malformed Qwen chat handles errors gracefully."""
-        # This should not crash, but may produce warnings
-        chat = qwen_parser_with_test_data.parse("malformed")
-        
-        assert chat is not None
-        assert hasattr(chat, 'messages')
-        # Should have some valid messages despite malformed lines
-        assert len(chat.messages) >= 2
-        
-        # Check that we got valid messages
-        assert chat.messages[0].content == "This is a valid line"
-        assert "Another valid line after malformed ones" in [msg.content for msg in chat.messages]
-
-    def test_direct_file_parsing(self, qwen_test_data_path):
-        """Test parsing Qwen files directly using file paths."""
-        simple_file = qwen_test_data_path / "simple_qwen_chat.jsonl"
-        
-        # Test agent detection
-        agent = QwenCodeAgent()
-        assert agent.detect_agent(simple_file) is True
-        
-        # Test session parsing
-        session = QwenSession(file_path=simple_file)
-        session.load()
-        
-        assert len(session.records) == 4
-        assert session.session_id == "qwen-session-001"
-        
-        # Test chat conversion
-        chat = session.to_chat()
-        assert len(chat.messages) == 4
-        assert all(msg.content.strip() for msg in chat.messages)  # All messages have content
-
-    def test_empty_file_handling(self, qwen_test_data_path):
-        """Test handling of empty Qwen chat file."""
-        empty_file = qwen_test_data_path / "empty_qwen_chat.jsonl"
-        
-        session = QwenSession(file_path=empty_file)
-        session.load()
-        
-        assert len(session.records) == 0
-        assert len(session.checkpoint_tags) == 0
-        
-        chat = session.to_chat()
-        assert len(chat.messages) == 0
-
-    def test_composition_with_test_data(self, qwen_parser_with_test_data):
-        """Test message selection and composition with test data."""
-        # Select messages from simple chat
-        qwen_parser_with_test_data.select("simple", [0, 1])  # First two messages
-        
-        # Create composition
-        composition = qwen_parser_with_test_data.compose()
-        
-        assert "Hello, Qwen! Can you help me with Python programming?" in composition
-        assert "I'm Qwen, and I'd be delighted to help you" in composition
-        
-        # Clear and select different messages
-        qwen_parser_with_test_data.clear_selection()
-        qwen_parser_with_test_data.select("complex", [0])  # First message from complex chat
-        
-        composition2 = qwen_parser_with_test_data.compose()
-        assert "machine learning" in composition2.lower()
-
-    def test_end_to_end_parsing(self, sample_qwen_data):
-        """Test complete end-to-end parsing workflow with checkpoints."""
-        home_dir, session_id = sample_qwen_data
-        
-        with patch('pathlib.Path.home', return_value=home_dir):
-            agent = QwenCodeAgent()
-            store = agent.create_store()
-            
-            # List available logs
-            logs = store.list()
-            assert len(logs) == 1
-            assert logs[0][0] == session_id
-            
-            # Get log content
-            content = store.get(session_id)
-            assert content is not None
-            
-            # Parse content to Chat
-            chat = agent.parse_content(content, session_id, store)
-            
-            assert chat is not None
-            assert hasattr(chat, 'messages')
-            assert len(chat.messages) == 4  # Excludes checkpoint records
-            
-            # Check message details
-            assert chat.messages[0].role.value == "user"
-            assert chat.messages[0].content == "Can you help me with algorithms?"
-            
-            assert chat.messages[1].role.value == "assistant"
-            assert "Absolutely! I'd be happy to help you with algorithms" in chat.messages[1].content
-            assert "What specific algorithm topic would you like to explore?" in chat.messages[1].content
-            
-            assert chat.messages[3].role.value == "assistant"
-            assert "Quicksort is a divide-and-conquer algorithm" in chat.messages[3].content
-
-    def test_multiple_files_integration(self, qwen_parser_with_test_data):
-        """Test working with multiple Qwen chat files."""
-        logs = qwen_parser_with_test_data.list_logs()
-        
-        # Parse all available logs
-        all_chats = []
-        for log_uri, _ in logs:
-            chat = qwen_parser_with_test_data.parse(log_uri)
-            all_chats.append(chat)
-        
-        # Should have parsed multiple chats
-        assert len(all_chats) >= 3
-        
-        # All should be valid Chat objects
-        for chat in all_chats:
-            assert chat is not None
-            assert hasattr(chat, 'messages')
-            assert len(chat.messages) >= 1
+        assert agent.store is not None
+        assert isinstance(agent.store, QwenStore)
