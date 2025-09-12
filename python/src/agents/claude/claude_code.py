@@ -229,74 +229,41 @@ class Record:
         return False
 
     def _extract_plan_response_message(self) -> Optional[Message]:
-        """Extract plan approval/rejection response."""
+        """Extract plan response."""
         message_data = self.raw_data.get('message', {})
         content = message_data.get('content', [])
         
         if not isinstance(content, list):
             return None
             
-        # Find the tool_result with plan response
-        response_content = None
-        is_rejection = False
-        is_approval = False
-        
         for block in content:
             if (isinstance(block, dict) and 
                 block.get('type') == 'tool_result'):
                 tool_content = block.get('content', '')
                 
-                # Check for approval patterns
-                if ('User has approved your plan' in tool_content or 
-                    'plan' in tool_content.lower()):
-                    response_content = tool_content
-                    is_approval = True
-                    break
+                if tool_content:
+                    # Parse timestamp if available
+                    timestamp = None
+                    if self.timestamp:
+                        try:
+                            timestamp = datetime.fromisoformat(self.timestamp.replace('Z', '+00:00'))
+                        except (ValueError, AttributeError):
+                            pass
                     
-                # Check for rejection patterns
-                elif ("The user doesn't want to proceed with this tool use" in tool_content or
-                      "tool use was rejected" in tool_content or
-                      "rejected" in tool_content.lower()):
-                    response_content = tool_content
-                    is_rejection = True
-                    break
+                    metadata = {
+                        'uuid': self.uuid,
+                        'parent_uuid': self.parent_uuid,
+                        'raw_type': self.type
+                    }
+                    
+                    return Message(
+                        role=Role.USER,
+                        content=tool_content,
+                        timestamp=timestamp,
+                        metadata=metadata
+                    )
         
-        if not response_content:
-            return None
-            
-        # Format the response as a readable message
-        if is_approval:
-            formatted_content = "✅ **Plan Approved**\n\nUser has approved the plan and authorized implementation to proceed."
-        elif is_rejection:
-            if "The user doesn't want to proceed with this tool use" in response_content:
-                formatted_content = "❌ **Plan Rejected**\n\nUser has rejected the plan proposal. The proposed implementation will not proceed."
-            else:
-                formatted_content = f"❌ **Plan Rejected**\n\nUser has rejected the plan. Implementation will not proceed.\n\nReason: {response_content}"
-        else:
-            formatted_content = f"📋 **Plan Response**\n\n{response_content}"
-            
-        # Parse timestamp if available
-        timestamp = None
-        if self.timestamp:
-            try:
-                timestamp = datetime.fromisoformat(self.timestamp.replace('Z', '+00:00'))
-            except (ValueError, AttributeError):
-                pass
-        
-        metadata = {
-            'uuid': self.uuid,
-            'parent_uuid': self.parent_uuid,
-            'raw_type': self.type,
-            'tool_type': 'plan_response',
-            'is_plan_response': True
-        }
-        
-        return Message(
-            role=Role.USER,
-            content=formatted_content,
-            timestamp=timestamp,
-            metadata=metadata
-        )
+        return None
 
 
 @dataclass
