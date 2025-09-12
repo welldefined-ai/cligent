@@ -8,7 +8,7 @@ from datetime import datetime
 
 from agents.gemini.gemini_cli import (
     GeminiRecord, 
-    GeminiSession, 
+    GeminiLogFile, 
     GeminiStore, 
     GeminiCliAgent
 )
@@ -279,8 +279,8 @@ class TestGeminiRecord:
         assert message.content == "Let me help you with that.\nHere's the result."
 
 
-class TestGeminiSession:
-    """Test GeminiSession class functionality."""
+class TestGeminiLogFile:
+    """Test GeminiLogFile class functionality."""
 
     @pytest.fixture
     def temp_jsonl_file(self, tmp_path):
@@ -317,7 +317,7 @@ class TestGeminiSession:
 
     def test_load_valid_file(self, temp_jsonl_file):
         """Test loading a valid JSONL file."""
-        session = GeminiSession(file_path=temp_jsonl_file)
+        log_file = GeminiLogFile(file_path=temp_jsonl_file)
         session.load()
         
         assert len(session.records) == 4
@@ -327,14 +327,14 @@ class TestGeminiSession:
 
     def test_load_nonexistent_file(self):
         """Test loading a non-existent file raises FileNotFoundError."""
-        session = GeminiSession(file_path=Path("/nonexistent/session/logs.json"))
+        log_file = GeminiLogFile(file_path=Path("/nonexistent/session/logs.json"))
         
         with pytest.raises(FileNotFoundError, match="Log file not found"):
             session.load()
 
     def test_load_malformed_file(self, malformed_jsonl_file, capsys):
         """Test loading file with malformed JSON content."""
-        session = GeminiSession(file_path=malformed_jsonl_file)
+        log_file = GeminiLogFile(file_path=malformed_jsonl_file)
         session.load()
         
         # Should have 0 records due to malformed JSON
@@ -342,7 +342,7 @@ class TestGeminiSession:
 
     def test_to_chat(self, temp_jsonl_file):
         """Test converting session to Chat object."""
-        session = GeminiSession(file_path=temp_jsonl_file)
+        log_file = GeminiLogFile(file_path=temp_jsonl_file)
         session.load()
         
         chat = session.to_chat()
@@ -360,7 +360,7 @@ class TestGeminiSession:
         empty_file = session_dir / "logs.json"
         empty_file.touch()
         
-        session = GeminiSession(file_path=empty_file)
+        log_file = GeminiLogFile(file_path=empty_file)
         session.load()
         
         assert len(session.records) == 0

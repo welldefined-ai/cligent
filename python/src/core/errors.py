@@ -11,18 +11,18 @@ class ChatParserError(Exception):
 class ParseError(ChatParserError):
     """Error during parsing of session logs or records."""
     
-    def __init__(self, message: str, session_log_path: str = None, 
+    def __init__(self, message: str, log_path: str = None, 
                  line_number: int = None, recoverable: bool = True):
         """Initialize parse error.
         
         Args:
             message: Error description
-            session_log_path: Path to the problematic session log file
+            log_path: Path to the problematic log file
             line_number: Line number where error occurred
             recoverable: Whether parsing can continue
         """
         self.message = message
-        self.log_path = session_log_path
+        self.log_path = log_path
         self.line_number = line_number
         self.recoverable = recoverable
         super().__init__(self.format_message())
@@ -55,27 +55,27 @@ class LogAccessError(ChatParserError):
 class LogCorruptionError(ParseError):
     """Error when log file is corrupted."""
     
-    def __init__(self, session_log_path: str, details: str = None):
+    def __init__(self, log_path: str, details: str = None):
         """Initialize corruption error.
         
         Args:
-            session_log_path: Path to corrupted session log
+            log_path: Path to corrupted log
             details: Additional details about corruption
         """
         message = f"Log file corrupted"
         if details:
             message += f": {details}"
-        super().__init__(message, session_log_path=session_log_path, recoverable=False)
+        super().__init__(message, log_path=log_path, recoverable=False)
 
 
 class InvalidFormatError(ParseError):
     """Error when log format is not recognized."""
     
-    def __init__(self, session_log_path: str, expected: str = None, found: str = None):
+    def __init__(self, log_path: str, expected: str = None, found: str = None):
         """Initialize format error.
         
         Args:
-            session_log_path: Path to session log with invalid format
+            log_path: Path to log with invalid format
             expected: Expected format description
             found: What was actually found
         """
@@ -84,7 +84,7 @@ class InvalidFormatError(ParseError):
             message = f"Expected {expected}, found {found}"
         elif expected:
             message = f"Expected {expected}"
-        super().__init__(message, session_log_path=session_log_path)
+        super().__init__(message, log_path=log_path)
 
 
 class ErrorCollector:

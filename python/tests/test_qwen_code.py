@@ -8,7 +8,7 @@ from datetime import datetime
 
 from agents.qwen.qwen_code import (
     QwenRecord, 
-    QwenSession, 
+    QwenLogFile, 
     QwenStore, 
     QwenCodeAgent
 )
@@ -311,8 +311,8 @@ class TestQwenRecord:
             assert message.role.value == expected_role
 
 
-class TestQwenSession:
-    """Test QwenSession class functionality."""
+class TestQwenLogFile:
+    """Test QwenLogFile class functionality."""
 
     @pytest.fixture
     def temp_jsonl_file(self, tmp_path):
@@ -347,7 +347,7 @@ class TestQwenSession:
 
     def test_load_valid_file(self, temp_jsonl_file):
         """Test loading a valid JSONL file."""
-        session = QwenSession(file_path=temp_jsonl_file)
+        log_file = QwenLogFile(file_path=temp_jsonl_file)
         session.load()
         
         assert len(session.records) == 5
@@ -358,14 +358,14 @@ class TestQwenSession:
 
     def test_load_nonexistent_file(self):
         """Test loading a non-existent file raises FileNotFoundError."""
-        session = QwenSession(file_path=Path("/nonexistent/file.jsonl"))
+        log_file = QwenLogFile(file_path=Path("/nonexistent/file.jsonl"))
         
         with pytest.raises(FileNotFoundError, match="Log file not found"):
             session.load()
 
     def test_load_malformed_file(self, malformed_jsonl_file, capsys):
         """Test loading file with malformed JSON lines."""
-        session = QwenSession(file_path=malformed_jsonl_file)
+        log_file = QwenLogFile(file_path=malformed_jsonl_file)
         session.load()
         
         # Should have 2 valid records despite malformed line
@@ -377,7 +377,7 @@ class TestQwenSession:
 
     def test_to_chat(self, temp_jsonl_file):
         """Test converting session to Chat object."""
-        session = QwenSession(file_path=temp_jsonl_file)
+        log_file = QwenLogFile(file_path=temp_jsonl_file)
         session.load()
         
         chat = session.to_chat()
@@ -394,7 +394,7 @@ class TestQwenSession:
         empty_file = tmp_path / "empty.jsonl"
         empty_file.touch()
         
-        session = QwenSession(file_path=empty_file)
+        log_file = QwenLogFile(file_path=empty_file)
         session.load()
         
         assert len(session.records) == 0

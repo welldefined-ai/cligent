@@ -7,7 +7,7 @@ import os
 from unittest.mock import patch
 
 from core import Chat, Message, Role, ChatParserError, cligent as ChatParser
-from agents.claude.claude_code import ClaudeStore, Session, Record
+from agents.claude.claude_code import ClaudeStore, LogFile, Record
 
 
 class TestChatParserReal:
@@ -507,14 +507,14 @@ class TestClaudeImplementation:
     def test_session_loading(self, test_data_path):
         """Test loading a complete session."""
         session_file = test_data_path / "claude_code_project" / "simple_chat.jsonl"
-        session = Session(file_path=session_file)
-        session.load()
+        log_file = LogFile(file_path=session_file)
+        log_file.load()
 
-        assert session.session_id == "test-session-1"
-        assert "Simple test chat" in session.summary
-        assert len(session.records) == 5  # 4 messages + 1 summary
+        assert log_file.session_id == "test-session-1"
+        assert "Simple test chat" in log_file.summary
+        assert len(log_file.records) == 5  # 4 messages + 1 summary
 
-        chat = session.to_chat()
+        chat = log_file.to_chat()
         assert len(chat.messages) == 4
 
     def test_claude_store_operations(self, mock_home):

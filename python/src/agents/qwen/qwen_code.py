@@ -182,7 +182,7 @@ class QwenRecord:
 
 
 @dataclass
-class QwenSession:
+class QwenLogFile:
     """A complete JSONL log file representing a Qwen Code chat."""
 
     file_path: Path
@@ -357,29 +357,29 @@ class QwenStore(LogStore):
 
         return logs
 
-    def get(self, session_log_uri: str) -> str:
+    def get(self, log_uri: str) -> str:
         """Retrieve raw content of a specific log.
 
         Args:
-            session_log_uri: Either <uuid>/<file_name> format, session ID, or full path
+            log_uri: Either <uuid>/<file_name> format, session ID, or full path
         """
         # Handle new <uuid>/<file_name> format
-        if "/" in session_log_uri and not session_log_uri.startswith("/"):
+        if "/" in log_uri and not log_uri.startswith("/"):
             # Format: <uuid>/<file_name>
-            parts = session_log_uri.split("/", 1)
+            parts = log_uri.split("/", 1)
             if len(parts) == 2:
                 session_id, file_name = parts
                 log_path = self._logs_dir / session_id / file_name
             else:
                 # Fallback to old format
-                log_path = Path(session_log_uri)
-        elif "\\" in session_log_uri or session_log_uri.startswith("/"):
+                log_path = Path(log_uri)
+        elif "\\" in log_uri or log_uri.startswith("/"):
             # Full path format
-            log_path = Path(session_log_uri)
+            log_path = Path(log_uri)
         else:
             # Legacy: just session ID, try JSON first, then JSONL
-            json_path = self._logs_dir / session_log_uri / "logs.json"
-            jsonl_path = self._logs_dir / f"{session_log_uri}.jsonl"
+            json_path = self._logs_dir / log_uri / "logs.json"
+            jsonl_path = self._logs_dir / f"{log_uri}.jsonl"
             
             if json_path.exists():
                 log_path = json_path
@@ -390,7 +390,7 @@ class QwenStore(LogStore):
 
         try:
             if not log_path.exists():
-                raise FileNotFoundError(f"Session log file not found: {session_log_uri}")
+                raise FileNotFoundError(f"Session log file not found: {log_uri}")
 
             with open(log_path, 'r', encoding='utf-8') as f:
                 return f.read()
@@ -398,7 +398,7 @@ class QwenStore(LogStore):
         except (OSError, PermissionError, UnicodeDecodeError) as e:
             if isinstance(e, FileNotFoundError):
                 raise
-            raise IOError(f"Cannot read session log file {session_log_uri}: {e}")
+            raise IOError(f"Cannot read session log file {log_uri}: {e}")
 
     def live(self) -> Optional[str]:
         """Get URI of currently active log (most recent)."""
@@ -429,24 +429,24 @@ class QwenCodeAgent(AgentBackend):
     def _create_store(self) -> LogStore:
         return QwenStore()
 
-    def parse_content(self, content: str, session_log_uri: str) -> Chat:
+    def parse_content(self, content: str, log_uri: str) -> Chat:
         # Handle new <uuid>/<file_name> format
-        if "/" in session_log_uri and not session_log_uri.startswith("/"):
+        if "/" in log_uri and not log_uri.startswith("/"):
             # Format: <uuid>/<file_name>
-            parts = session_log_uri.split("/", 1)
+            parts = log_uri.split("/", 1)
             if len(parts) == 2:
                 session_id, file_name = parts
                 file_path = self.store._logs_dir / session_id / file_name
             else:
                 # Fallback to old format
-                file_path = Path(session_log_uri)
-        elif "\\" in session_log_uri or session_log_uri.startswith("/"):
+                file_path = Path(log_uri)
+        elif "\\" in log_uri or log_uri.startswith("/"):
             # Full path format
-            file_path = Path(session_log_uri)
+            file_path = Path(log_uri)
         else:
             # Legacy: just session ID, try JSON first, then JSONL
-            json_path = self.store._logs_dir / session_log_uri / "logs.json"
-            jsonl_path = self.store._logs_dir / f"{session_log_uri}.jsonl"
+            json_path = self.store._logs_dir / log_uri / "logs.json"
+            jsonl_path = self.store._logs_dir / f"{log_uri}.jsonl"
             
             if json_path.exists():
                 file_path = json_path
@@ -455,9 +455,9 @@ class QwenCodeAgent(AgentBackend):
             else:
                 file_path = json_path  # Will fail with proper error message
 
-        session = QwenSession(file_path=file_path)
-        session.load()
-        return session.to_chat()
+        log_file = QwenLogFile(file_path=file_path)
+        log_file.load()
+        return log_file.to_chat()
 
 
 

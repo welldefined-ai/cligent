@@ -36,7 +36,7 @@ class AgentBackend(ABC):
         pass
 
     @abstractmethod
-    def parse_content(self, content: str, session_log_uri: str) -> 'Chat':
+    def parse_content(self, content: str, log_uri: str) -> 'Chat':
         """Parse raw log content into Chat object."""
         pass
 
@@ -59,18 +59,18 @@ class AgentBackend(ABC):
         """
         return self.store.list()
 
-    def parse(self, session_log_uri: str = None) -> Chat:
+    def parse(self, log_uri: str = None) -> Chat:
         """Extract chat from specific or live session log.
 
         Args:
-            session_log_uri: Session log URI (None for live session log)
+            log_uri: Log URI (None for live session log)
 
         Returns:
             Parsed Chat object
         """
-        if session_log_uri:
-            content = self.store.get(session_log_uri)
-            return self.parse_content(content, session_log_uri)
+        if log_uri:
+            content = self.store.get(log_uri)
+            return self.parse_content(content, log_uri)
         else:
             live_uri = self.store.live()
             if live_uri is None:
@@ -104,18 +104,18 @@ class AgentBackend(ABC):
 
         return chat.export()
 
-    def select(self, session_log_uri: str, indices: List[int] = None) -> None:
+    def select(self, log_uri: str, indices: List[int] = None) -> None:
         """Select messages for composition.
 
         Args:
-            session_log_uri: Session log URI
+            log_uri: Log URI
             indices: Message indices to select (None for all messages)
         """
         # Get or cache the chat
-        if session_log_uri not in self._chat_cache:
-            self._chat_cache[session_log_uri] = self.parse(session_log_uri)
+        if log_uri not in self._chat_cache:
+            self._chat_cache[log_uri] = self.parse(log_uri)
 
-        chat = self._chat_cache[session_log_uri]
+        chat = self._chat_cache[log_uri]
 
         if indices is None:
             # Select all messages from the chat
@@ -126,18 +126,18 @@ class AgentBackend(ABC):
                 if 0 <= i < len(chat.messages):
                     self.selected_messages.append(chat.messages[i])
 
-    def unselect(self, session_log_uri: str, indices: List[int] = None) -> None:
+    def unselect(self, log_uri: str, indices: List[int] = None) -> None:
         """Remove messages from selection.
 
         Args:
-            session_log_uri: Session log URI
+            log_uri: Log URI
             indices: Message indices to unselect (None for all messages from this log)
         """
         # Get or cache the chat
-        if session_log_uri not in self._chat_cache:
-            self._chat_cache[session_log_uri] = self.parse(session_log_uri)
+        if log_uri not in self._chat_cache:
+            self._chat_cache[log_uri] = self.parse(log_uri)
 
-        chat = self._chat_cache[session_log_uri]
+        chat = self._chat_cache[log_uri]
 
         if indices is None:
             # Remove all messages from this chat
