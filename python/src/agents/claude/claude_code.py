@@ -267,7 +267,7 @@ class Record:
 
 
 @dataclass
-class Session:
+class LogFile:
     """A complete JSONL log file representing a chat."""
 
     file_path: Path
@@ -370,23 +370,23 @@ class ClaudeStore(LogStore):
 
         return logs
 
-    def get(self, session_log_uri: str) -> str:
+    def get(self, log_uri: str) -> str:
         """Retrieve raw content of a specific log.
 
         Args:
-            session_log_uri: Either a session ID or full path to session log file
+            log_uri: Either a session ID or full path to session log file
         """
         # Handle both session IDs and full paths for compatibility
-        if "/" in session_log_uri or "\\" in session_log_uri:
+        if "/" in log_uri or "\\" in log_uri:
             # Full path provided (backwards compatibility)
-            log_path = Path(session_log_uri)
+            log_path = Path(log_uri)
         else:
             # Session ID provided - construct full path
-            log_path = self._project_dir / f"{session_log_uri}.jsonl"
+            log_path = self._project_dir / f"{log_uri}.jsonl"
 
         try:
             if not log_path.exists():
-                raise FileNotFoundError(f"Session log file not found: {session_log_uri}")
+                raise FileNotFoundError(f"Session log file not found: {log_uri}")
 
             with open(log_path, 'r', encoding='utf-8') as f:
                 return f.read()
@@ -394,7 +394,7 @@ class ClaudeStore(LogStore):
         except (OSError, PermissionError, UnicodeDecodeError) as e:
             if isinstance(e, FileNotFoundError):
                 raise  # Re-raise FileNotFoundError as-is
-            raise IOError(f"Cannot read session log file {session_log_uri}: {e}")
+            raise IOError(f"Cannot read session log file {log_uri}: {e}")
 
     def live(self) -> Optional[str]:
         """Get URI of currently active log (most recent)."""
@@ -426,16 +426,16 @@ class ClaudeCodeAgent(AgentBackend):
     def _create_store(self) -> LogStore:
         return ClaudeStore()
 
-    def parse_content(self, content: str, session_log_uri: str) -> Chat:
-        # 使用现有的Session逻辑
-        if "/" in session_log_uri or "\\" in session_log_uri:
-            file_path = Path(session_log_uri)
+    def parse_content(self, content: str, log_uri: str) -> Chat:
+        # 使用现有的LogFile逻辑
+        if "/" in log_uri or "\\" in log_uri:
+            file_path = Path(log_uri)
         else:
-            file_path = self.store._project_dir / f"{session_log_uri}.jsonl"
+            file_path = self.store._project_dir / f"{log_uri}.jsonl"
 
-        session = Session(file_path=file_path)
-        session.load()
-        return session.to_chat()
+        log_file = LogFile(file_path=file_path)
+        log_file.load()
+        return log_file.to_chat()
 
 
 

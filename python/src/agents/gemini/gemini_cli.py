@@ -169,7 +169,7 @@ class GeminiRecord:
 
 
 @dataclass
-class GeminiSession:
+class GeminiLogFile:
     """A complete JSONL log file representing a Gemini CLI chat."""
 
     file_path: Path
@@ -305,32 +305,32 @@ class GeminiStore(LogStore):
 
         return logs
 
-    def get(self, session_log_uri: str) -> str:
+    def get(self, log_uri: str) -> str:
         """Retrieve raw content of a specific log.
 
         Args:
-            session_log_uri: Either <uuid>/<file_name> format, session ID, or full path
+            log_uri: Either <uuid>/<file_name> format, session ID, or full path
         """
         # Handle new <uuid>/<file_name> format
-        if "/" in session_log_uri and not session_log_uri.startswith("/"):
+        if "/" in log_uri and not log_uri.startswith("/"):
             # Format: <uuid>/<file_name>
-            parts = session_log_uri.split("/", 1)
+            parts = log_uri.split("/", 1)
             if len(parts) == 2:
                 session_id, file_name = parts
                 log_path = self._logs_dir / session_id / file_name
             else:
                 # Fallback to old format
-                log_path = Path(session_log_uri)
-        elif "\\" in session_log_uri or session_log_uri.startswith("/"):
+                log_path = Path(log_uri)
+        elif "\\" in log_uri or log_uri.startswith("/"):
             # Full path format
-            log_path = Path(session_log_uri)
+            log_path = Path(log_uri)
         else:
             # Legacy: just session ID, assume logs.json
-            log_path = self._logs_dir / session_log_uri / "logs.json"
+            log_path = self._logs_dir / log_uri / "logs.json"
 
         try:
             if not log_path.exists():
-                raise FileNotFoundError(f"Session log file not found: {session_log_uri}")
+                raise FileNotFoundError(f"Session log file not found: {log_uri}")
 
             with open(log_path, 'r', encoding='utf-8') as f:
                 return f.read()
@@ -338,7 +338,7 @@ class GeminiStore(LogStore):
         except (OSError, PermissionError, UnicodeDecodeError) as e:
             if isinstance(e, FileNotFoundError):
                 raise
-            raise IOError(f"Cannot read session log file {session_log_uri}: {e}")
+            raise IOError(f"Cannot read session log file {log_uri}: {e}")
 
     def live(self) -> Optional[str]:
         """Get URI of currently active log (most recent)."""
@@ -369,27 +369,27 @@ class GeminiCliAgent(AgentBackend):
     def _create_store(self) -> LogStore:
         return GeminiStore()
 
-    def parse_content(self, content: str, session_log_uri: str) -> Chat:
+    def parse_content(self, content: str, log_uri: str) -> Chat:
         # Handle new <uuid>/<file_name> format
-        if "/" in session_log_uri and not session_log_uri.startswith("/"):
+        if "/" in log_uri and not log_uri.startswith("/"):
             # Format: <uuid>/<file_name>
-            parts = session_log_uri.split("/", 1)
+            parts = log_uri.split("/", 1)
             if len(parts) == 2:
                 session_id, file_name = parts
                 file_path = self.store._logs_dir / session_id / file_name
             else:
                 # Fallback to old format
-                file_path = Path(session_log_uri)
-        elif "\\" in session_log_uri or session_log_uri.startswith("/"):
+                file_path = Path(log_uri)
+        elif "\\" in log_uri or log_uri.startswith("/"):
             # Full path format
-            file_path = Path(session_log_uri)
+            file_path = Path(log_uri)
         else:
             # Legacy: just session ID, assume logs.json
-            file_path = self.store._logs_dir / session_log_uri / "logs.json"
+            file_path = self.store._logs_dir / log_uri / "logs.json"
 
-        session = GeminiSession(file_path=file_path)
-        session.load()
-        return session.to_chat()
+        log_file = GeminiLogFile(file_path=file_path)
+        log_file.load()
+        return log_file.to_chat()
 
 
 

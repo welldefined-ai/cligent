@@ -150,11 +150,11 @@ class LogStore(ABC):
         raise NotImplementedError
     
     @abstractmethod
-    def get(self, session_log_uri: str) -> str:
+    def get(self, log_uri: str) -> str:
         """Retrieve raw content of a specific log.
         
         Args:
-            session_log_uri: Session log URI
+            log_uri: Log URI
             
         Returns:
             Raw log content as string
