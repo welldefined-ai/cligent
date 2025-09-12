@@ -218,13 +218,13 @@ def cligent(agent_type: str = "claude"):
         ValueError: If agent_type is not supported
     """
     if agent_type in ["claude", "claude-code"]:
-        from .agents.claude.claude_code import ClaudeCligent
+        from .cligents.claude.claude_code import ClaudeCligent
         return ClaudeCligent()
     elif agent_type in ["gemini", "gemini-cli"]:
-        from .agents.gemini.gemini_cli import GeminiCligent
+        from .cligents.gemini.gemini_cli import GeminiCligent
         return GeminiCligent()
     elif agent_type in ["qwen", "qwen-code"]:
-        from .agents.qwen.qwen_code import QwenCligent
+        from .cligents.qwen.qwen_code import QwenCligent
         return QwenCligent()
     else:
         supported_types = ["claude", "claude-code", "gemini", "gemini-cli", "qwen", "qwen-code"]

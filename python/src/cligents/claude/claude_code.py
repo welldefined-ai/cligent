@@ -10,7 +10,7 @@ from datetime import datetime
 from ...core.models import Message, Chat, ErrorReport, Role
 from ...core.models import LogStore
 
-from ...agent import Cligent
+from ...cligent import Cligent
 
 
 @dataclass

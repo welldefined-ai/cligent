@@ -9,8 +9,8 @@ __version__ = "0.2.0"
 # Re-export everything from core for the public API
 from .core import *
 
-# Import and expose agent framework from agent.py
-from .agent import Cligent, cligent
+# Import and expose agent framework from cligent.py
+from .cligent import Cligent, cligent
 
 # Backwards compatibility
 ChatParser = cligent
