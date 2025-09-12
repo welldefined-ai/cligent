@@ -8,7 +8,7 @@ from .errors import (
     LogCorruptionError,
     InvalidFormatError,
 )
-from .agent import AgentBackend, claude, gemini, qwen, cligent
+from .agent import Cligent, claude, gemini, qwen, cligent
 
 __all__ = [
     # Core models
@@ -19,7 +19,7 @@ __all__ = [
     "LogStore",
     
     # Agent framework
-    "AgentBackend",
+    "Cligent",
     
     # Factory functions
     "claude",

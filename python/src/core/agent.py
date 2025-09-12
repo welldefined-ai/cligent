@@ -7,7 +7,7 @@ from .errors import ErrorCollector
 if TYPE_CHECKING:
     from .models import LogStore
 
-class AgentBackend(ABC):
+class Cligent(ABC):
     """Abstract base class for all agent implementations."""
 
     def __init__(self):
@@ -209,30 +209,30 @@ def claude():
     """Create a Claude Code agent.
         
     Returns:
-        ClaudeCodeAgent instance
+        ClaudeCligent instance
     """
-    from agents.claude.claude_code import ClaudeCodeAgent
-    return ClaudeCodeAgent()
+    from agents.claude.claude_code import ClaudeCligent
+    return ClaudeCligent()
 
 
 def gemini():
     """Create a Gemini CLI agent.
         
     Returns:
-        GeminiCliAgent instance
+        GeminiCligent instance
     """
-    from agents.gemini.gemini_cli import GeminiCliAgent
-    return GeminiCliAgent()
+    from agents.gemini.gemini_cli import GeminiCligent
+    return GeminiCligent()
 
 
 def qwen():
     """Create a Qwen Code agent.
         
     Returns:
-        QwenCodeAgent instance
+        QwenCligent instance
     """
-    from agents.qwen.qwen_code import QwenCodeAgent
-    return QwenCodeAgent()
+    from agents.qwen.qwen_code import QwenCligent
+    return QwenCligent()
 
 
 def cligent(agent_type: str = "claude"):

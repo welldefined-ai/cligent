@@ -2,11 +2,11 @@
 
 def test_main_package_imports():
     """Test that core imports work."""
-    from core import Chat, Message, Role, cligent, AgentBackend
+    from core import Chat, Message, Role, cligent, Cligent
     assert callable(cligent)  # Main factory function
     assert Chat is not None
     assert Message is not None
-    assert AgentBackend is not None
+    assert Cligent is not None
 
 
 def test_direct_imports():
@@ -17,7 +17,7 @@ def test_direct_imports():
         Message, 
         Role,
         LogStore,
-        AgentBackend
+        Cligent
     )
     
     # Verify classes can be instantiated

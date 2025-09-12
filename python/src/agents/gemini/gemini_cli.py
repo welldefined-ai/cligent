@@ -9,7 +9,7 @@ from datetime import datetime
 
 from core.models import Message, Chat, ErrorReport, Role
 from core.models import LogStore
-from core.agent import AgentBackend
+from core.agent import Cligent
 
 
 @dataclass
@@ -351,7 +351,7 @@ class GeminiStore(LogStore):
         return sorted_logs[0][0] if sorted_logs else None
 
 
-class GeminiCliAgent(AgentBackend):
+class GeminiCligent(Cligent):
     """Gemini CLI agent implementation."""
 
     def __init__(self):

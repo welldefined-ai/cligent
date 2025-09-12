@@ -1,11 +1,11 @@
 """AI agent implementations for Cligent."""
 
-from .claude.claude_code import ClaudeCodeAgent
-from .gemini.gemini_cli import GeminiCliAgent
-from .qwen.qwen_code import QwenCodeAgent
+from .claude.claude_code import ClaudeCligent
+from .gemini.gemini_cli import GeminiCligent
+from .qwen.qwen_code import QwenCligent
 
 __all__ = [
-    "ClaudeCodeAgent",
-    "GeminiCliAgent", 
-    "QwenCodeAgent",
+    "ClaudeCligent",
+    "GeminiCligent", 
+    "QwenCligent",
 ]

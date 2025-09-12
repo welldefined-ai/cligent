@@ -10,7 +10,7 @@ from datetime import datetime
 from core.models import Message, Chat, ErrorReport, Role
 from core.models import LogStore
 
-from core.agent import AgentBackend
+from core.agent import Cligent
 
 
 @dataclass
@@ -408,7 +408,7 @@ class ClaudeStore(LogStore):
         # Return session ID of most recent log
         return sorted_logs[0][0] if sorted_logs else None
 
-class ClaudeCodeAgent(AgentBackend):
+class ClaudeCligent(Cligent):
     """Claude Code agent implementation."""
 
     def __init__(self):
