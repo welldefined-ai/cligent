@@ -6,9 +6,8 @@ from typing import Optional
 
 # Add python/src to path so we can import from the flattened structure
 import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'python', 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'python'))
 
-import src
 from src import cligent, Cligent
 
 
