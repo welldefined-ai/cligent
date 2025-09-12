@@ -7,9 +7,9 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime
 
-from core.models import Message, Chat, ErrorReport, Role
-from core.models import LogStore
-from core.agent import Cligent
+from ...core.models import Message, Chat, ErrorReport, Role
+from ...core.models import LogStore
+from ...agent import Cligent
 
 
 @dataclass

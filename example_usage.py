@@ -8,7 +8,8 @@ from typing import Optional
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'python', 'src'))
 
-from core import claude, gemini, qwen, cligent, Cligent
+import src
+from src import cligent, Cligent
 
 
 def get_agent() -> Cligent:

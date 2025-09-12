@@ -1,11 +1,11 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional, List, Tuple, TYPE_CHECKING
 from pathlib import Path
-from .models import Chat, Message
-from .errors import ErrorCollector
+from .core.models import Chat, Message
+from .core.errors import ErrorCollector
 
 if TYPE_CHECKING:
-    from .models import LogStore
+    from .core.models import LogStore
 
 class Cligent(ABC):
     """Abstract base class for all agent implementations."""
@@ -204,37 +204,7 @@ class Cligent(ABC):
         return f"{self.__class__.__name__}(name='{self.name}')"
 
 
-# Factory functions for creating agent instances
-def claude():
-    """Create a Claude Code agent.
-        
-    Returns:
-        ClaudeCligent instance
-    """
-    from agents.claude.claude_code import ClaudeCligent
-    return ClaudeCligent()
-
-
-def gemini():
-    """Create a Gemini CLI agent.
-        
-    Returns:
-        GeminiCligent instance
-    """
-    from agents.gemini.gemini_cli import GeminiCligent
-    return GeminiCligent()
-
-
-def qwen():
-    """Create a Qwen Code agent.
-        
-    Returns:
-        QwenCligent instance
-    """
-    from agents.qwen.qwen_code import QwenCligent
-    return QwenCligent()
-
-
+# Factory function for creating agent instances
 def cligent(agent_type: str = "claude"):
     """Create an agent for the specified type.
     
@@ -248,11 +218,14 @@ def cligent(agent_type: str = "claude"):
         ValueError: If agent_type is not supported
     """
     if agent_type in ["claude", "claude-code"]:
-        return claude()
+        from .agents.claude.claude_code import ClaudeCligent
+        return ClaudeCligent()
     elif agent_type in ["gemini", "gemini-cli"]:
-        return gemini()
+        from .agents.gemini.gemini_cli import GeminiCligent
+        return GeminiCligent()
     elif agent_type in ["qwen", "qwen-code"]:
-        return qwen()
+        from .agents.qwen.qwen_code import QwenCligent
+        return QwenCligent()
     else:
         supported_types = ["claude", "claude-code", "gemini", "gemini-cli", "qwen", "qwen-code"]
         raise ValueError(f"Unsupported agent type: {agent_type}. Supported: {supported_types}")
