@@ -6,9 +6,8 @@ import sys
 import os
 from unittest.mock import patch
 
-from cligent import ChatParser, Chat, Message, Role
-from cligent.core.errors import ChatParserError
-from cligent.agents.claude.claude_code import ClaudeStore, Session, Record
+from core import Chat, Message, Role, ChatParserError, cligent as ChatParser
+from agents.claude.claude_code import ClaudeStore, Session, Record
 
 
 class TestChatParserReal:
@@ -189,7 +188,7 @@ class TestSessionIDFunctionality:
 
     def test_list_logs_returns_session_ids(self):
         """Test that list returns session IDs, not full paths."""
-        from cligent import ChatParser
+        from core import cligent as ChatParser
         from pathlib import Path
 
         # Use current directory which should have Claude Code logs
@@ -207,7 +206,7 @@ class TestSessionIDFunctionality:
 
     def test_parse_with_session_id(self):
         """Test parsing using session ID instead of full path."""
-        from cligent import ChatParser
+        from core import cligent as ChatParser
 
         parser = ChatParser("claude-code")
         logs = parser.list()
@@ -221,7 +220,7 @@ class TestSessionIDFunctionality:
 
     def test_location_parameter_changes_project(self):
         """Test that location parameter changes which project's logs are found."""
-        from cligent import ChatParser
+        from core import cligent as ChatParser
         from pathlib import Path
 
         mock_home = Path(__file__).parent / "mock_claude_home"
@@ -310,7 +309,7 @@ class TestClaudeImplementation:
 
     def test_tool_message_filtering(self, test_data_path: Path) -> None:
         """Test that tool use messages are filtered out correctly."""
-        from cligent import ChatParser
+        from core import cligent as ChatParser
 
         # Mock the current working directory to point to test data
         with patch.object(Path, 'cwd', return_value=test_data_path):
@@ -339,7 +338,7 @@ class TestClaudeImplementation:
 
     def test_mixed_content_messages(self) -> None:
         """Test messages with both text and tool content extract only text."""
-        from cligent.agents.claude.claude_code import Record
+        from agents.claude.claude_code import Record
 
         # Simulate a message with both text and tool_use blocks
         mixed_data = {

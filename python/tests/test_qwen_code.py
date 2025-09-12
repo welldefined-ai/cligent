@@ -6,13 +6,13 @@ from pathlib import Path
 from unittest.mock import patch
 from datetime import datetime
 
-from cligent.agents.qwen.qwen_code import (
+from agents.qwen.qwen_code import (
     QwenRecord, 
     QwenSession, 
     QwenStore, 
     QwenCodeAgent
 )
-from cligent.core.models import Role, Chat
+from core.models import Role, Chat
 
 
 class TestQwenRecord:

@@ -211,7 +211,7 @@ def claude():
     Returns:
         ClaudeCodeAgent instance
     """
-    from ..agents.claude.claude_code import ClaudeCodeAgent
+    from agents.claude.claude_code import ClaudeCodeAgent
     return ClaudeCodeAgent()
 
 
@@ -221,7 +221,7 @@ def gemini():
     Returns:
         GeminiCliAgent instance
     """
-    from ..agents.gemini.gemini_cli import GeminiCliAgent
+    from agents.gemini.gemini_cli import GeminiCliAgent
     return GeminiCliAgent()
 
 
@@ -231,7 +231,7 @@ def qwen():
     Returns:
         QwenCodeAgent instance
     """
-    from ..agents.qwen.qwen_code import QwenCodeAgent
+    from agents.qwen.qwen_code import QwenCodeAgent
     return QwenCodeAgent()
 
 
