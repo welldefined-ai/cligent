@@ -51,8 +51,8 @@ class AgentBackend(ABC):
         return self._store
 
     # Log Parsing Methods
-    def list(self) -> List[Tuple[str, Dict[str, Any]]]:
-        """Show available session logs for the agent.
+    def list_logs(self) -> List[Tuple[str, Dict[str, Any]]]:
+        """Show available logs for the agent.
 
         Returns:
             List of (log_uri, metadata) tuples
