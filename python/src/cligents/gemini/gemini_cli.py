@@ -7,10 +7,7 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime
 
-from ...core.models import Message, Chat, ErrorReport, Role
-from ...core.models import LogStore
-
-from ...core.base import BaseRecord, BaseLogFile, BaseStore, ProviderConfig
+from ...core.models import Message, Chat, ErrorReport, Role, LogStore, BaseRecord, BaseLogFile, ProviderConfig
 from ...cligent import Cligent
 
 
@@ -113,7 +110,7 @@ class GeminiLogFile(BaseLogFile):
         return GeminiRecord.load(json_string)
 
 
-class GeminiLogStore(BaseStore):
+class GeminiLogStore(LogStore):
     """Gemini CLI log store implementation."""
 
     def __init__(self):

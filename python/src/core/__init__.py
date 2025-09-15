@@ -1,7 +1,6 @@
 """Core models and base classes for Cligent."""
 
-from .models import Chat, Message, Role, ErrorReport, LogStore
-from .base import BaseRecord, BaseLogFile, BaseStore, ProviderConfig
+from .models import Chat, Message, Role, ErrorReport, LogStore, BaseRecord, BaseLogFile, ProviderConfig
 from .errors import (
     ChatParserError,
     ParseError,
@@ -20,7 +19,6 @@ __all__ = [
     # Base classes
     "BaseRecord",
     "BaseLogFile",
-    "BaseStore",
     "ProviderConfig",
 
     # Errors
