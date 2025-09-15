@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime
 
-from ...core.models import Message, Chat, ErrorReport, Role, LogStore, BaseRecord, BaseLogFile, ProviderConfig
+from ...core.models import Message, Chat, ErrorReport, Role, LogStore, Record, LogFile, ProviderConfig
 
 from ...cligent import Cligent
 
@@ -27,7 +27,7 @@ CLAUDE_CONFIG = ProviderConfig(
 
 
 @dataclass
-class ClaudeRecord(BaseRecord):
+class ClaudeRecord(Record):
     """A single JSON line in a JSONL log file."""
 
     type: str = ""
@@ -171,7 +171,7 @@ class ClaudeRecord(BaseRecord):
 
 
 @dataclass
-class ClaudeLogFile(BaseLogFile):
+class ClaudeLogFile(LogFile):
     """A complete JSONL log file representing a chat."""
 
     summary: Optional[str] = None
@@ -180,11 +180,11 @@ class ClaudeLogFile(BaseLogFile):
         super().__init__(file_path, CLAUDE_CONFIG)
         self.summary = None
 
-    def _create_record(self, json_string: str) -> BaseRecord:
+    def _create_record(self, json_string: str) -> Record:
         """Create a Claude Record instance."""
         return ClaudeRecord.load(json_string)
 
-    def _extract_session_metadata(self, record: BaseRecord) -> None:
+    def _extract_session_metadata(self, record: Record) -> None:
         """Extract Claude-specific session metadata."""
         super()._extract_session_metadata(record)
 

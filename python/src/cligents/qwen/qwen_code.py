@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime
 
-from ...core.models import Message, Chat, ErrorReport, Role, LogStore, BaseRecord, BaseLogFile, ProviderConfig
+from ...core.models import Message, Chat, ErrorReport, Role, LogStore, Record, LogFile, ProviderConfig
 from ...cligent import Cligent
 
 
@@ -30,7 +30,7 @@ QWEN_CONFIG = ProviderConfig(
 
 
 @dataclass
-class QwenRecord(BaseRecord):
+class QwenRecord(Record):
     """A single JSON record from a Qwen log file."""
 
     role: str = ""
@@ -104,7 +104,7 @@ class QwenRecord(BaseRecord):
 
 
 @dataclass
-class QwenLogFile(BaseLogFile):
+class QwenLogFile(LogFile):
     """A complete JSONL log file representing a Qwen Code chat."""
 
     checkpoint_tags: List[str] = field(default_factory=list)
@@ -113,11 +113,11 @@ class QwenLogFile(BaseLogFile):
         super().__init__(file_path, QWEN_CONFIG)
         self.checkpoint_tags = []
 
-    def _create_record(self, json_string: str) -> BaseRecord:
+    def _create_record(self, json_string: str) -> Record:
         """Create a Qwen Record instance."""
         return QwenRecord.load(json_string)
 
-    def _extract_session_metadata(self, record: BaseRecord) -> None:
+    def _extract_session_metadata(self, record: Record) -> None:
         """Extract Qwen-specific session metadata."""
         super()._extract_session_metadata(record)
 

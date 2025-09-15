@@ -167,14 +167,14 @@ class ErrorReport:
 
 
 @dataclass
-class BaseRecord(ABC):
+class Record(ABC):
     """Base class for provider-specific records."""
 
     raw_data: Dict[str, Any] = field(default_factory=dict)
     config: ProviderConfig = field(default_factory=lambda: ProviderConfig("base", "Base", ".base"))
 
     @classmethod
-    def load(cls, json_string: str, config: ProviderConfig) -> 'BaseRecord':
+    def load(cls, json_string: str, config: ProviderConfig) -> 'Record':
         """Parse a JSON string into a Record."""
         try:
             data = json.loads(json_string)
@@ -289,13 +289,13 @@ class BaseRecord(ABC):
 
 
 @dataclass
-class BaseLogFile:
+class LogFile:
     """Base class for log files."""
 
     file_path: Path
     config: ProviderConfig
     session_id: Optional[str] = None
-    records: List[BaseRecord] = field(default_factory=list)
+    records: List[Record] = field(default_factory=list)
 
     def load(self) -> None:
         """Read and parse all Records from the file."""
@@ -357,11 +357,11 @@ class BaseLogFile:
                 print(f"Warning: Skipped invalid record at line {line_num}: {e}")
 
     @abstractmethod
-    def _create_record(self, json_string: str) -> BaseRecord:
+    def _create_record(self, json_string: str) -> Record:
         """Create a record instance - implemented by subclasses."""
         pass
 
-    def _extract_session_metadata(self, record: BaseRecord) -> None:
+    def _extract_session_metadata(self, record: Record) -> None:
         """Extract session metadata from record."""
         if hasattr(record, 'session_id') and getattr(record, 'session_id') and not self.session_id:
             self.session_id = getattr(record, 'session_id')

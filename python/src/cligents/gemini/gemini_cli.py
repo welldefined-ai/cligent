@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime
 
-from ...core.models import Message, Chat, ErrorReport, Role, LogStore, BaseRecord, BaseLogFile, ProviderConfig
+from ...core.models import Message, Chat, ErrorReport, Role, LogStore, Record, LogFile, ProviderConfig
 from ...cligent import Cligent
 
 
@@ -29,7 +29,7 @@ GEMINI_CONFIG = ProviderConfig(
 
 
 @dataclass
-class GeminiRecord(BaseRecord):
+class GeminiRecord(Record):
     """A single message record in a Gemini CLI JSON log file."""
 
     role: str = ""
@@ -99,13 +99,13 @@ class GeminiRecord(BaseRecord):
 
 
 @dataclass
-class GeminiLogFile(BaseLogFile):
+class GeminiLogFile(LogFile):
     """A complete JSONL log file representing a Gemini CLI chat."""
 
     def __init__(self, file_path: Path):
         super().__init__(file_path, GEMINI_CONFIG)
 
-    def _create_record(self, json_string: str) -> BaseRecord:
+    def _create_record(self, json_string: str) -> Record:
         """Create a Gemini Record instance."""
         return GeminiRecord.load(json_string)
 
