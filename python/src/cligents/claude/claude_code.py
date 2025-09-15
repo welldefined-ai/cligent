@@ -10,33 +10,55 @@ from datetime import datetime
 from ...core.models import Message, Chat, ErrorReport, Role
 from ...core.models import LogStore
 
+from ...core.base import BaseRecord, BaseLogFile, BaseStore, ProviderConfig
+
 from ...cligent import Cligent
 
 
+# Claude-specific configuration
+CLAUDE_CONFIG = ProviderConfig(
+    name="claude-code",
+    display_name="Claude Code",
+    home_dir=".claude",
+    role_mappings={
+        'user': Role.USER,
+        'assistant': Role.ASSISTANT,
+        'system': Role.SYSTEM
+    },
+    log_patterns=["*.jsonl"]
+)
+
+
 @dataclass
-class Record:
+class Record(BaseRecord):
     """A single JSON line in a JSONL log file."""
 
-    type: str  # user, assistant, tool_use, tool_result, summary
-    uuid: str
+    type: str = ""
+    uuid: str = ""
     parent_uuid: Optional[str] = None
     timestamp: Optional[str] = None
-    raw_data: Dict[str, Any] = field(default_factory=dict)
 
     @classmethod
     def load(cls, json_string: str) -> 'Record':
         """Parse a JSON string into a Record."""
-        try:
-            data = json.loads(json_string)
-            return cls(
-                type=data.get('type', 'unknown'),
-                uuid=data.get('uuid', ''),
-                parent_uuid=data.get('parent_uuid'),
-                timestamp=data.get('timestamp'),
-                raw_data=data
-            )
-        except (json.JSONDecodeError, KeyError) as e:
-            raise ValueError(f"Invalid JSON record: {e}")
+        return super().load(json_string, CLAUDE_CONFIG)
+
+    def _post_load(self, data: Dict[str, Any]) -> None:
+        """Extract Claude-specific fields."""
+        self.type = data.get('type', 'unknown')
+        self.uuid = data.get('uuid', '')
+        self.parent_uuid = data.get('parent_uuid')
+        self.timestamp = data.get('timestamp')
+
+    def get_role(self) -> str:
+        return self.type
+
+    def get_content(self) -> str:
+        message_data = self.raw_data.get('message', {})
+        return message_data.get('content', '')
+
+    def get_timestamp(self) -> Optional[str]:
+        return self.timestamp
 
     def extract_message(self) -> Optional[Message]:
         """Get a Message from this record, if applicable."""
@@ -44,25 +66,21 @@ class Record:
         # These take priority over regular message extraction
         if self.is_exit_plan_mode():
             return self._extract_plan_message()
-            
-        # Then check if it's a regular message
-        if not self.is_message():
-            return None
 
-        # Map Claude types to our Role enum
-        role_mapping = {
-            'user': Role.USER,
-            'assistant': Role.ASSISTANT,
-            'system': Role.SYSTEM
-        }
+        # Use base class for regular messages
+        message = super().extract_message()
+        if message and message.metadata:
+            # Add Claude-specific metadata
+            message.metadata.update({
+                'uuid': self.uuid,
+                'parent_uuid': self.parent_uuid,
+                'raw_type': self.type
+            })
+        return message
 
-        role = role_mapping.get(self.type, Role.ASSISTANT)
-
-        # Claude logs have message content nested under 'message' key
-        message_data = self.raw_data.get('message', {})
-        content = message_data.get('content', '')
-
-        # Handle content that might be a list (Claude API format)
+    def _process_content(self, content: Any) -> str:
+        """Process content from various formats to text."""
+        # Handle Claude API format with text blocks
         if isinstance(content, list) and content:
             # Extract only text blocks - ignore everything else
             content_parts = []
@@ -72,44 +90,20 @@ class Record:
                     if text:  # Only include non-empty text
                         content_parts.append(text)
 
-            # If no text content found, skip this message
+            # If no text content found, return empty
             if not content_parts:
-                return None
+                return ""
 
-            content = '\n'.join(content_parts)
-        elif isinstance(content, str):
-            content = content.strip()
-            # If it's just whitespace or empty, skip
-            if not content:
-                return None
-        else:
-            # Skip non-string, non-list content
-            return None
+            return '\n'.join(content_parts)
 
-        # Parse timestamp if available
-        timestamp = None
-        if self.timestamp:
-            try:
-                timestamp = datetime.fromisoformat(self.timestamp.replace('Z', '+00:00'))
-            except (ValueError, AttributeError):
-                pass
-
-        metadata = {
-            'uuid': self.uuid,
-            'parent_uuid': self.parent_uuid,
-            'raw_type': self.type
-        }
-
-        return Message(
-            role=role,
-            content=content,
-            timestamp=timestamp,
-            metadata=metadata
-        )
+        return super()._process_content(content)
 
     def is_message(self) -> bool:
         """Check if this record represents a message."""
-        return self.type in ('user', 'assistant', 'system')
+        # Use base class logic but also handle Claude-specific cases
+        if self.is_exit_plan_mode():
+            return True
+        return super().is_message()
 
     def is_exit_plan_mode(self) -> bool:
         """Check if this record is an ExitPlanMode tool use."""
@@ -180,58 +174,31 @@ class Record:
 
 
 @dataclass
-class LogFile:
+class LogFile(BaseLogFile):
     """A complete JSONL log file representing a chat."""
 
-    file_path: Path
-    session_id: Optional[str] = None
-    records: List[Record] = field(default_factory=list)
     summary: Optional[str] = None
 
-    def load(self) -> None:
-        """Read and parse all Records from the file."""
-        if not self.file_path.exists():
-            raise FileNotFoundError(f"Log file not found: {self.file_path}")
+    def __init__(self, file_path: Path):
+        super().__init__(file_path, CLAUDE_CONFIG)
+        self.summary = None
 
-        self.records.clear()
-        try:
-            with open(self.file_path, 'r', encoding='utf-8') as f:
-                for line_num, line in enumerate(f, 1):
-                    line = line.strip()
-                    if not line:
-                        continue
+    def _create_record(self, json_string: str) -> BaseRecord:
+        """Create a Claude Record instance."""
+        return Record.load(json_string)
 
-                    try:
-                        record = Record.load(line)
-                        self.records.append(record)
+    def _extract_session_metadata(self, record: BaseRecord) -> None:
+        """Extract Claude-specific session metadata."""
+        super()._extract_session_metadata(record)
 
-                        # Extract session metadata
-                        if not self.session_id and 'sessionId' in record.raw_data:
-                            self.session_id = record.raw_data.get('sessionId')
-                        elif record.type == 'summary':
-                            self.summary = record.raw_data.get('summary', '')
-
-                    except ValueError as e:
-                        # Log parsing error but continue
-                        print(f"Warning: Skipped invalid record at line {line_num}: {e}")
-                        continue
-
-        except (IOError, OSError) as e:
-            raise FileNotFoundError(f"Cannot read log file: {e}")
-
-    def to_chat(self) -> Chat:
-        """Convert session records to a Chat object."""
-        messages = []
-
-        for record in self.records:
-            message = record.extract_message()
-            if message:
-                messages.append(message)
-
-        return Chat(messages=messages)
+        # Extract Claude-specific metadata
+        if 'sessionId' in record.raw_data and not self.session_id:
+            self.session_id = record.raw_data.get('sessionId')
+        elif isinstance(record, Record) and record.type == 'summary':
+            self.summary = record.raw_data.get('summary', '')
 
 
-class ClaudeStore(LogStore):
+class ClaudeStore(BaseStore):
     """Claude Code log store implementation."""
 
     def __init__(self):
@@ -239,20 +206,17 @@ class ClaudeStore(LogStore):
 
         Uses current working directory to find Claude session logs.
         """
-        # Use current working directory
+        super().__init__(CLAUDE_CONFIG)
+
+        # Claude has a special project-based directory structure
         working_dir = Path.cwd()
-
-        # Convert working directory to Claude project folder name
-        # Claude uses path with / replaced by -
         project_folder_name = str(working_dir.absolute()).replace("/", "-")
-
-        # Find the Claude session logs directory for this project
         claude_base = Path.home() / ".claude" / "projects"
         self._project_dir = claude_base / project_folder_name
 
-        super().__init__("claude-code", str(working_dir))
+        # Override the default logs directory for Claude's structure
+        self._logs_dir = self._project_dir
         self.project_folder_name = project_folder_name
-        self.session_pattern = "*.jsonl"  # Pattern for session file names
 
     def list(self) -> List[Tuple[str, Dict[str, Any]]]:
         """Show available session logs for the current project."""
@@ -263,63 +227,29 @@ class ClaudeStore(LogStore):
                 return logs
 
             # Scan for JSONL files in this project's directory only
-            for log_file in self._project_dir.glob(self.session_pattern):
+            for log_file in self._project_dir.glob("*.jsonl"):
                 if log_file.is_file():
-                    stat = log_file.stat()
+                    metadata = self._create_file_metadata(log_file)
+                    metadata["project"] = self.project_folder_name
                     # Use session ID (filename without path) as URI
-                    session_id = log_file.stem  # filename without .jsonl extension
-                    metadata = {
-                        "size": stat.st_size,
-                        "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
-                        "project": self.project_folder_name,
-                        "accessible": log_file.is_file() and os.access(log_file, os.R_OK)
-                    }
-                    # Return session ID as URI, not full path
+                    session_id = log_file.stem
                     logs.append((session_id, metadata))
 
         except (OSError, PermissionError):
-            # Return empty list if we can't access the directory
             pass
 
         return logs
 
-    def get(self, log_uri: str) -> str:
-        """Retrieve raw content of a specific log.
-
-        Args:
-            log_uri: Either a session ID or full path to session log file
-        """
+    def _resolve_log_path(self, log_uri: str) -> Path:
+        """Resolve log URI to file path for Claude's structure."""
         # Handle both session IDs and full paths for compatibility
         if "/" in log_uri or "\\" in log_uri:
             # Full path provided (backwards compatibility)
-            log_path = Path(log_uri)
+            return Path(log_uri)
         else:
             # Session ID provided - construct full path
-            log_path = self._project_dir / f"{log_uri}.jsonl"
+            return self._project_dir / f"{log_uri}.jsonl"
 
-        try:
-            if not log_path.exists():
-                raise FileNotFoundError(f"Session log file not found: {log_uri}")
-
-            with open(log_path, 'r', encoding='utf-8') as f:
-                return f.read()
-
-        except (OSError, PermissionError, UnicodeDecodeError) as e:
-            if isinstance(e, FileNotFoundError):
-                raise  # Re-raise FileNotFoundError as-is
-            raise IOError(f"Cannot read session log file {log_uri}: {e}")
-
-    def live(self) -> Optional[str]:
-        """Get URI of currently active log (most recent)."""
-        # Find the most recently modified log file
-        logs = self.list()
-        if not logs:
-            return None
-
-        # Sort by modification time (most recent first)
-        sorted_logs = sorted(logs, key=lambda x: x[1].get('modified', ''), reverse=True)
-        # Return session ID of most recent log
-        return sorted_logs[0][0] if sorted_logs else None
 
 class ClaudeCligent(Cligent):
     """Claude Code agent implementation."""
