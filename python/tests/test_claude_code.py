@@ -6,8 +6,9 @@ import sys
 import os
 from unittest.mock import patch
 
-from core import Chat, Message, Role, ChatParserError, cligent as ChatParser
-from agents.claude.claude_code import ClaudeStore, LogFile, Record
+from src.core import Chat, Message, Role, ChatParserError
+from src import cligent as ChatParser
+from src.cligents.claude.claude_code import ClaudeLogStore, ClaudeLogFile, ClaudeRecord
 
 
 class TestChatParserReal:
@@ -188,7 +189,7 @@ class TestSessionIDFunctionality:
 
     def test_list_logs_returns_session_ids(self):
         """Test that list returns session IDs, not full paths."""
-        from core import cligent as ChatParser
+        from src import cligent as ChatParser
         from pathlib import Path
 
         # Use current directory which should have Claude Code logs
@@ -206,7 +207,7 @@ class TestSessionIDFunctionality:
 
     def test_parse_with_session_id(self):
         """Test parsing using session ID instead of full path."""
-        from core import cligent as ChatParser
+        from src import cligent as ChatParser
 
         parser = ChatParser("claude-code")
         logs = parser.list()
@@ -220,7 +221,7 @@ class TestSessionIDFunctionality:
 
     def test_location_parameter_changes_project(self):
         """Test that location parameter changes which project's logs are found."""
-        from core import cligent as ChatParser
+        from src import cligent as ChatParser
         from pathlib import Path
 
         mock_home = Path(__file__).parent / "mock_claude_home"
@@ -250,7 +251,7 @@ class TestPlanHandling:
 
     def test_exit_plan_mode_detection(self):
         """Test that ExitPlanMode tool use is correctly detected."""
-        from agents.claude.claude_code import Record
+        from src.cligents.claude.claude_code import ClaudeRecord as Record
         
         # Mock ExitPlanMode record
         exit_plan_data = {
@@ -297,7 +298,7 @@ class TestPlanHandling:
 
     def test_plan_response_detection(self):
         """Test that plan approval responses are correctly detected."""
-        from agents.claude.claude_code import Record
+        from src.cligents.claude.claude_code import ClaudeRecord as Record
         
         # Mock plan approval record
         plan_response_data = {
@@ -336,7 +337,7 @@ class TestPlanHandling:
 
     def test_plan_rejection_detection(self):
         """Test that plan rejection responses are correctly detected."""
-        from agents.claude.claude_code import Record
+        from src.cligents.claude.claude_code import ClaudeRecord as Record
         
         # Mock plan rejection record (actual format from real log)
         plan_rejection_data = {
@@ -377,7 +378,7 @@ class TestPlanHandling:
 
     def test_generic_rejection_detection(self):
         """Test that generic tool rejection is also detected as plan response."""
-        from agents.claude.claude_code import Record
+        from src.cligents.claude.claude_code import ClaudeRecord as Record
         
         # Mock generic tool rejection
         rejection_data = {
@@ -415,7 +416,7 @@ class TestPlanHandling:
 
     def test_regular_assistant_message_with_plan_present(self):
         """Test that assistant messages with ExitPlanMode are converted to plan messages."""
-        from agents.claude.claude_code import Record
+        from src.cligents.claude.claude_code import ClaudeRecord as Record
         
         # Mock assistant message that contains both text and ExitPlanMode
         mixed_data = {
@@ -450,7 +451,7 @@ class TestPlanHandling:
 
     def test_regular_message_without_plan_tools(self):
         """Test that regular messages without plan tools are processed normally."""
-        from agents.claude.claude_code import Record
+        from src.cligents.claude.claude_code import ClaudeRecord as Record
         
         # Mock regular assistant message
         regular_data = {
@@ -507,7 +508,7 @@ class TestClaudeImplementation:
     def test_session_loading(self, test_data_path):
         """Test loading a complete session."""
         session_file = test_data_path / "claude_code_project" / "simple_chat.jsonl"
-        log_file = LogFile(file_path=session_file)
+        log_file = ClaudeLogFile(file_path=session_file)
         log_file.load()
 
         assert log_file.session_id == "test-session-1"
@@ -522,7 +523,7 @@ class TestClaudeImplementation:
         mock_cwd = Path("/home/user/projects/myproject/python")
         with patch.object(Path, 'home', return_value=mock_home), \
              patch.object(Path, 'cwd', return_value=mock_cwd):
-            store = ClaudeStore()
+            store = ClaudeLogStore()
 
             # Test listing
             logs = store.list()
@@ -541,7 +542,7 @@ class TestClaudeImplementation:
 
     def test_tool_message_filtering(self, test_data_path: Path) -> None:
         """Test that tool use messages are filtered out correctly."""
-        from core import cligent as ChatParser
+        from src import cligent as ChatParser
 
         # Mock the current working directory to point to test data
         with patch.object(Path, 'cwd', return_value=test_data_path):
@@ -570,7 +571,7 @@ class TestClaudeImplementation:
 
     def test_mixed_content_messages(self) -> None:
         """Test messages with both text and tool content extract only text."""
-        from agents.claude.claude_code import Record
+        from src.cligents.claude.claude_code import ClaudeRecord as Record
 
         # Simulate a message with both text and tool_use blocks
         mixed_data = {
@@ -624,7 +625,7 @@ class TestErrorHandling:
         """Test handling file access errors."""
         # Mock current working directory to nonexistent path
         with patch.object(Path, 'cwd', return_value=Path("/nonexistent/directory")):
-            store = ClaudeStore()
+            store = ClaudeLogStore()
 
         # Should return empty list, not raise error
         logs = store.list()

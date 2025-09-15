@@ -131,7 +131,7 @@ class QwenLogFile(BaseLogFile):
 
 
 
-class QwenStore(BaseStore):
+class QwenLogStore(BaseStore):
     """Qwen Code log store implementation."""
 
     def __init__(self):
@@ -187,7 +187,7 @@ class QwenCligent(Cligent):
         return "Qwen Code"
 
     def _create_store(self) -> LogStore:
-        return QwenStore()
+        return QwenLogStore()
 
     def parse_content(self, content: str, log_uri: str) -> Chat:
         # Handle new <uuid>/<file_name> format

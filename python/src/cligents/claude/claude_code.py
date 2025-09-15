@@ -30,7 +30,7 @@ CLAUDE_CONFIG = ProviderConfig(
 
 
 @dataclass
-class Record(BaseRecord):
+class ClaudeRecord(BaseRecord):
     """A single JSON line in a JSONL log file."""
 
     type: str = ""
@@ -39,8 +39,8 @@ class Record(BaseRecord):
     timestamp: Optional[str] = None
 
     @classmethod
-    def load(cls, json_string: str) -> 'Record':
-        """Parse a JSON string into a Record."""
+    def load(cls, json_string: str) -> 'ClaudeRecord':
+        """Parse a JSON string into a ClaudeRecord."""
         return super().load(json_string, CLAUDE_CONFIG)
 
     def _post_load(self, data: Dict[str, Any]) -> None:
@@ -174,7 +174,7 @@ class Record(BaseRecord):
 
 
 @dataclass
-class LogFile(BaseLogFile):
+class ClaudeLogFile(BaseLogFile):
     """A complete JSONL log file representing a chat."""
 
     summary: Optional[str] = None
@@ -185,7 +185,7 @@ class LogFile(BaseLogFile):
 
     def _create_record(self, json_string: str) -> BaseRecord:
         """Create a Claude Record instance."""
-        return Record.load(json_string)
+        return ClaudeRecord.load(json_string)
 
     def _extract_session_metadata(self, record: BaseRecord) -> None:
         """Extract Claude-specific session metadata."""
@@ -194,11 +194,11 @@ class LogFile(BaseLogFile):
         # Extract Claude-specific metadata
         if 'sessionId' in record.raw_data and not self.session_id:
             self.session_id = record.raw_data.get('sessionId')
-        elif isinstance(record, Record) and record.type == 'summary':
+        elif isinstance(record, ClaudeRecord) and record.type == 'summary':
             self.summary = record.raw_data.get('summary', '')
 
 
-class ClaudeStore(BaseStore):
+class ClaudeLogStore(BaseStore):
     """Claude Code log store implementation."""
 
     def __init__(self):
@@ -267,7 +267,7 @@ class ClaudeCligent(Cligent):
         return "Claude Code"
 
     def _create_store(self) -> LogStore:
-        return ClaudeStore()
+        return ClaudeLogStore()
 
     def parse_content(self, content: str, log_uri: str) -> Chat:
         # 使用现有的LogFile逻辑
@@ -276,7 +276,7 @@ class ClaudeCligent(Cligent):
         else:
             file_path = self.store._project_dir / f"{log_uri}.jsonl"
 
-        log_file = LogFile(file_path=file_path)
+        log_file = ClaudeLogFile(file_path=file_path)
         log_file.load()
         return log_file.to_chat()
 

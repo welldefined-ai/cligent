@@ -2,7 +2,7 @@
 
 def test_core_imports():
     """Test that core imports work (self-contained)."""
-    from core import Chat, Message, Role, LogStore
+    from src.core import Chat, Message, Role, LogStore
     assert Chat is not None
     assert Message is not None
     assert Role is not None
@@ -67,7 +67,7 @@ def test_backwards_compatibility():
 
 def test_error_imports():
     """Test that error classes can be imported."""
-    from core import (
+    from src.core import (
         ChatParserError,
         ParseError,
         LogAccessError,
@@ -83,14 +83,14 @@ def test_error_imports():
 
 def test_private_modules_not_exposed():
     """Test that private implementation details aren't exposed."""
-    from core import Chat
+    from src.core import Chat
     
     # Core models should be available
     assert Chat is not None
     
     # But private implementation details shouldn't leak
     try:
-        from core import models
+        from src.core import models
         # This is OK - models module can be imported
         assert models is not None
     except ImportError:

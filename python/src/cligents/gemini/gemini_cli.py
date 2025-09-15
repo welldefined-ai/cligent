@@ -113,7 +113,7 @@ class GeminiLogFile(BaseLogFile):
         return GeminiRecord.load(json_string)
 
 
-class GeminiStore(BaseStore):
+class GeminiLogStore(BaseStore):
     """Gemini CLI log store implementation."""
 
     def __init__(self):
@@ -161,7 +161,7 @@ class GeminiCligent(Cligent):
         return "Gemini CLI"
 
     def _create_store(self) -> LogStore:
-        return GeminiStore()
+        return GeminiLogStore()
 
     def parse_content(self, content: str, log_uri: str) -> Chat:
         # Handle new <uuid>/<file_name> format
