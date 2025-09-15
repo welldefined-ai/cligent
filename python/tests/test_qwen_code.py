@@ -70,7 +70,6 @@ class TestQwenRecord:
         record = QwenRecord.load(json_string)
         
         assert record.role == "checkpoint"
-        assert record.checkpoint_tag == "checkpoint_001"  # Should prioritize checkpoint_tag
         assert record.timestamp == "2024-01-01T12:00:00+08:00"
 
     def test_load_invalid_json(self):
@@ -348,7 +347,6 @@ class TestQwenLogFile:
         
         assert len(session.records) == 5
         assert session.session_id == "test-123"
-        assert "start" in session.checkpoint_tags
         assert session.records[0].content == "Hello"
         assert session.records[2].role == "qwen"
 
@@ -394,7 +392,6 @@ class TestQwenLogFile:
         session.load()
         
         assert len(session.records) == 0
-        assert len(session.checkpoint_tags) == 0
         chat = session.to_chat()
         assert len(chat.messages) == 0
 

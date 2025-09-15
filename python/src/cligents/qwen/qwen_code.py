@@ -37,7 +37,6 @@ class QwenRecord(Record):
     timestamp: Optional[str] = None
     content: str = ""
     session_id: Optional[str] = None
-    checkpoint_tag: Optional[str] = None
 
     @classmethod
     def load(cls, json_string: str) -> 'QwenRecord':
@@ -53,14 +52,12 @@ class QwenRecord(Record):
             self.content = self._extract_parts_content(data.get('parts', []))
             self.timestamp = ''  # No timestamp in Google format
             self.session_id = ''
-            self.checkpoint_tag = ''
         else:
             # Legacy JSONL format - prioritize type/messageType fields for role
             self.role = data.get('type', data.get('messageType', data.get('role', data.get('sender', data.get('from', 'unknown')))))
             self.content = data.get('content', data.get('text', data.get('message', '')))
             self.timestamp = data.get('timestamp', data.get('time', data.get('created_at', '')))
             self.session_id = data.get('session_id', data.get('sessionId', data.get('conversationId', '')))
-            self.checkpoint_tag = data.get('checkpoint_tag', data.get('checkpointTag', data.get('tag', '')))
 
     def get_role(self) -> str:
         return self.role
@@ -92,8 +89,7 @@ class QwenRecord(Record):
         if message and message.metadata:
             # Add Qwen-specific metadata
             message.metadata.update({
-                'session_id': self.session_id,
-                'checkpoint_tag': self.checkpoint_tag
+                'session_id': self.session_id
             })
         return message
 
@@ -103,11 +99,9 @@ class QwenRecord(Record):
 class QwenLogFile(LogFile):
     """A complete JSONL log file representing a Qwen Code chat."""
 
-    checkpoint_tags: List[str] = field(default_factory=list)
 
     def __init__(self, file_path: Path):
         super().__init__(file_path, QWEN_CONFIG)
-        self.checkpoint_tags = []
 
     def _create_record(self, json_string: str) -> Record:
         """Create a Qwen Record instance."""
@@ -117,10 +111,6 @@ class QwenLogFile(LogFile):
         """Extract Qwen-specific session metadata."""
         super()._extract_session_metadata(record)
 
-        # Extract Qwen-specific metadata
-        if isinstance(record, QwenRecord):
-            if record.checkpoint_tag and record.checkpoint_tag not in self.checkpoint_tags:
-                self.checkpoint_tags.append(record.checkpoint_tag)
 
 
 
