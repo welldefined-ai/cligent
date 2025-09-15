@@ -8,7 +8,7 @@ from typing import Optional
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'python'))
 
-from src import cligent, Cligent
+from src import create, Cligent
 
 
 def get_agent() -> Cligent:
@@ -25,7 +25,7 @@ def get_agent() -> Cligent:
     
     # Create agent
     try:
-        agent = cligent(agent_type)
+        agent = create(agent_type)
         print(f"\n✓ Created {agent.display_name} agent")
         if agent_type in ['claude', 'claude-code']:
             print("  Using current working directory for Claude session logs")

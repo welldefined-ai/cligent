@@ -12,19 +12,19 @@ def test_core_imports():
 def test_main_package_imports():
     """Test that main package imports work."""
     import src
-    from src import cligent, Cligent
-    assert callable(cligent)  # Main factory function
+    from src import create, Cligent
+    assert callable(create)  # Main factory function
     assert Cligent is not None
     
     # Verify agent creation works
-    agent = cligent("claude")
+    agent = create("claude")
     assert agent.name == "claude-code"
 
 
 def test_direct_imports():
     """Test that direct imports work through main package."""
     import src
-    from src import Chat, Message, Role, LogStore, Cligent, cligent
+    from src import Chat, Message, Role, LogStore, Cligent, create
     
     # Verify classes can be instantiated
     msg = Message(role=Role.USER, content="test")
@@ -34,7 +34,7 @@ def test_direct_imports():
     assert chat.messages == []
     
     # Verify agent creation works
-    agent = cligent("claude")
+    agent = create("claude")
     assert agent.name == "claude-code"
 
 
@@ -43,16 +43,16 @@ def test_simplified_factory():
     import src
     
     # Test all agent types through single factory
-    agent1 = src.cligent("claude")
-    agent2 = src.cligent("gemini") 
-    agent3 = src.cligent("qwen")
+    agent1 = src.create("claude")
+    agent2 = src.create("gemini") 
+    agent3 = src.create("qwen")
     
     assert agent1.name == "claude-code"
     assert agent2.name == "gemini-cli"
     assert agent3.name == "qwen-code"
     
     # Test default parameter
-    default_agent = src.cligent()
+    default_agent = src.create()
     assert default_agent.name == "claude-code"
 
 
