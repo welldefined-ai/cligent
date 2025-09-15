@@ -36,7 +36,6 @@ class GeminiRecord(Record):
     timestamp: Optional[str] = None
     content: str = ""
     session_id: Optional[str] = None
-    message_id: Optional[int] = None
 
     @classmethod
     def load(cls, json_string: str) -> 'GeminiRecord':
@@ -52,14 +51,12 @@ class GeminiRecord(Record):
             self.content = self._extract_parts_content(data.get('parts', []))
             self.timestamp = ''  # No timestamp in Google format
             self.session_id = ''
-            self.message_id = None
         else:
             # Legacy format for main logs.json - type field becomes role
             self.role = data.get('type', data.get('role', data.get('sender', 'unknown')))
             self.content = data.get('content', data.get('text', data.get('message', '')))
             self.timestamp = data.get('timestamp', data.get('time', data.get('created_at', '')))
             self.session_id = data.get('session_id', data.get('sessionId', data.get('conversation_id', '')))
-            self.message_id = data.get('message_id', data.get('messageId'))
 
     def get_role(self) -> str:
         return self.role
@@ -91,8 +88,7 @@ class GeminiRecord(Record):
         if message and message.metadata:
             # Add Gemini-specific metadata
             message.metadata.update({
-                'session_id': self.session_id,
-                'message_id': self.message_id
+                'session_id': self.session_id
             })
         return message
 
