@@ -143,9 +143,6 @@ class Chat:
             if message.timestamp:
                 lines.append(f"  timestamp: '{message.timestamp.strftime('%Y-%m-%dT%H:%M:%SZ')}'")
             
-            # Add model from metadata if available
-            if "model" in message.metadata:
-                lines.append(f"  model: {message.metadata['model']}")
         
         return '\n'.join(lines)
 

@@ -35,7 +35,6 @@ class TestQwenRecord:
         assert record.content == "Hello, Qwen!"
         assert record.timestamp == "2024-01-01T10:00:00Z"
         assert record.session_id == "test-session-123"
-        assert record.model == "qwen-coder"
         assert record.raw_data == json_data
 
     def test_load_with_alternative_fields(self):
@@ -56,7 +55,6 @@ class TestQwenRecord:
         assert record.content == "Hello, human!"
         assert record.timestamp == "1704103200"
         assert record.session_id == "conv-456"
-        assert record.model == "qwen-turbo"
 
     def test_load_with_checkpoint_fields(self):
         """Test loading record with checkpoint-specific fields."""
@@ -189,7 +187,6 @@ class TestQwenRecord:
             role="qwen",
             content="Assistant response",
             timestamp="1704103200",  # Unix timestamp
-            model="qwen-coder"
         )
         
         message = record.extract_message()
@@ -198,7 +195,6 @@ class TestQwenRecord:
         assert message.role.value == "assistant"
         assert message.content == "Assistant response"
         assert message.timestamp == datetime.fromtimestamp(1704103200)
-        assert message.metadata["model"] == "qwen-coder"
 
     def test_extract_message_list_content(self):
         """Test extracting message with list content."""

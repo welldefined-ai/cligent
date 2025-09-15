@@ -38,7 +38,6 @@ class QwenRecord(Record):
     content: str = ""
     session_id: Optional[str] = None
     checkpoint_tag: Optional[str] = None
-    model: Optional[str] = None
 
     @classmethod
     def load(cls, json_string: str) -> 'QwenRecord':
@@ -55,7 +54,6 @@ class QwenRecord(Record):
             self.timestamp = ''  # No timestamp in Google format
             self.session_id = ''
             self.checkpoint_tag = ''
-            self.model = ''
         else:
             # Legacy JSONL format - prioritize type/messageType fields for role
             self.role = data.get('type', data.get('messageType', data.get('role', data.get('sender', data.get('from', 'unknown')))))
@@ -63,7 +61,6 @@ class QwenRecord(Record):
             self.timestamp = data.get('timestamp', data.get('time', data.get('created_at', '')))
             self.session_id = data.get('session_id', data.get('sessionId', data.get('conversationId', '')))
             self.checkpoint_tag = data.get('checkpoint_tag', data.get('checkpointTag', data.get('tag', '')))
-            self.model = data.get('model', data.get('modelName', ''))
 
     def get_role(self) -> str:
         return self.role
@@ -96,8 +93,7 @@ class QwenRecord(Record):
             # Add Qwen-specific metadata
             message.metadata.update({
                 'session_id': self.session_id,
-                'checkpoint_tag': self.checkpoint_tag,
-                'model': self.model
+                'checkpoint_tag': self.checkpoint_tag
             })
         return message
 
