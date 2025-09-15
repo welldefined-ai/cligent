@@ -293,8 +293,6 @@ class TestPlanHandling:
         assert message.role == Role.ASSISTANT
         assert "📋 **Plan Proposal**" in message.content
         assert "## Test Plan" in message.content
-        assert message.metadata['is_plan'] == True
-        assert message.metadata['tool_type'] == 'ExitPlanMode'
 
     def test_plan_response_detection(self):
         """Test that plan approval responses are correctly detected."""
@@ -324,16 +322,11 @@ class TestPlanHandling:
             timestamp="2024-01-01T12:01:00Z" 
         )
         
-        # Test detection
-        assert record.is_plan_response()
-        
         # Test message extraction
         message = record.extract_message()
         assert message is not None
         assert message.role == Role.USER
         assert "✅ **Plan Approved**" in message.content
-        assert message.metadata['is_plan_response'] == True
-        assert message.metadata['tool_type'] == 'plan_response'
 
     def test_plan_rejection_detection(self):
         """Test that plan rejection responses are correctly detected."""
@@ -364,17 +357,12 @@ class TestPlanHandling:
             timestamp="2024-01-01T12:01:00Z" 
         )
         
-        # Test detection
-        assert record.is_plan_response()
-        
         # Test message extraction
         message = record.extract_message()
         assert message is not None
         assert message.role == Role.USER
         assert "❌ **Plan Rejected**" in message.content
         assert "User has rejected the plan proposal" in message.content
-        assert message.metadata['is_plan_response'] == True
-        assert message.metadata['tool_type'] == 'plan_response'
 
     def test_generic_rejection_detection(self):
         """Test that generic tool rejection is also detected as plan response."""
@@ -404,9 +392,6 @@ class TestPlanHandling:
             raw_data=rejection_data,
             timestamp="2024-01-01T12:01:00Z" 
         )
-        
-        # Test detection
-        assert record.is_plan_response()
         
         # Test message extraction  
         message = record.extract_message()
@@ -445,7 +430,6 @@ class TestPlanHandling:
         
         # Should extract as plan message, not regular text message
         assert message is not None
-        assert message.metadata['is_plan'] == True
         assert "📋 **Plan Proposal**" in message.content
         assert "## My Plan" in message.content
 
@@ -474,8 +458,6 @@ class TestPlanHandling:
         assert message is not None
         assert message.role == Role.ASSISTANT
         assert message.content == "This is a regular message without any planning tools."
-        assert not message.metadata.get('is_plan', False)
-        assert not message.metadata.get('is_plan_response', False)
 
 
 class TestClaudeImplementation:

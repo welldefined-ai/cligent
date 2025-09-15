@@ -65,15 +65,7 @@ class ClaudeRecord(Record):
             return self._extract_plan_message()
 
         # Use base class for regular messages
-        message = super().extract_message()
-        if message and message.metadata:
-            # Add Claude-specific metadata
-            message.metadata.update({
-                'uuid': self.uuid,
-                'parent_uuid': self.parent_uuid,
-                'raw_type': self.type
-            })
-        return message
+        return super().extract_message()
 
     def _process_content(self, content: Any) -> str:
         """Process content from various formats to text."""
@@ -153,13 +145,7 @@ class ClaudeRecord(Record):
             except (ValueError, AttributeError):
                 pass
         
-        metadata = {
-            'uuid': self.uuid,
-            'parent_uuid': self.parent_uuid,
-            'raw_type': self.type,
-            'tool_type': 'ExitPlanMode',
-            'is_plan': True
-        }
+        metadata = {}
         
         return Message(
             role=Role.ASSISTANT,
