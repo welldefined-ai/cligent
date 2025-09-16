@@ -71,11 +71,13 @@ class ProviderConfig:
 @dataclass
 class Message:
     """A single communication unit."""
-    
+
     role: Role
     content: str
+    provider: str
+    raw_data: Dict[str, Any] = field(default_factory=dict)
     timestamp: Optional[datetime] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    session_id: Optional[str] = None
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert message to dictionary representation."""
@@ -83,7 +85,9 @@ class Message:
             "role": self.role.value,
             "content": self.content,
             "timestamp": self.timestamp.isoformat() if self.timestamp else None,
-            "metadata": self.metadata
+            "provider": self.provider,
+            "raw_data": self.raw_data,
+            "session_id": self.session_id
         }
     
     def __str__(self) -> str:
@@ -216,13 +220,13 @@ class Record(ABC):
             return None
 
         timestamp = self._parse_timestamp(self.get_timestamp())
-        metadata = self._build_metadata()
 
         return Message(
             role=role,
             content=content,
             timestamp=timestamp,
-            metadata=metadata
+            provider=self.config.name,
+            raw_data=self.raw_data
         )
 
     def is_message(self) -> bool:
@@ -277,12 +281,6 @@ class Record(ABC):
         except (ValueError, AttributeError):
             return None
 
-    def _build_metadata(self) -> Dict[str, Any]:
-        """Build metadata dict for the message."""
-        return {
-            'provider': self.config.name,
-            'raw_data': self.raw_data
-        }
 
 
 @dataclass
@@ -291,7 +289,6 @@ class LogFile:
 
     file_path: Path
     config: ProviderConfig
-    session_id: Optional[str] = None
     records: List[Record] = field(default_factory=list)
 
     def load(self) -> None:
@@ -326,7 +323,6 @@ class LogFile:
             try:
                 record = self._create_record(json.dumps(record_data))
                 self.records.append(record)
-                self._extract_session_metadata(record)
             except ValueError as e:
                 print(f"Warning: Skipped invalid record: {e}")
 
@@ -335,7 +331,6 @@ class LogFile:
         try:
             record = self._create_record(content)
             self.records.append(record)
-            self._extract_session_metadata(record)
         except ValueError as e:
             print(f"Warning: Skipped invalid record: {e}")
 
@@ -349,7 +344,6 @@ class LogFile:
             try:
                 record = self._create_record(line)
                 self.records.append(record)
-                self._extract_session_metadata(record)
             except ValueError as e:
                 print(f"Warning: Skipped invalid record at line {line_num}: {e}")
 
@@ -358,10 +352,6 @@ class LogFile:
         """Create a record instance - implemented by subclasses."""
         pass
 
-    def _extract_session_metadata(self, record: Record) -> None:
-        """Extract session metadata from record."""
-        if hasattr(record, 'session_id') and getattr(record, 'session_id') and not self.session_id:
-            self.session_id = getattr(record, 'session_id')
 
     def to_chat(self) -> Chat:
         """Convert session records to a Chat object."""

@@ -31,8 +31,6 @@ class ClaudeRecord(Record):
     """A single JSON line in a JSONL log file."""
 
     type: str = ""
-    uuid: str = ""
-    parent_uuid: Optional[str] = None
     timestamp: Optional[str] = None
 
     @classmethod
@@ -43,8 +41,6 @@ class ClaudeRecord(Record):
     def _post_load(self, data: Dict[str, Any]) -> None:
         """Extract Claude-specific fields."""
         self.type = data.get('type', 'unknown')
-        self.uuid = data.get('uuid', '')
-        self.parent_uuid = data.get('parent_uuid')
         self.timestamp = data.get('timestamp')
 
     def get_role(self) -> str:
@@ -145,13 +141,12 @@ class ClaudeRecord(Record):
             except (ValueError, AttributeError):
                 pass
         
-        metadata = {}
-        
         return Message(
             role=Role.ASSISTANT,
             content=formatted_content,
             timestamp=timestamp,
-            metadata=metadata
+            provider=self.config.name,
+            raw_data=self.raw_data
         )
 
 
@@ -160,25 +155,13 @@ class ClaudeRecord(Record):
 class ClaudeLogFile(LogFile):
     """A complete JSONL log file representing a chat."""
 
-    summary: Optional[str] = None
-
     def __init__(self, file_path: Path):
         super().__init__(file_path, CLAUDE_CONFIG)
-        self.summary = None
 
     def _create_record(self, json_string: str) -> Record:
         """Create a Claude Record instance."""
         return ClaudeRecord.load(json_string)
 
-    def _extract_session_metadata(self, record: Record) -> None:
-        """Extract Claude-specific session metadata."""
-        super()._extract_session_metadata(record)
-
-        # Extract Claude-specific metadata
-        if 'sessionId' in record.raw_data and not self.session_id:
-            self.session_id = record.raw_data.get('sessionId')
-        elif isinstance(record, ClaudeRecord) and record.type == 'summary':
-            self.summary = record.raw_data.get('summary', '')
 
 
 class ClaudeLogStore(LogStore):

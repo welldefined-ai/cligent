@@ -85,11 +85,9 @@ class GeminiRecord(Record):
         """Get a Message from this record, if applicable."""
         # Use base class for message extraction
         message = super().extract_message()
-        if message and message.metadata:
-            # Add Gemini-specific metadata
-            message.metadata.update({
-                'session_id': self.session_id
-            })
+        if message:
+            # Add Gemini-specific session_id
+            message.session_id = self.session_id
         return message
 
 

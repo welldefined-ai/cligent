@@ -27,7 +27,7 @@ def test_direct_imports():
     from src import Chat, Message, Role, LogStore, Cligent, create
     
     # Verify classes can be instantiated
-    msg = Message(role=Role.USER, content="test")
+    msg = Message(role=Role.USER, content="test", provider="test")
     assert msg.content == "test"
     
     chat = Chat()

@@ -86,11 +86,9 @@ class QwenRecord(Record):
         """Get a Message from this record, if applicable."""
         # Use base class for message extraction
         message = super().extract_message()
-        if message and message.metadata:
-            # Add Qwen-specific metadata
-            message.metadata.update({
-                'session_id': self.session_id
-            })
+        if message:
+            # Add Qwen-specific session_id
+            message.session_id = self.session_id
         return message
 
 
@@ -107,9 +105,6 @@ class QwenLogFile(LogFile):
         """Create a Qwen Record instance."""
         return QwenRecord.load(json_string)
 
-    def _extract_session_metadata(self, record: Record) -> None:
-        """Extract Qwen-specific session metadata."""
-        super()._extract_session_metadata(record)
 
 
 
