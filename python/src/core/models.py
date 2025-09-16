@@ -331,7 +331,6 @@ class LogFile:
         try:
             record = self._create_record(content)
             self.records.append(record)
-            self._extract_session_metadata(record)
         except ValueError as e:
             print(f"Warning: Skipped invalid record: {e}")
 

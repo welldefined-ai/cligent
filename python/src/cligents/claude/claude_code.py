@@ -31,8 +31,6 @@ class ClaudeRecord(Record):
     """A single JSON line in a JSONL log file."""
 
     type: str = ""
-    uuid: str = ""
-    parent_uuid: Optional[str] = None
     timestamp: Optional[str] = None
 
     @classmethod
@@ -43,8 +41,6 @@ class ClaudeRecord(Record):
     def _post_load(self, data: Dict[str, Any]) -> None:
         """Extract Claude-specific fields."""
         self.type = data.get('type', 'unknown')
-        self.uuid = data.get('uuid', '')
-        self.parent_uuid = data.get('parent_uuid')
         self.timestamp = data.get('timestamp')
 
     def get_role(self) -> str:

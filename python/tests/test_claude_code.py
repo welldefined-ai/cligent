@@ -279,7 +279,6 @@ class TestPlanHandling:
         
         record = Record(
             type="assistant",
-            uuid="test-uuid", 
             raw_data=exit_plan_data,
             timestamp="2024-01-01T12:00:00Z"
         )
@@ -321,7 +320,7 @@ class TestPlanHandling:
             }
         }
         
-        record = Record(type="assistant", uuid="test-uuid", raw_data=mixed_data)
+        record = Record(type="assistant", raw_data=mixed_data)
         message = record.extract_message()
         
         # Should extract as plan message, not regular text message
@@ -348,7 +347,7 @@ class TestPlanHandling:
             }
         }
         
-        record = Record(type="assistant", uuid="test-uuid", raw_data=regular_data)
+        record = Record(type="assistant", raw_data=regular_data)
         message = record.extract_message()
         
         assert message is not None
@@ -377,7 +376,6 @@ class TestClaudeImplementation:
         record = Record.load(user_json)
 
         assert record.type == "user"
-        assert record.uuid == "test-uuid"
         assert record.is_message()
 
         message = record.extract_message()
@@ -471,7 +469,7 @@ class TestClaudeImplementation:
             'uuid': 'test',
         }
 
-        record = Record(type='assistant', uuid='test', raw_data=mixed_data)
+        record = Record(type='assistant', raw_data=mixed_data)
         message = record.extract_message()
 
         # Should extract only the text part
@@ -505,7 +503,6 @@ class TestErrorHandling:
 
         # Should handle missing fields gracefully
         assert record.type == "unknown"
-        assert record.uuid == ""  # Default value
 
         # Should not extract message for unknown type
         message = record.extract_message()
