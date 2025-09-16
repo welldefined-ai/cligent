@@ -105,9 +105,6 @@ class QwenLogFile(LogFile):
         """Create a Qwen Record instance."""
         return QwenRecord.load(json_string)
 
-    def _extract_session_metadata(self, record: Record) -> None:
-        """Extract Qwen-specific session metadata."""
-        super()._extract_session_metadata(record)
 
 
 

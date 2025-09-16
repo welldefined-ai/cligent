@@ -289,7 +289,6 @@ class LogFile:
 
     file_path: Path
     config: ProviderConfig
-    session_id: Optional[str] = None
     records: List[Record] = field(default_factory=list)
 
     def load(self) -> None:
@@ -324,7 +323,6 @@ class LogFile:
             try:
                 record = self._create_record(json.dumps(record_data))
                 self.records.append(record)
-                self._extract_session_metadata(record)
             except ValueError as e:
                 print(f"Warning: Skipped invalid record: {e}")
 
@@ -347,7 +345,6 @@ class LogFile:
             try:
                 record = self._create_record(line)
                 self.records.append(record)
-                self._extract_session_metadata(record)
             except ValueError as e:
                 print(f"Warning: Skipped invalid record at line {line_num}: {e}")
 
@@ -356,10 +353,6 @@ class LogFile:
         """Create a record instance - implemented by subclasses."""
         pass
 
-    def _extract_session_metadata(self, record: Record) -> None:
-        """Extract session metadata from record."""
-        if hasattr(record, 'session_id') and getattr(record, 'session_id') and not self.session_id:
-            self.session_id = getattr(record, 'session_id')
 
     def to_chat(self) -> Chat:
         """Convert session records to a Chat object."""

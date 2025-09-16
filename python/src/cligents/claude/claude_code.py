@@ -166,13 +166,6 @@ class ClaudeLogFile(LogFile):
         """Create a Claude Record instance."""
         return ClaudeRecord.load(json_string)
 
-    def _extract_session_metadata(self, record: Record) -> None:
-        """Extract Claude-specific session metadata."""
-        super()._extract_session_metadata(record)
-
-        # Extract Claude-specific metadata
-        if 'sessionId' in record.raw_data and not self.session_id:
-            self.session_id = record.raw_data.get('sessionId')
 
 
 class ClaudeLogStore(LogStore):

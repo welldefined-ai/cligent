@@ -321,7 +321,10 @@ class TestGeminiLogFile:
         log_file.load()
 
         assert len(log_file.records) == 4
-        assert log_file.session_id == "test-123"
+        # Verify session information exists in the messages (records have session_id, not LogFile)
+        messages = [r.extract_message() for r in log_file.records if r.extract_message()]
+        session_ids = {msg.session_id for msg in messages if msg.session_id}
+        assert "test-123" in session_ids
         assert log_file.records[0].content == "Hello"
         assert log_file.records[1].role == "model"
 
