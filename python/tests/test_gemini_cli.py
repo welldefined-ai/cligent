@@ -318,27 +318,27 @@ class TestGeminiLogFile:
     def test_load_valid_file(self, temp_jsonl_file):
         """Test loading a valid JSONL file."""
         log_file = GeminiLogFile(file_path=temp_jsonl_file)
-        session.load()
-        
-        assert len(session.records) == 4
-        assert session.session_id == "test-123"
-        assert session.records[0].content == "Hello"
-        assert session.records[1].role == "model"
+        log_file.load()
+
+        assert len(log_file.records) == 4
+        assert log_file.session_id == "test-123"
+        assert log_file.records[0].content == "Hello"
+        assert log_file.records[1].role == "model"
 
     def test_load_nonexistent_file(self):
         """Test loading a non-existent file raises FileNotFoundError."""
         log_file = GeminiLogFile(file_path=Path("/nonexistent/session/logs.json"))
-        
+
         with pytest.raises(FileNotFoundError, match="Log file not found"):
-            session.load()
+            log_file.load()
 
     def test_load_malformed_file(self, malformed_jsonl_file, capsys):
         """Test loading file with malformed JSON content."""
         log_file = GeminiLogFile(file_path=malformed_jsonl_file)
-        session.load()
-        
+        log_file.load()
+
         # Should have 0 records due to malformed JSON
-        assert len(session.records) == 0
+        assert len(log_file.records) == 0
 
     def test_to_chat(self, temp_jsonl_file):
         """Test converting session to Chat object."""

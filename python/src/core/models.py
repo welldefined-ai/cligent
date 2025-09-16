@@ -71,11 +71,13 @@ class ProviderConfig:
 @dataclass
 class Message:
     """A single communication unit."""
-    
+
     role: Role
     content: str
+    provider: str
+    raw_data: Dict[str, Any] = field(default_factory=dict)
     timestamp: Optional[datetime] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    session_id: Optional[str] = None
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert message to dictionary representation."""
@@ -83,7 +85,9 @@ class Message:
             "role": self.role.value,
             "content": self.content,
             "timestamp": self.timestamp.isoformat() if self.timestamp else None,
-            "metadata": self.metadata
+            "provider": self.provider,
+            "raw_data": self.raw_data,
+            "session_id": self.session_id
         }
     
     def __str__(self) -> str:
@@ -216,13 +220,13 @@ class Record(ABC):
             return None
 
         timestamp = self._parse_timestamp(self.get_timestamp())
-        metadata = self._build_metadata()
 
         return Message(
             role=role,
             content=content,
             timestamp=timestamp,
-            metadata=metadata
+            provider=self.config.name,
+            raw_data=self.raw_data
         )
 
     def is_message(self) -> bool:
@@ -277,12 +281,6 @@ class Record(ABC):
         except (ValueError, AttributeError):
             return None
 
-    def _build_metadata(self) -> Dict[str, Any]:
-        """Build metadata dict for the message."""
-        return {
-            'provider': self.config.name,
-            'raw_data': self.raw_data
-        }
 
 
 @dataclass

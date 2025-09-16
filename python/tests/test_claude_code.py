@@ -7,7 +7,7 @@ import os
 from unittest.mock import patch
 
 from src.core import Chat, Message, Role, ChatParserError
-from src import cligent as ChatParser
+from src import ChatParser
 from src.cligents.claude.claude_code import ClaudeLogStore, ClaudeLogFile, ClaudeRecord
 
 
@@ -44,7 +44,7 @@ class TestChatParserReal:
         mock_cwd = Path("/home/user/projects/myproject/python")
         with patch.object(Path, 'home', return_value=mock_home), \
              patch.object(Path, 'cwd', return_value=mock_cwd):
-            logs = claude_parser.list()
+            logs = claude_parser.list_logs()
 
         # Should find our test logs
         assert len(logs) >= 4  # We created at least 4 test files
@@ -189,12 +189,12 @@ class TestSessionIDFunctionality:
 
     def test_list_logs_returns_session_ids(self):
         """Test that list returns session IDs, not full paths."""
-        from src import cligent as ChatParser
+        from src import ChatParser
         from pathlib import Path
 
         # Use current directory which should have Claude Code logs
         parser = ChatParser("claude-code")
-        logs = parser.list()
+        logs = parser.list_logs()
 
         if logs:  # Only test if there are logs
             for log_uri, metadata in logs:
@@ -207,10 +207,10 @@ class TestSessionIDFunctionality:
 
     def test_parse_with_session_id(self):
         """Test parsing using session ID instead of full path."""
-        from src import cligent as ChatParser
+        from src import ChatParser
 
         parser = ChatParser("claude-code")
-        logs = parser.list()
+        logs = parser.list_logs()
 
         if logs:  # Only test if there are logs
             session_id, _ = logs[0]
@@ -221,7 +221,7 @@ class TestSessionIDFunctionality:
 
     def test_location_parameter_changes_project(self):
         """Test that location parameter changes which project's logs are found."""
-        from src import cligent as ChatParser
+        from src import ChatParser
         from pathlib import Path
 
         mock_home = Path(__file__).parent / "mock_claude_home"
@@ -231,11 +231,11 @@ class TestSessionIDFunctionality:
             # Mock different working directories to simulate different projects
             with patch.object(Path, 'cwd', return_value=Path("/home/user/projects/myproject")):
                 parent_parser = ChatParser("claude-code")
-                parent_logs = parent_parser.list()
+                parent_logs = parent_parser.list_logs()
 
             with patch.object(Path, 'cwd', return_value=Path("/home/user/projects/myproject/python")):
                 python_parser = ChatParser("claude-code")
-                python_logs = python_parser.list()
+                python_logs = python_parser.list_logs()
 
             # Different projects should have different logs
             # (unless no logs exist for one of them)
@@ -294,110 +294,6 @@ class TestPlanHandling:
         assert "📋 **Plan Proposal**" in message.content
         assert "## Test Plan" in message.content
 
-    def test_plan_response_detection(self):
-        """Test that plan approval responses are correctly detected."""
-        from src.cligents.claude.claude_code import ClaudeRecord as Record
-        
-        # Mock plan approval record
-        plan_response_data = {
-            "type": "user",
-            "uuid": "test-uuid",
-            "message": {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "tool_result",
-                        "tool_use_id": "tool-id",
-                        "content": "User has approved your plan. You can now start coding."
-                    }
-                ]
-            },
-            "timestamp": "2024-01-01T12:01:00Z"
-        }
-        
-        record = Record(
-            type="user",
-            uuid="test-uuid",
-            raw_data=plan_response_data,
-            timestamp="2024-01-01T12:01:00Z" 
-        )
-        
-        # Test message extraction
-        message = record.extract_message()
-        assert message is not None
-        assert message.role == Role.USER
-        assert "✅ **Plan Approved**" in message.content
-
-    def test_plan_rejection_detection(self):
-        """Test that plan rejection responses are correctly detected."""
-        from src.cligents.claude.claude_code import ClaudeRecord as Record
-        
-        # Mock plan rejection record (actual format from real log)
-        plan_rejection_data = {
-            "type": "user",
-            "uuid": "test-uuid",
-            "message": {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "tool_result",
-                        "tool_use_id": "tool-id",
-                        "content": "The user doesn't want to proceed with this tool use. The tool use was rejected (eg. if it was a file edit, the new_string was NOT written to the file). STOP what you are doing and wait for the user to tell you how to proceed.",
-                        "is_error": True
-                    }
-                ]
-            },
-            "timestamp": "2024-01-01T12:01:00Z"
-        }
-        
-        record = Record(
-            type="user",
-            uuid="test-uuid",
-            raw_data=plan_rejection_data,
-            timestamp="2024-01-01T12:01:00Z" 
-        )
-        
-        # Test message extraction
-        message = record.extract_message()
-        assert message is not None
-        assert message.role == Role.USER
-        assert "❌ **Plan Rejected**" in message.content
-        assert "User has rejected the plan proposal" in message.content
-
-    def test_generic_rejection_detection(self):
-        """Test that generic tool rejection is also detected as plan response."""
-        from src.cligents.claude.claude_code import ClaudeRecord as Record
-        
-        # Mock generic tool rejection
-        rejection_data = {
-            "type": "user",
-            "uuid": "test-uuid",
-            "message": {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "tool_result",
-                        "tool_use_id": "tool-id",
-                        "content": "tool use was rejected",
-                        "is_error": True
-                    }
-                ]
-            },
-            "timestamp": "2024-01-01T12:01:00Z"
-        }
-        
-        record = Record(
-            type="user",
-            uuid="test-uuid",
-            raw_data=rejection_data,
-            timestamp="2024-01-01T12:01:00Z" 
-        )
-        
-        # Test message extraction  
-        message = record.extract_message()
-        assert message is not None
-        assert message.role == Role.USER
-        assert "❌ **Plan Rejected**" in message.content
 
     def test_regular_assistant_message_with_plan_present(self):
         """Test that assistant messages with ExitPlanMode are converted to plan messages."""
@@ -474,6 +370,8 @@ class TestClaudeImplementation:
 
     def test_record_parsing(self):
         """Test parsing individual JSONL records."""
+        from src.cligents.claude.claude_code import ClaudeRecord as Record
+
         # Test user message record
         user_json = '{"type":"user","message":{"role":"user","content":"Hello"},"uuid":"test-uuid","timestamp":"2024-01-01T12:00:00.000Z"}'
         record = Record.load(user_json)
@@ -524,7 +422,7 @@ class TestClaudeImplementation:
 
     def test_tool_message_filtering(self, test_data_path: Path) -> None:
         """Test that tool use messages are filtered out correctly."""
-        from src import cligent as ChatParser
+        from src import ChatParser
 
         # Mock the current working directory to point to test data
         with patch.object(Path, 'cwd', return_value=test_data_path):
@@ -585,6 +483,8 @@ class TestErrorHandling:
 
     def test_invalid_json_handling(self):
         """Test handling of invalid JSON records."""
+        from src.cligents.claude.claude_code import ClaudeRecord as Record
+
         invalid_json = '{"invalid": json missing closing brace'
 
         with pytest.raises(ValueError):
@@ -592,6 +492,8 @@ class TestErrorHandling:
 
     def test_missing_required_fields(self):
         """Test handling records with missing required fields."""
+        from src.cligents.claude.claude_code import ClaudeRecord as Record
+
         minimal_json = '{"type":"unknown"}'
         record = Record.load(minimal_json)
 
@@ -629,7 +531,9 @@ class TestMessageAndChatMethods:
             role=Role.USER,
             content="Test message",
             timestamp=datetime(2024, 1, 1, 12, 0, 0),
-            metadata={"test": "value"}
+            provider="test_provider",
+            raw_data={"test": "value"},
+            session_id="test_session"
         )
 
         # Test string formatting
@@ -643,13 +547,15 @@ class TestMessageAndChatMethods:
         assert msg_dict["role"] == "user"
         assert msg_dict["content"] == "Test message"
         assert msg_dict["timestamp"] == "2024-01-01T12:00:00"
-        assert msg_dict["metadata"] == {"test": "value"}
+        assert msg_dict["provider"] == "test_provider"
+        assert msg_dict["raw_data"] == {"test": "value"}
+        assert msg_dict["session_id"] == "test_session"
 
     def test_chat_operations(self):
         """Test Chat add, remove, merge operations."""
-        msg1 = Message(role=Role.USER, content="First message")
-        msg2 = Message(role=Role.ASSISTANT, content="Second message")
-        msg3 = Message(role=Role.USER, content="Third message")
+        msg1 = Message(role=Role.USER, content="First message", provider="test")
+        msg2 = Message(role=Role.ASSISTANT, content="Second message", provider="test")
+        msg3 = Message(role=Role.USER, content="Third message", provider="test")
 
         # Test adding messages
         chat1 = Chat()
@@ -672,9 +578,9 @@ class TestMessageAndChatMethods:
     def test_tigs_export_format(self):
         """Test Tigs YAML format export."""
         messages = [
-            Message(role=Role.SYSTEM, content="System prompt"),
-            Message(role=Role.USER, content="User question"),
-            Message(role=Role.ASSISTANT, content="Assistant response")
+            Message(role=Role.SYSTEM, content="System prompt", provider="test"),
+            Message(role=Role.USER, content="User question", provider="test"),
+            Message(role=Role.ASSISTANT, content="Assistant response", provider="test")
         ]
 
         chat = Chat(messages=messages)

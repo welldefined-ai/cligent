@@ -145,13 +145,12 @@ class ClaudeRecord(Record):
             except (ValueError, AttributeError):
                 pass
         
-        metadata = {}
-        
         return Message(
             role=Role.ASSISTANT,
             content=formatted_content,
             timestamp=timestamp,
-            metadata=metadata
+            provider=self.config.name,
+            raw_data=self.raw_data
         )
 
 
