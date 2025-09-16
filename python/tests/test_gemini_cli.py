@@ -6,13 +6,13 @@ from pathlib import Path
 from unittest.mock import patch
 from datetime import datetime
 
-from agents.gemini.gemini_cli import (
-    GeminiRecord, 
-    GeminiLogFile, 
-    GeminiStore, 
+from src.cligents.gemini.gemini_cli import (
+    GeminiRecord,
+    GeminiLogFile,
+    GeminiLogStore,
     GeminiCligent
 )
-from core.models import Role, Chat
+from src.core.models import Role, Chat
 
 
 class TestGeminiRecord:
@@ -391,18 +391,18 @@ class TestGeminiStore:
 
     def test_init_with_default_location(self):
         """Test initializing store with default location."""
-        store = GeminiStore()
+        store = GeminiLogStore()
         assert store.agent == "gemini-cli"
 
     def test_init_without_location(self):
         """Test initializing store (location not supported for Gemini)."""
-        store = GeminiStore()
+        store = GeminiLogStore()
         assert store.agent == "gemini-cli"
 
     def test_list_logs(self, mock_home_dir):
         """Test listing available logs."""
         with patch('pathlib.Path.home', return_value=mock_home_dir):
-            store = GeminiStore()
+            store = GeminiLogStore()
             logs = store.list()
         
         assert len(logs) == 2
@@ -422,7 +422,7 @@ class TestGeminiStore:
         """Test listing logs when directory doesn't exist."""
         fake_home = tmp_path / "fake_home"
         with patch('pathlib.Path.home', return_value=fake_home):
-            store = GeminiStore()
+            store = GeminiLogStore()
             logs = store.list()
         
         assert logs == []
@@ -430,7 +430,7 @@ class TestGeminiStore:
     def test_get_log_by_session_id(self, mock_home_dir):
         """Test retrieving log content by session ID."""
         with patch('pathlib.Path.home', return_value=mock_home_dir):
-            store = GeminiStore()
+            store = GeminiLogStore()
             content = store.get("session1")
         
         assert content == '{"content": "test1"}'
@@ -440,7 +440,7 @@ class TestGeminiStore:
         log_path = mock_home_dir / ".gemini" / "tmp" / "session1" / "logs.json"
         
         with patch('pathlib.Path.home', return_value=mock_home_dir):
-            store = GeminiStore()
+            store = GeminiLogStore()
             content = store.get(str(log_path))
         
         assert content == '{"content": "test1"}'
@@ -448,7 +448,7 @@ class TestGeminiStore:
     def test_get_nonexistent_log(self, mock_home_dir):
         """Test retrieving non-existent log raises FileNotFoundError."""
         with patch('pathlib.Path.home', return_value=mock_home_dir):
-            store = GeminiStore()
+            store = GeminiLogStore()
             
             with pytest.raises(FileNotFoundError, match="Session log file not found"):
                 store.get("nonexistent")
@@ -456,7 +456,7 @@ class TestGeminiStore:
     def test_live_log(self, mock_home_dir):
         """Test getting most recent log."""
         with patch('pathlib.Path.home', return_value=mock_home_dir):
-            store = GeminiStore()
+            store = GeminiLogStore()
             live_log = store.live()
         
         # Should return one of the sessions with new URI format
@@ -466,7 +466,7 @@ class TestGeminiStore:
         """Test getting live log when no logs exist."""
         fake_home = tmp_path / "fake_home"
         with patch('pathlib.Path.home', return_value=fake_home):
-            store = GeminiStore()
+            store = GeminiLogStore()
             live_log = store.live()
         
         assert live_log is None
@@ -483,7 +483,7 @@ class TestGeminiStore:
         (test_session_dir / "logs.json").write_text('{"test": "data"}')
         
         with patch('pathlib.Path.home', return_value=home_dir):
-            store = GeminiStore()
+            store = GeminiLogStore()
             assert store._logs_dir == logs_dir
             logs = store.list()
             assert len(logs) == 1
@@ -501,7 +501,7 @@ class TestGeminiStore:
         (test_session_dir / "logs.json").write_text('{"test": "data"}')
         
         with patch('pathlib.Path.home', return_value=home_dir):
-            store = GeminiStore()
+            store = GeminiLogStore()
             assert store._logs_dir == logs_dir
             logs = store.list()
             assert len(logs) == 1
@@ -523,7 +523,7 @@ class TestGeminiStore:
         (session_dir / "checkpoint-final.json").write_text('[{"type": "model", "content": "Summary"}]')
         
         with patch('pathlib.Path.home', return_value=home_dir):
-            store = GeminiStore()
+            store = GeminiLogStore()
             logs = store.list()
         
         # Should find all JSON files
@@ -559,7 +559,7 @@ class TestGeminiStore:
         (session_dir / "checkpoint-test.json").write_text(checkpoint_content)
         
         with patch('pathlib.Path.home', return_value=home_dir):
-            store = GeminiStore()
+            store = GeminiLogStore()
             
             # Test new URI format
             content = store.get("session-456/checkpoint-test.json")

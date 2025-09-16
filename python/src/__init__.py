@@ -10,7 +10,7 @@ __version__ = "0.2.0"
 from .core import *
 
 # Import and expose agent framework from cligent.py
-from .cligent import Cligent, cligent
+from .cligent import Cligent, create
 
 # Backwards compatibility
-ChatParser = cligent
+ChatParser = create

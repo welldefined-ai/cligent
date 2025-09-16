@@ -205,7 +205,7 @@ class Cligent(ABC):
 
 
 # Factory function for creating agent instances
-def cligent(agent_type: str = "claude"):
+def create(agent_type: str = "claude"):
     """Create an agent for the specified type.
     
     Args:

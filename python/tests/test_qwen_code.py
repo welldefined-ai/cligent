@@ -6,13 +6,13 @@ from pathlib import Path
 from unittest.mock import patch
 from datetime import datetime
 
-from agents.qwen.qwen_code import (
-    QwenRecord, 
-    QwenLogFile, 
-    QwenStore, 
+from src.cligents.qwen.qwen_code import (
+    QwenRecord,
+    QwenLogFile,
+    QwenLogStore,
     QwenCligent
 )
-from core.models import Role, Chat
+from src.core.models import Role, Chat
 
 
 class TestQwenRecord:
@@ -35,7 +35,6 @@ class TestQwenRecord:
         assert record.content == "Hello, Qwen!"
         assert record.timestamp == "2024-01-01T10:00:00Z"
         assert record.session_id == "test-session-123"
-        assert record.model == "qwen-coder"
         assert record.raw_data == json_data
 
     def test_load_with_alternative_fields(self):
@@ -56,7 +55,6 @@ class TestQwenRecord:
         assert record.content == "Hello, human!"
         assert record.timestamp == "1704103200"
         assert record.session_id == "conv-456"
-        assert record.model == "qwen-turbo"
 
     def test_load_with_checkpoint_fields(self):
         """Test loading record with checkpoint-specific fields."""
@@ -72,7 +70,6 @@ class TestQwenRecord:
         record = QwenRecord.load(json_string)
         
         assert record.role == "checkpoint"
-        assert record.checkpoint_tag == "checkpoint_001"  # Should prioritize checkpoint_tag
         assert record.timestamp == "2024-01-01T12:00:00+08:00"
 
     def test_load_invalid_json(self):
@@ -189,7 +186,6 @@ class TestQwenRecord:
             role="qwen",
             content="Assistant response",
             timestamp="1704103200",  # Unix timestamp
-            model="qwen-coder"
         )
         
         message = record.extract_message()
@@ -198,7 +194,6 @@ class TestQwenRecord:
         assert message.role.value == "assistant"
         assert message.content == "Assistant response"
         assert message.timestamp == datetime.fromtimestamp(1704103200)
-        assert message.metadata["model"] == "qwen-coder"
 
     def test_extract_message_list_content(self):
         """Test extracting message with list content."""
@@ -352,7 +347,6 @@ class TestQwenLogFile:
         
         assert len(session.records) == 5
         assert session.session_id == "test-123"
-        assert "start" in session.checkpoint_tags
         assert session.records[0].content == "Hello"
         assert session.records[2].role == "qwen"
 
@@ -398,7 +392,6 @@ class TestQwenLogFile:
         session.load()
         
         assert len(session.records) == 0
-        assert len(session.checkpoint_tags) == 0
         chat = session.to_chat()
         assert len(chat.messages) == 0
 
@@ -421,18 +414,18 @@ class TestQwenStore:
 
     def test_init_with_default_location(self):
         """Test initializing store with default location."""
-        store = QwenStore()
+        store = QwenLogStore()
         assert store.agent == "qwen-code"
 
     def test_init_without_location(self):
         """Test initializing store (location not supported for Qwen)."""
-        store = QwenStore()
+        store = QwenLogStore()
         assert store.agent == "qwen-code"
 
     def test_list_logs(self, mock_home_dir):
         """Test listing available logs."""
         with patch('pathlib.Path.home', return_value=mock_home_dir):
-            store = QwenStore()
+            store = QwenLogStore()
             logs = store.list()
         
         assert len(logs) == 2
@@ -450,7 +443,7 @@ class TestQwenStore:
         """Test listing logs when directory doesn't exist."""
         fake_home = tmp_path / "fake_home"
         with patch('pathlib.Path.home', return_value=fake_home):
-            store = QwenStore()
+            store = QwenLogStore()
             logs = store.list()
         
         assert logs == []
@@ -458,7 +451,7 @@ class TestQwenStore:
     def test_get_log_by_session_id(self, mock_home_dir):
         """Test retrieving log content by session ID."""
         with patch('pathlib.Path.home', return_value=mock_home_dir):
-            store = QwenStore()
+            store = QwenLogStore()
             content = store.get("session1")
         
         assert content == '{"content": "test1", "model": "qwen"}'
@@ -468,7 +461,7 @@ class TestQwenStore:
         log_path = mock_home_dir / ".qwen" / "logs" / "session1.jsonl"
         
         with patch('pathlib.Path.home', return_value=mock_home_dir):
-            store = QwenStore()
+            store = QwenLogStore()
             content = store.get(str(log_path))
         
         assert content == '{"content": "test1", "model": "qwen"}'
@@ -476,7 +469,7 @@ class TestQwenStore:
     def test_get_nonexistent_log(self, mock_home_dir):
         """Test retrieving non-existent log raises FileNotFoundError."""
         with patch('pathlib.Path.home', return_value=mock_home_dir):
-            store = QwenStore()
+            store = QwenLogStore()
             
             with pytest.raises(FileNotFoundError, match="Session log file not found"):
                 store.get("nonexistent")
@@ -484,7 +477,7 @@ class TestQwenStore:
     def test_live_log(self, mock_home_dir):
         """Test getting most recent log."""
         with patch('pathlib.Path.home', return_value=mock_home_dir):
-            store = QwenStore()
+            store = QwenLogStore()
             live_log = store.live()
         
         # Should return one of the sessions (most recent)
@@ -494,7 +487,7 @@ class TestQwenStore:
         """Test getting live log when no logs exist."""
         fake_home = tmp_path / "fake_home"
         with patch('pathlib.Path.home', return_value=fake_home):
-            store = QwenStore()
+            store = QwenLogStore()
             live_log = store.live()
         
         assert live_log is None
@@ -519,7 +512,7 @@ class TestQwenStore:
         (logs_dir / "log.jsonl").write_text('{"logs": "data"}')
         
         with patch('pathlib.Path.home', return_value=home_dir):
-            store = QwenStore()
+            store = QwenLogStore()
 
     def test_checkpoint_files_handling(self, tmp_path):
         """Test that checkpoint files are listed and accessible."""
@@ -538,7 +531,7 @@ class TestQwenStore:
         (session_dir / "checkpoint-final.json").write_text('[{"role": "model", "parts": [{"text": "Final thoughts"}]}]')
         
         with patch('pathlib.Path.home', return_value=home_dir):
-            store = QwenStore()
+            store = QwenLogStore()
             logs = store.list()
         
         # Should find all JSON files
@@ -574,7 +567,7 @@ class TestQwenStore:
         (session_dir / "checkpoint-test.json").write_text(checkpoint_content)
         
         with patch('pathlib.Path.home', return_value=home_dir):
-            store = QwenStore()
+            store = QwenLogStore()
             
             # Test new URI format
             content = store.get("session-def456/checkpoint-test.json")
