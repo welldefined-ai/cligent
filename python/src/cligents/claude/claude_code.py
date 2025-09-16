@@ -159,11 +159,8 @@ class ClaudeRecord(Record):
 class ClaudeLogFile(LogFile):
     """A complete JSONL log file representing a chat."""
 
-    summary: Optional[str] = None
-
     def __init__(self, file_path: Path):
         super().__init__(file_path, CLAUDE_CONFIG)
-        self.summary = None
 
     def _create_record(self, json_string: str) -> Record:
         """Create a Claude Record instance."""
@@ -176,8 +173,6 @@ class ClaudeLogFile(LogFile):
         # Extract Claude-specific metadata
         if 'sessionId' in record.raw_data and not self.session_id:
             self.session_id = record.raw_data.get('sessionId')
-        elif isinstance(record, ClaudeRecord) and record.type == 'summary':
-            self.summary = record.raw_data.get('summary', '')
 
 
 class ClaudeLogStore(LogStore):

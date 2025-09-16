@@ -392,7 +392,10 @@ class TestClaudeImplementation:
         log_file.load()
 
         assert log_file.session_id == "test-session-1"
-        assert "Simple test chat" in log_file.summary
+        # Verify summary record exists
+        summary_records = [r for r in log_file.records if hasattr(r, 'type') and r.type == 'summary']
+        assert len(summary_records) == 1
+        assert "Simple test chat" in summary_records[0].raw_data.get('summary', '')
         assert len(log_file.records) == 5  # 4 messages + 1 summary
 
         chat = log_file.to_chat()
