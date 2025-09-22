@@ -1,6 +1,6 @@
 [project]
 name = "cligent"
-version = "0.1.2"
+version = "0.1.3"
 description = "Unified SDK for CLI agents (Claude Code, Gemini CLI, Qwen Coder)"
 readme = "README.md"
 license = { text = "AGPL-3.0" }
@@ -44,6 +44,7 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel.force-include]
 "src/__init__.py" = "cligent/__init__.py"
+"src/cligent.py" = "cligent/cligent.py"
 "src/core" = "cligent/core"
 "src/agents" = "cligent/agents"
 

@@ -6,7 +6,7 @@ from pathlib import Path
 from unittest.mock import patch
 from datetime import datetime
 
-from src.cligents.gemini.gemini_cli import (
+from src.agents.gemini_cli.core import (
     GeminiRecord,
     GeminiLogFile,
     GeminiLogStore,
@@ -346,9 +346,9 @@ class TestGeminiLogFile:
     def test_to_chat(self, temp_jsonl_file):
         """Test converting session to Chat object."""
         log_file = GeminiLogFile(file_path=temp_jsonl_file)
-        session.load()
+        log_file.load()
         
-        chat = session.to_chat()
+        chat = log_file.to_chat()
         
         assert isinstance(chat, Chat)
         assert len(chat.messages) == 4
@@ -364,15 +364,15 @@ class TestGeminiLogFile:
         empty_file.touch()
         
         log_file = GeminiLogFile(file_path=empty_file)
-        session.load()
+        log_file.load()
         
-        assert len(session.records) == 0
-        chat = session.to_chat()
+        assert len(log_file.records) == 0
+        chat = log_file.to_chat()
         assert len(chat.messages) == 0
 
 
-class TestGeminiStore:
-    """Test GeminiStore class functionality."""
+class TestGeminiLogStore:
+    """Test GeminiLogStore class functionality."""
 
     @pytest.fixture
     def mock_home_dir(self, tmp_path):
@@ -590,7 +590,7 @@ class TestGeminiStore:
         (session_dir / "checkpoint-conversation.json").write_text(json.dumps(checkpoint_data))
         
         with patch('pathlib.Path.home', return_value=home_dir):
-            agent = GeminiCliAgent()
+            agent = GeminiCligent()
             
             # Parse using the new URI format
             chat = agent.parse("session-789/checkpoint-conversation.json")
@@ -600,19 +600,19 @@ class TestGeminiStore:
             assert chat.messages[1].content == "Checkpoint response 1"
 
 
-class TestGeminiCliAgent:
-    """Test GeminiCliAgent class functionality."""
+class TestGeminiCligent:
+    """Test GeminiCligent class functionality."""
 
     def test_agent_properties(self):
         """Test agent properties."""
-        agent = GeminiCliAgent()
+        agent = GeminiCligent()
         
         assert agent.name == "gemini-cli"
         assert agent.display_name == "Gemini CLI"
         
     def test_store_creation(self):
         """Test that agent has a store."""
-        agent = GeminiCliAgent()
+        agent = GeminiCligent()
         
         assert agent.store is not None
-        assert isinstance(agent.store, GeminiStore)
+        assert isinstance(agent.store, GeminiLogStore)
