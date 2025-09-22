@@ -6,7 +6,7 @@ from pathlib import Path
 from unittest.mock import patch
 from datetime import datetime
 
-from src.cligents.qwen.qwen_code import (
+from src.agents.qwen_code.core import (
     QwenRecord,
     QwenLogFile,
     QwenLogStore,
@@ -343,27 +343,27 @@ class TestQwenLogFile:
     def test_load_valid_file(self, temp_jsonl_file):
         """Test loading a valid JSONL file."""
         log_file = QwenLogFile(file_path=temp_jsonl_file)
-        session.load()
+        log_file.load()
         
-        assert len(session.records) == 5
-        assert session.session_id == "test-123"
-        assert session.records[0].content == "Hello"
-        assert session.records[2].role == "qwen"
+        assert len(log_file.records) == 5
+        assert log_file.session_id == "test-123"
+        assert log_file.records[0].content == "Hello"
+        assert log_file.records[2].role == "qwen"
 
     def test_load_nonexistent_file(self):
         """Test loading a non-existent file raises FileNotFoundError."""
         log_file = QwenLogFile(file_path=Path("/nonexistent/file.jsonl"))
         
         with pytest.raises(FileNotFoundError, match="Log file not found"):
-            session.load()
+            log_file.load()
 
     def test_load_malformed_file(self, malformed_jsonl_file, capsys):
         """Test loading file with malformed JSON lines."""
         log_file = QwenLogFile(file_path=malformed_jsonl_file)
-        session.load()
+        log_file.load()
         
         # Should have 2 valid records despite malformed line
-        assert len(session.records) == 2
+        assert len(log_file.records) == 2
         
         # Check warning was printed
         captured = capsys.readouterr()
@@ -372,9 +372,9 @@ class TestQwenLogFile:
     def test_to_chat(self, temp_jsonl_file):
         """Test converting session to Chat object."""
         log_file = QwenLogFile(file_path=temp_jsonl_file)
-        session.load()
+        log_file.load()
         
-        chat = session.to_chat()
+        chat = log_file.to_chat()
         
         assert chat is not None
         assert hasattr(chat, 'messages')
@@ -389,15 +389,15 @@ class TestQwenLogFile:
         empty_file.touch()
         
         log_file = QwenLogFile(file_path=empty_file)
-        session.load()
+        log_file.load()
         
-        assert len(session.records) == 0
-        chat = session.to_chat()
+        assert len(log_file.records) == 0
+        chat = log_file.to_chat()
         assert len(chat.messages) == 0
 
 
-class TestQwenStore:
-    """Test QwenStore class functionality."""
+class TestQwenLogStore:
+    """Test QwenLogStore class functionality."""
 
     @pytest.fixture
     def mock_home_dir(self, tmp_path):
@@ -595,7 +595,7 @@ class TestQwenStore:
         (session_dir / "checkpoint-conversation.json").write_text(json.dumps(checkpoint_data))
         
         with patch('pathlib.Path.home', return_value=home_dir):
-            agent = QwenCodeAgent()
+            agent = QwenCligent()
             
             # Parse using the new URI format
             chat = agent.parse("session-ghi789/checkpoint-conversation.json")
@@ -605,19 +605,19 @@ class TestQwenStore:
             assert chat.messages[1].content == "Qwencheckpointresponse"  # Joined without separator
 
 
-class TestQwenCodeAgent:
-    """Test QwenCodeAgent class functionality."""
+class TestQwenCligent:
+    """Test QwenCligent class functionality."""
 
     def test_agent_properties(self):
         """Test agent properties."""
-        agent = QwenCodeAgent()
+        agent = QwenCligent()
         
         assert agent.name == "qwen-code"
         assert agent.display_name == "Qwen Code"
         
     def test_store_creation(self):
         """Test that agent has a store."""
-        agent = QwenCodeAgent()
+        agent = QwenCligent()
         
         assert agent.store is not None
-        assert isinstance(agent.store, QwenStore)
+        assert isinstance(agent.store, QwenLogStore)

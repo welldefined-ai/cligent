@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 from src.core import Chat, Message, Role, ChatParserError
 from src import ChatParser
-from src.cligents.claude.claude_code import ClaudeLogStore, ClaudeLogFile, ClaudeRecord
+from src.agents.claude_code.core import ClaudeLogStore, ClaudeLogFile, ClaudeRecord
 
 
 class TestChatParserReal:
@@ -251,7 +251,7 @@ class TestPlanHandling:
 
     def test_exit_plan_mode_detection(self):
         """Test that ExitPlanMode tool use is correctly detected."""
-        from src.cligents.claude.claude_code import ClaudeRecord as Record
+        from src.agents.claude_code.core import ClaudeRecord as Record
         
         # Mock ExitPlanMode record
         exit_plan_data = {
@@ -296,7 +296,7 @@ class TestPlanHandling:
 
     def test_regular_assistant_message_with_plan_present(self):
         """Test that assistant messages with ExitPlanMode are converted to plan messages."""
-        from src.cligents.claude.claude_code import ClaudeRecord as Record
+        from src.agents.claude_code.core import ClaudeRecord as Record
         
         # Mock assistant message that contains both text and ExitPlanMode
         mixed_data = {
@@ -330,7 +330,7 @@ class TestPlanHandling:
 
     def test_regular_message_without_plan_tools(self):
         """Test that regular messages without plan tools are processed normally."""
-        from src.cligents.claude.claude_code import ClaudeRecord as Record
+        from src.agents.claude_code.core import ClaudeRecord as Record
         
         # Mock regular assistant message
         regular_data = {
@@ -369,7 +369,7 @@ class TestClaudeImplementation:
 
     def test_record_parsing(self):
         """Test parsing individual JSONL records."""
-        from src.cligents.claude.claude_code import ClaudeRecord as Record
+        from src.agents.claude_code.core import ClaudeRecord as Record
 
         # Test user message record
         user_json = '{"type":"user","message":{"role":"user","content":"Hello"},"uuid":"test-uuid","timestamp":"2024-01-01T12:00:00.000Z"}'
@@ -455,7 +455,7 @@ class TestClaudeImplementation:
 
     def test_mixed_content_messages(self) -> None:
         """Test messages with both text and tool content extract only text."""
-        from src.cligents.claude.claude_code import ClaudeRecord as Record
+        from src.agents.claude_code.core import ClaudeRecord as Record
 
         # Simulate a message with both text and tool_use blocks
         mixed_data = {
@@ -487,7 +487,7 @@ class TestErrorHandling:
 
     def test_invalid_json_handling(self):
         """Test handling of invalid JSON records."""
-        from src.cligents.claude.claude_code import ClaudeRecord as Record
+        from src.agents.claude_code.core import ClaudeRecord as Record
 
         invalid_json = '{"invalid": json missing closing brace'
 
@@ -496,7 +496,7 @@ class TestErrorHandling:
 
     def test_missing_required_fields(self):
         """Test handling records with missing required fields."""
-        from src.cligents.claude.claude_code import ClaudeRecord as Record
+        from src.agents.claude_code.core import ClaudeRecord as Record
 
         minimal_json = '{"type":"unknown"}'
         record = Record.load(minimal_json)

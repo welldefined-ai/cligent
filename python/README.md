@@ -15,6 +15,7 @@ pip install cligent
 - Handle tool usage and function calls in conversations
 - Filter and process Claude-specific message formats
 - Export conversations to YAML format
+- Convert YAML back to Chat objects (decompose functionality)
 - Robust error handling for malformed session logs
 
 ## Quick Start
@@ -111,7 +112,7 @@ if logs:
     parser.clear_selection()
 ```
 
-### Exporting to YAML (Tigs Format)
+### Exporting to YAML (Tigs Format) and Re-importing
 
 ```python
 from cligent import ChatParser
@@ -123,10 +124,14 @@ if chat:
     # Export individual chat to YAML
     yaml_output = chat.export()
     print(yaml_output)
-    
+
     # Save to file
     with open("conversation.yaml", "w") as f:
         f.write(yaml_output)
+
+    # Re-import YAML back to Chat object
+    reconstructed_chat = parser.decompose(yaml_output)
+    print(f"Reconstructed chat has {len(reconstructed_chat.messages)} messages")
 ```
 
 ### Working with Multiple Conversations
