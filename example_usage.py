@@ -46,9 +46,10 @@ def show_menu():
     print("  4. live      - Parse live/most recent log")
     print("  5. select    - Select messages from a log")
     print("  6. compose   - Generate YAML from selected messages")
-    print("  7. clear     - Clear selected messages")
-    print("  8. menu      - Show this menu")
-    print("  9. quit      - Exit")
+    print("  7. decompose - Load messages from YAML file")
+    print("  8. clear     - Clear selected messages")
+    print("  9. menu      - Show this menu")
+    print(" 10. quit      - Exit")
 
 
 def handle_info(agent: Cligent):
@@ -185,6 +186,52 @@ def handle_compose(agent: Cligent):
         print(f"✗ Error composing YAML: {e}")
 
 
+def handle_decompose(agent: Cligent):
+    """Handle decompose command."""
+    filename = input("Enter YAML filename to load: ").strip()
+    if not filename:
+        print("No filename provided")
+        return
+
+    try:
+        # Read YAML file
+        with open(filename, 'r') as f:
+            yaml_content = f.read()
+
+        print(f"\nLoading messages from {filename}...")
+        chat = agent.decompose(yaml_content)
+
+        print(f"✓ Loaded {len(chat.messages)} messages from YAML")
+
+        # Ask if user wants to add to selection or replace
+        action = input("Add to current selection (a) or replace selection (r)? [a/r]: ").strip().lower()
+
+        if action == 'r':
+            agent.clear_selection()
+
+        # Add messages to selection
+        agent.selected_messages.extend(chat.messages)
+
+        print(f"Total selected messages: {len(agent.selected_messages)}")
+
+        # Show preview of loaded messages
+        show_preview = input("Show preview of loaded messages? (y/n): ").strip().lower()
+        if show_preview == 'y':
+            print("\nLoaded messages:")
+            print("=" * 60)
+            for i, msg in enumerate(chat.messages, 0):
+                timestamp_str = f" [{msg.timestamp}]" if msg.timestamp else ""
+                print(f"\n{i}. {msg.role.value.upper()}{timestamp_str}:")
+                print("-" * 40)
+                print(msg.content)
+                print("-" * 40)
+
+    except FileNotFoundError:
+        print(f"✗ File not found: {filename}")
+    except Exception as e:
+        print(f"✗ Error loading YAML: {e}")
+
+
 def handle_clear(agent: Cligent):
     """Handle clear command."""
     count = len(agent.selected_messages)
@@ -217,9 +264,11 @@ def main():
                 handle_select(agent)
             elif command in ['compose', '6']:
                 handle_compose(agent)
-            elif command in ['clear', '7']:
+            elif command in ['decompose', '7']:
+                handle_decompose(agent)
+            elif command in ['clear', '8']:
                 handle_clear(agent)
-            elif command in ['menu', '8']:
+            elif command in ['menu', '9']:
                 show_menu()
             elif command == '':
                 continue

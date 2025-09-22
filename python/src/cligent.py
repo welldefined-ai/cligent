@@ -1,5 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional, List, Tuple, TYPE_CHECKING
+import yaml
+from datetime import datetime
 from pathlib import Path
 from .core.models import Chat, Message
 from .core.errors import ErrorCollector
@@ -103,6 +105,93 @@ class Cligent(ABC):
             chat = Chat(messages=self.selected_messages)
 
         return chat.export()
+
+    def decompose(self, tigs_yaml: str) -> Chat:
+        """Convert Tigs YAML format back to Chat object.
+
+        Args:
+            tigs_yaml: Tigs-formatted YAML string
+
+        Returns:
+            Chat object with messages parsed from YAML
+
+        Raises:
+            ValueError: If YAML is invalid or not in Tigs format
+        """
+        try:
+            data = yaml.safe_load(tigs_yaml)
+        except yaml.YAMLError as e:
+            raise ValueError(f"Invalid YAML format: {e}")
+
+        # Validate Tigs format
+        if not isinstance(data, dict):
+            raise ValueError("YAML must contain a dictionary")
+
+        if data.get('schema') != 'tigs.chat/v1':
+            raise ValueError(f"Expected schema 'tigs.chat/v1', got '{data.get('schema')}'")
+
+        if 'messages' not in data:
+            raise ValueError("YAML must contain 'messages' field")
+
+        if not isinstance(data['messages'], list):
+            raise ValueError("'messages' field must be a list")
+
+        # Parse messages
+        messages = []
+        from .core.models import Role
+
+        for i, msg_data in enumerate(data['messages']):
+            if not isinstance(msg_data, dict):
+                raise ValueError(f"Message {i} must be a dictionary")
+
+            if 'role' not in msg_data:
+                raise ValueError(f"Message {i} must have 'role' field")
+
+            if 'content' not in msg_data:
+                raise ValueError(f"Message {i} must have 'content' field")
+
+            # Parse role
+            role_str = msg_data['role'].lower()
+            try:
+                role = Role(role_str)
+            except ValueError:
+                raise ValueError(f"Message {i} has invalid role '{role_str}'")
+
+            # Parse content (handle both string and multiline formats)
+            content = msg_data['content']
+            if isinstance(content, str):
+                content = content.strip()
+            else:
+                content = str(content).strip()
+
+            # Parse timestamp if present
+            timestamp = None
+            if 'timestamp' in msg_data:
+                timestamp_str = msg_data['timestamp']
+                if timestamp_str:
+                    try:
+                        # Handle ISO format timestamps
+                        if timestamp_str.endswith('Z'):
+                            timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+                        elif '+' in timestamp_str or '-' in timestamp_str[-6:]:
+                            timestamp = datetime.fromisoformat(timestamp_str)
+                        else:
+                            timestamp = datetime.fromisoformat(timestamp_str)
+                    except ValueError:
+                        # If timestamp parsing fails, just skip it
+                        pass
+
+            # Create message
+            message = Message(
+                role=role,
+                content=content,
+                provider=self.name,
+                timestamp=timestamp,
+                raw_data=msg_data
+            )
+            messages.append(message)
+
+        return Chat(messages=messages)
 
     def select(self, log_uri: str, indices: List[int] = None) -> None:
         """Select messages for composition.
