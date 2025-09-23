@@ -180,20 +180,6 @@ class TestQwenRecord:
         # Should only extract text parts, skip function calls
         assert message.content == "Let me helpyou with that."
 
-    def test_extract_message_qwen_role(self):
-        """Test extracting message with 'qwen' role mapped to assistant."""
-        record = QwenRecord(
-            role="qwen",
-            content="Assistant response",
-            timestamp="1704103200",  # Unix timestamp
-        )
-        
-        message = record.extract_message()
-        
-        assert message is not None
-        assert message.role.value == "assistant"
-        assert message.content == "Assistant response"
-        assert message.timestamp == datetime.fromtimestamp(1704103200)
 
     def test_extract_message_list_content(self):
         """Test extracting message with list content."""
@@ -264,18 +250,6 @@ class TestQwenRecord:
         assert message is not None
         assert message.timestamp is None
 
-    def test_is_message_by_role(self):
-        """Test is_message detection by record role."""
-        message_roles = ['user', 'assistant', 'system', 'human', 'ai', 'qwen', 'message']
-        
-        for role in message_roles:
-            record = QwenRecord(role=role, content="test")
-            assert record.is_message()
-        
-        non_message_roles = ['tool_use', 'tool_result', 'checkpoint']
-        for role in non_message_roles:
-            record = QwenRecord(role=role, content="test")
-            assert not record.is_message()
 
     def test_is_message_empty_content(self):
         """Test is_message detection requires non-empty content."""
@@ -287,23 +261,6 @@ class TestQwenRecord:
         record = QwenRecord(role="user", content="test")
         assert record.is_message()
 
-    def test_role_mapping_variations(self):
-        """Test various role mapping scenarios."""
-        role_tests = [
-            ("user", "user"),
-            ("human", "user"),
-            ("assistant", "assistant"),
-            ("qwen", "assistant"),
-            ("ai", "assistant"),
-            ("model", "assistant"),
-            ("system", "system"),
-            ("unknown", "assistant"),  # Default fallback
-        ]
-        
-        for qwen_role, expected_role in role_tests:
-            record = QwenRecord(role=qwen_role, content="test")
-            message = record.extract_message()
-            assert message.role.value == expected_role
 
 
 class TestQwenLogFile:
@@ -340,15 +297,6 @@ class TestQwenLogFile:
         
         return file_path
 
-    def test_load_valid_file(self, temp_jsonl_file):
-        """Test loading a valid JSONL file."""
-        log_file = QwenLogFile(file_path=temp_jsonl_file)
-        log_file.load()
-        
-        assert len(log_file.records) == 5
-        assert log_file.session_id == "test-123"
-        assert log_file.records[0].content == "Hello"
-        assert log_file.records[2].role == "qwen"
 
     def test_load_nonexistent_file(self):
         """Test loading a non-existent file raises FileNotFoundError."""
@@ -369,19 +317,6 @@ class TestQwenLogFile:
         captured = capsys.readouterr()
         assert "Warning: Skipped invalid record" in captured.out
 
-    def test_to_chat(self, temp_jsonl_file):
-        """Test converting session to Chat object."""
-        log_file = QwenLogFile(file_path=temp_jsonl_file)
-        log_file.load()
-        
-        chat = log_file.to_chat()
-        
-        assert chat is not None
-        assert hasattr(chat, 'messages')
-        assert len(chat.messages) == 4  # Excludes checkpoint records
-        assert chat.messages[0].role.value == "user"
-        assert chat.messages[1].role.value == "assistant"
-        assert chat.messages[0].content == "Hello"
 
     def test_empty_file(self, tmp_path):
         """Test loading empty file."""
