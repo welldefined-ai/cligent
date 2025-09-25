@@ -72,8 +72,10 @@ def handle_list(agent: Cligent):
             for i, (uri, metadata) in enumerate(sorted_logs[:50], 1):  # Show first 50
                 size = metadata.get('size', 0)
                 modified = metadata.get('modified', 'unknown')
+                log_path = metadata.get('log_path', 'unknown')
                 print(f"  {i:2d}. {uri[:50]}{'...' if len(uri) > 50 else ''}")
                 print(f"      Size: {size} bytes, Modified: {modified[:19]}")
+                print(f"      Log Path: {log_path}")
             
             if len(sorted_logs) > 50:
                 print(f"  ... and {len(sorted_logs) - 50} more")
@@ -102,6 +104,7 @@ def handle_parse(agent: Cligent):
             for i, msg in enumerate(chat.messages, 0):
                 timestamp_str = f" [{msg.timestamp}]" if msg.timestamp else ""
                 print(f"\n{i}. {msg.role.value.upper()}{timestamp_str}:")
+                print(f"Log Path: {msg.log_path}")
                 print("-" * 40)
                 print(msg.content)
                 print("-" * 40)
@@ -123,6 +126,7 @@ def handle_live(agent: Cligent):
             for i, msg in enumerate(chat.messages[-3:], len(chat.messages) - 2):
                 content_preview = msg.content[:100] + "..." if len(msg.content) > 100 else msg.content
                 print(f"  {i}. [{msg.role.value}] {content_preview}")
+                print(f"     Log Path: {msg.log_path}")
         else:
             print("No live log found")
     except Exception as e:
@@ -222,6 +226,7 @@ def handle_decompose(agent: Cligent):
             for i, msg in enumerate(chat.messages, 0):
                 timestamp_str = f" [{msg.timestamp}]" if msg.timestamp else ""
                 print(f"\n{i}. {msg.role.value.upper()}{timestamp_str}:")
+                print(f"Log Path: {msg.log_path}")
                 print("-" * 40)
                 print(msg.content)
                 print("-" * 40)

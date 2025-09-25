@@ -81,10 +81,10 @@ class GeminiRecord(Record):
 
         return '\n'.join(content_parts)
 
-    def extract_message(self) -> Optional[Message]:
+    def extract_message(self, log_path: str = "") -> Optional[Message]:
         """Get a Message from this record, if applicable."""
         # Use base class for message extraction
-        message = super().extract_message()
+        message = super().extract_message(log_path)
         if message:
             # Add Gemini-specific session_id
             message.session_id = self.session_id

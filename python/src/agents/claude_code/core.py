@@ -53,15 +53,15 @@ class ClaudeRecord(Record):
     def get_timestamp(self) -> Optional[str]:
         return self.timestamp
 
-    def extract_message(self) -> Optional[Message]:
+    def extract_message(self, log_path: str = "") -> Optional[Message]:
         """Get a Message from this record, if applicable."""
         # First check for special tool uses (ExitPlanMode, plan responses)
         # These take priority over regular message extraction
         if self.is_exit_plan_mode():
-            return self._extract_plan_message()
+            return self._extract_plan_message(log_path)
 
         # Use base class for regular messages
-        return super().extract_message()
+        return super().extract_message(log_path)
 
     def _process_content(self, content: Any) -> str:
         """Process content from various formats to text."""
@@ -109,30 +109,30 @@ class ClaudeRecord(Record):
                 return True
         return False
 
-    def _extract_plan_message(self) -> Optional[Message]:
+    def _extract_plan_message(self, log_path: str = "") -> Optional[Message]:
         """Extract plan content from ExitPlanMode tool use."""
         message_data = self.raw_data.get('message', {})
         content = message_data.get('content', [])
-        
+
         if not isinstance(content, list):
             return None
-            
+
         # Find the ExitPlanMode tool use
         plan_content = None
         for block in content:
-            if (isinstance(block, dict) and 
-                block.get('type') == 'tool_use' and 
+            if (isinstance(block, dict) and
+                block.get('type') == 'tool_use' and
                 block.get('name') == 'ExitPlanMode'):
                 plan_input = block.get('input', {})
                 plan_content = plan_input.get('plan', '')
                 break
-        
+
         if not plan_content:
             return None
-            
+
         # Format the plan as a readable message
         formatted_content = f"📋 **Plan Proposal**\n\n{plan_content}\n\n---\n*This plan was presented for user approval in Claude Code's planning mode.*"
-        
+
         # Parse timestamp if available
         timestamp = None
         if self.timestamp:
@@ -140,12 +140,13 @@ class ClaudeRecord(Record):
                 timestamp = datetime.fromisoformat(self.timestamp.replace('Z', '+00:00'))
             except (ValueError, AttributeError):
                 pass
-        
+
         return Message(
             role=Role.ASSISTANT,
             content=formatted_content,
-            timestamp=timestamp,
             provider=self.config.name,
+            log_path=log_path,
+            timestamp=timestamp,
             raw_data=self.raw_data
         )
 
@@ -197,6 +198,7 @@ class ClaudeLogStore(LogStore):
                 if log_file.is_file():
                     metadata = self._create_file_metadata(log_file)
                     metadata["project"] = self.project_folder_name
+                    metadata["log_path"] = str(log_file.absolute())
                     # Use session ID (filename without path) as URI
                     session_id = log_file.stem
                     logs.append((session_id, metadata))

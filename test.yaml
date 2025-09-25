@@ -1,0 +1,43 @@
+schema: tigs.chat/v1
+messages:
+- role: user
+  content: |
+    create a PR description for current branch
+  timestamp: '2025-09-16T12:14:39Z'
+- role: assistant
+  content: |
+    I'll create a PR description for the current branch. Let me first gather information about the changes in this branch.
+  timestamp: '2025-09-16T12:14:43Z'
+- role: assistant
+  content: |
+    Based on the changes in this branch, here's a PR description:
+    
+    ## refactor: Extract session properties from LogFile to Message-level tracking
+    
+    ### Summary
+    This refactoring removes session-level properties from `LogFile` and unused metadata from various record classes in favor of a cleaner Message-based data model.
+    
+    ### Changes
+    - **Removed unused properties**: Eliminated `uuid`, `parent_uuid`, and `summary` properties from `ClaudeRecord`
+    - **Simplified Message metadata**: Replaced generic `metadata` dict with dedicated properties (`provider`, `raw_data`, `session_id`) 
+    - **Removed session tracking from LogFile**: Eliminated `session_id` property and `_extract_session_metadata` method from `LogFile` class
+    - **Updated message extraction**: Session information is now tracked at the message level where applicable (Gemini, Qwen)
+    - **Test updates**: Updated 193 lines across test files to match the new data structure
+    
+    ### Impact
+    - Cleaner separation of concerns - session data belongs with individual messages
+    - Reduced complexity in LogFile classes  
+    - More explicit data model with dedicated properties instead of generic metadata
+    - Maintained backward compatibility for message extraction and chat functionality
+    
+    ### Files Changed
+    - `python/src/core/models.py`: Core Message and LogFile refactoring
+    - `python/src/cligents/claude/claude_code.py`: Removed Claude-specific unused properties
+    - `python/src/cligents/gemini/gemini_cli.py`: Updated to use message-level session tracking
+    - `python/src/cligents/qwen/qwen_code.py`: Updated to use message-level session tracking
+    - Test files: Updated to match new data structure
+    
+    🤖 Generated with [Claude Code](https://claude.ai/code)
+    
+    Co-Authored-By: Claude <noreply@anthropic.com>
+  timestamp: '2025-09-16T12:15:01Z'
