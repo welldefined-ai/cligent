@@ -81,10 +81,10 @@ class GeminiRecord(Record):
 
         return '\n'.join(content_parts)
 
-    def extract_message(self) -> Optional[Message]:
+    def extract_message(self, log_uri: str = "") -> Optional[Message]:
         """Get a Message from this record, if applicable."""
         # Use base class for message extraction
-        message = super().extract_message()
+        message = super().extract_message(log_uri)
         if message:
             # Add Gemini-specific session_id
             message.session_id = self.session_id
@@ -174,7 +174,7 @@ class GeminiCligent(Cligent):
 
         log_file = GeminiLogFile(file_path=file_path)
         log_file.load()
-        return log_file.to_chat()
+        return log_file.to_chat(log_uri=log_uri)
 
 
 

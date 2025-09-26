@@ -82,10 +82,10 @@ class QwenRecord(Record):
 
         return ''.join(content_parts)  # Join without separator for Qwen (parts are often single chars)
 
-    def extract_message(self) -> Optional[Message]:
+    def extract_message(self, log_uri: str = "") -> Optional[Message]:
         """Get a Message from this record, if applicable."""
         # Use base class for message extraction
-        message = super().extract_message()
+        message = super().extract_message(log_uri)
         if message:
             # Add Qwen-specific session_id
             message.session_id = self.session_id
@@ -195,7 +195,7 @@ class QwenCligent(Cligent):
 
         log_file = QwenLogFile(file_path=file_path)
         log_file.load()
-        return log_file.to_chat()
+        return log_file.to_chat(log_uri=log_uri)
 
 
 

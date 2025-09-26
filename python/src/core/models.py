@@ -75,6 +75,7 @@ class Message:
     role: Role
     content: str
     provider: str
+    log_uri: str
     raw_data: Dict[str, Any] = field(default_factory=dict)
     timestamp: Optional[datetime] = None
     session_id: Optional[str] = None
@@ -87,7 +88,8 @@ class Message:
             "timestamp": self.timestamp.isoformat() if self.timestamp else None,
             "provider": self.provider,
             "raw_data": self.raw_data,
-            "session_id": self.session_id
+            "session_id": self.session_id,
+            "log_uri": self.log_uri
         }
     
     def __str__(self) -> str:
@@ -146,8 +148,11 @@ class Chat:
             # Add timestamp if available
             if message.timestamp:
                 lines.append(f"  timestamp: '{message.timestamp.strftime('%Y-%m-%dT%H:%M:%SZ')}'")
-            
-        
+
+            # Add log_uri
+            lines.append(f"  log_uri: '{message.log_uri}'")
+
+
         return '\n'.join(lines)
 
 
@@ -205,7 +210,7 @@ class Record(ABC):
         """Get the timestamp from record data."""
         pass
 
-    def extract_message(self) -> Optional[Message]:
+    def extract_message(self, log_uri: str = "") -> Optional[Message]:
         """Get a Message from this record, if applicable."""
         if not self.is_message():
             return None
@@ -224,8 +229,9 @@ class Record(ABC):
         return Message(
             role=role,
             content=content,
-            timestamp=timestamp,
             provider=self.config.name,
+            log_uri=log_uri,
+            timestamp=timestamp,
             raw_data=self.raw_data
         )
 
@@ -353,11 +359,11 @@ class LogFile:
         pass
 
 
-    def to_chat(self) -> Chat:
+    def to_chat(self, log_uri: str = "") -> Chat:
         """Convert session records to a Chat object."""
         messages = []
         for record in self.records:
-            message = record.extract_message()
+            message = record.extract_message(log_uri=log_uri)
             if message:
                 messages.append(message)
         return Chat(messages=messages)
