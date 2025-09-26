@@ -198,7 +198,7 @@ class ClaudeLogStore(LogStore):
                 if log_file.is_file():
                     metadata = self._create_file_metadata(log_file)
                     metadata["project"] = self.project_folder_name
-                    metadata["log_path"] = str(log_file.absolute())
+                    metadata["log_path"] = self._get_short_log_path(log_file)
                     # Use session ID (filename without path) as URI
                     session_id = log_file.stem
                     logs.append((session_id, metadata))

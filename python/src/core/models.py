@@ -363,10 +363,26 @@ class LogFile:
         """Convert session records to a Chat object."""
         messages = []
         for record in self.records:
-            message = record.extract_message(log_path=str(self.file_path.absolute()))
+            message = record.extract_message(log_path=self._get_short_log_path())
             if message:
                 messages.append(message)
         return Chat(messages=messages)
+
+    def _get_short_log_path(self) -> str:
+        """Generate a shorter log path based on provider type."""
+        absolute_path = str(self.file_path.absolute())
+
+        if self.config.name == "claude-code":
+            # For Claude Code, return only filename
+            return self.file_path.stem
+        elif self.config.name in ["gemini-cli", "qwen-code"]:
+            # For Gemini and Qwen, return directory/filename
+            parent_dir = self.file_path.parent.name
+            filename = self.file_path.stem
+            return f"{parent_dir}/{filename}"
+        else:
+            # For unknown providers, return full path as fallback
+            return absolute_path
 
 
 class LogStore:
@@ -436,7 +452,7 @@ class LogStore:
                     metadata.update({
                         "file_name": log_file.name,
                         "session_id": session_id,
-                        "log_path": str(log_file.absolute())
+                        "log_path": self._get_short_log_path(log_file)
                     })
                     logs.append((uri, metadata))
 
@@ -448,9 +464,25 @@ class LogStore:
         metadata.update({
             "file_name": log_file.name,
             "session_id": session_id,
-            "log_path": str(log_file.absolute())
+            "log_path": self._get_short_log_path(log_file)
         })
         return (session_id, metadata)
+
+    def _get_short_log_path(self, log_file: Path) -> str:
+        """Generate a shorter log path based on provider type."""
+        absolute_path = str(log_file.absolute())
+
+        if self.config.name == "claude-code":
+            # For Claude Code, return only filename
+            return log_file.stem
+        elif self.config.name in ["gemini-cli", "qwen-code"]:
+            # For Gemini and Qwen, return directory/filename
+            parent_dir = log_file.parent.name
+            filename = log_file.stem
+            return f"{parent_dir}/{filename}"
+        else:
+            # For unknown providers, return full path as fallback
+            return absolute_path
 
     def _create_file_metadata(self, file_path: Path) -> Dict[str, Any]:
         """Create metadata dict for a file."""
