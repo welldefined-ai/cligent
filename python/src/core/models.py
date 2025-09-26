@@ -75,7 +75,7 @@ class Message:
     role: Role
     content: str
     provider: str
-    log_path: str
+    log_uri: str
     raw_data: Dict[str, Any] = field(default_factory=dict)
     timestamp: Optional[datetime] = None
     session_id: Optional[str] = None
@@ -89,7 +89,7 @@ class Message:
             "provider": self.provider,
             "raw_data": self.raw_data,
             "session_id": self.session_id,
-            "log_path": self.log_path
+            "log_uri": self.log_uri
         }
     
     def __str__(self) -> str:
@@ -149,8 +149,8 @@ class Chat:
             if message.timestamp:
                 lines.append(f"  timestamp: '{message.timestamp.strftime('%Y-%m-%dT%H:%M:%SZ')}'")
 
-            # Add log_path
-            lines.append(f"  log_path: '{message.log_path}'")
+            # Add log_uri
+            lines.append(f"  log_uri: '{message.log_uri}'")
 
 
         return '\n'.join(lines)
@@ -210,7 +210,7 @@ class Record(ABC):
         """Get the timestamp from record data."""
         pass
 
-    def extract_message(self, log_path: str = "") -> Optional[Message]:
+    def extract_message(self, log_uri: str = "") -> Optional[Message]:
         """Get a Message from this record, if applicable."""
         if not self.is_message():
             return None
@@ -230,7 +230,7 @@ class Record(ABC):
             role=role,
             content=content,
             provider=self.config.name,
-            log_path=log_path,
+            log_uri=log_uri,
             timestamp=timestamp,
             raw_data=self.raw_data
         )
@@ -359,30 +359,14 @@ class LogFile:
         pass
 
 
-    def to_chat(self) -> Chat:
+    def to_chat(self, log_uri: str = "") -> Chat:
         """Convert session records to a Chat object."""
         messages = []
         for record in self.records:
-            message = record.extract_message(log_path=self._get_short_log_path())
+            message = record.extract_message(log_uri=log_uri)
             if message:
                 messages.append(message)
         return Chat(messages=messages)
-
-    def _get_short_log_path(self) -> str:
-        """Generate a shorter log path based on provider type."""
-        absolute_path = str(self.file_path.absolute())
-
-        if self.config.name == "claude-code":
-            # For Claude Code, return only filename
-            return self.file_path.stem
-        elif self.config.name in ["gemini-cli", "qwen-code"]:
-            # For Gemini and Qwen, return directory/filename
-            parent_dir = self.file_path.parent.name
-            filename = self.file_path.stem
-            return f"{parent_dir}/{filename}"
-        else:
-            # For unknown providers, return full path as fallback
-            return absolute_path
 
 
 class LogStore:
@@ -451,8 +435,7 @@ class LogStore:
                     metadata = self._create_file_metadata(log_file)
                     metadata.update({
                         "file_name": log_file.name,
-                        "session_id": session_id,
-                        "log_path": self._get_short_log_path(log_file)
+                        "session_id": session_id
                     })
                     logs.append((uri, metadata))
 
@@ -463,26 +446,9 @@ class LogStore:
         metadata = self._create_file_metadata(log_file)
         metadata.update({
             "file_name": log_file.name,
-            "session_id": session_id,
-            "log_path": self._get_short_log_path(log_file)
+            "session_id": session_id
         })
         return (session_id, metadata)
-
-    def _get_short_log_path(self, log_file: Path) -> str:
-        """Generate a shorter log path based on provider type."""
-        absolute_path = str(log_file.absolute())
-
-        if self.config.name == "claude-code":
-            # For Claude Code, return only filename
-            return log_file.stem
-        elif self.config.name in ["gemini-cli", "qwen-code"]:
-            # For Gemini and Qwen, return directory/filename
-            parent_dir = log_file.parent.name
-            filename = log_file.stem
-            return f"{parent_dir}/{filename}"
-        else:
-            # For unknown providers, return full path as fallback
-            return absolute_path
 
     def _create_file_metadata(self, file_path: Path) -> Dict[str, Any]:
         """Create metadata dict for a file."""

@@ -534,7 +534,7 @@ class TestMessageAndChatMethods:
             role=Role.USER,
             content="Test message",
             provider="test_provider",
-            log_path="/test/path",
+            log_uri="/test/path",
             timestamp=datetime(2024, 1, 1, 12, 0, 0),
             raw_data={"test": "value"},
             session_id="test_session"
@@ -557,9 +557,9 @@ class TestMessageAndChatMethods:
 
     def test_chat_operations(self):
         """Test Chat add, remove, merge operations."""
-        msg1 = Message(role=Role.USER, content="First message", provider="test", log_path="/test/path1")
-        msg2 = Message(role=Role.ASSISTANT, content="Second message", provider="test", log_path="/test/path2")
-        msg3 = Message(role=Role.USER, content="Third message", provider="test", log_path="/test/path3")
+        msg1 = Message(role=Role.USER, content="First message", provider="test", log_uri="/test/path1")
+        msg2 = Message(role=Role.ASSISTANT, content="Second message", provider="test", log_uri="/test/path2")
+        msg3 = Message(role=Role.USER, content="Third message", provider="test", log_uri="/test/path3")
 
         # Test adding messages
         chat1 = Chat()
@@ -582,9 +582,9 @@ class TestMessageAndChatMethods:
     def test_tigs_export_format(self):
         """Test Tigs YAML format export."""
         messages = [
-            Message(role=Role.SYSTEM, content="System prompt", provider="test", log_path="/test/sys"),
-            Message(role=Role.USER, content="User question", provider="test", log_path="/test/user"),
-            Message(role=Role.ASSISTANT, content="Assistant response", provider="test", log_path="/test/assistant")
+            Message(role=Role.SYSTEM, content="System prompt", provider="test", log_uri="/test/sys"),
+            Message(role=Role.USER, content="User question", provider="test", log_uri="/test/user"),
+            Message(role=Role.ASSISTANT, content="Assistant response", provider="test", log_uri="/test/assistant")
         ]
 
         chat = Chat(messages=messages)

@@ -181,15 +181,15 @@ class Cligent(ABC):
                         # If timestamp parsing fails, just skip it
                         pass
 
-            # Parse log_path if present
-            log_path = msg_data.get('log_path', '')
+            # Parse log_uri if present
+            log_uri = msg_data.get('log_uri', '')
 
             # Create message
             message = Message(
                 role=role,
                 content=content,
                 provider=self.name,
-                log_path=log_path,
+                log_uri=log_uri,
                 timestamp=timestamp,
                 raw_data=msg_data
             )
