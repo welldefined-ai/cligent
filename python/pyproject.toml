@@ -38,6 +38,10 @@ dev = [
     "mypy>=1.0.0",
 ]
 
+[project.scripts]
+cligent = "cligent.cli:main"
+
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
@@ -47,6 +51,7 @@ build-backend = "hatchling.build"
 "src/cligent.py" = "cligent/cligent.py"
 "src/core" = "cligent/core"
 "src/agents" = "cligent/agents"
+"src/cli.py" = "cligent/cli.py"
 
 [tool.hatch.build.targets.sdist]
 only-include = ["src", "pyproject.toml", "README.md"]
