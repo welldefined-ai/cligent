@@ -319,6 +319,9 @@ def create(agent_type: str = "claude"):
     elif agent_type in ["qwen", "qwen-code"]:
         from .agents.qwen_code import QwenCligent
         return QwenCligent()
+    elif agent_type in ["codex", "codex-cli"]:
+        from .agents.codex_cli import CodexCligent
+        return CodexCligent()
     else:
-        supported_types = ["claude", "claude-code", "gemini", "gemini-cli", "qwen", "qwen-code"]
+        supported_types = ["claude", "claude-code", "gemini", "gemini-cli", "qwen", "qwen-code", "codex", "codex-cli"]
         raise ValueError(f"Unsupported agent type: {agent_type}. Supported: {supported_types}")

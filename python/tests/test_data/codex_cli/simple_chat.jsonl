@@ -1,0 +1,3 @@
+{"timestamp":"2025-10-01T12:00:00.000Z","type":"session_meta","payload":{"id":"mock-session","timestamp":"2025-10-01T12:00:00.000Z","cwd":"/work","originator":"codex_cli_rs","cli_version":"0.42.0"}}
+{"timestamp":"2025-10-01T12:00:01.000Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"Generate a hello world script."}]}}
+{"timestamp":"2025-10-01T12:00:02.000Z","type":"response_item","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"Here is a simple hello world in Python:"},{"type":"output_text","text":"print(\"hello world\")"}]}}

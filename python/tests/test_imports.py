@@ -20,6 +20,9 @@ def test_main_package_imports():
     agent = create("claude")
     assert agent.name == "claude-code"
 
+    agent_codex = create("codex")
+    assert agent_codex.name == "codex-cli"
+
 
 def test_direct_imports():
     """Test that direct imports work through main package."""
@@ -37,6 +40,9 @@ def test_direct_imports():
     agent = create("claude")
     assert agent.name == "claude-code"
 
+    agent_codex = create("codex")
+    assert agent_codex.name == "codex-cli"
+
 
 def test_simplified_factory():
     """Test simplified factory function (no individual functions)."""
@@ -46,10 +52,12 @@ def test_simplified_factory():
     agent1 = src.create("claude")
     agent2 = src.create("gemini") 
     agent3 = src.create("qwen")
+    agent4 = src.create("codex")
     
     assert agent1.name == "claude-code"
     assert agent2.name == "gemini-cli"
     assert agent3.name == "qwen-code"
+    assert agent4.name == "codex-cli"
     
     # Test default parameter
     default_agent = src.create()
