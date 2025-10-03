@@ -24,6 +24,10 @@ cd cligent
 pip install -r requirements.txt
 ```
 
+## Language Implementations
+
+- Python: see python/README.md
+
 ### Python API
 
 ```python

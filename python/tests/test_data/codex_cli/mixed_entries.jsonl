@@ -1,0 +1,5 @@
+{"timestamp":"2025-10-01T12:05:00.000Z","type":"response_item","payload":{"type":"function_call","name":"shell","arguments":"{\\"command\\":[\\"ls\\"]}"}}
+{"timestamp":"2025-10-01T12:05:00.500Z","type":"event_msg","payload":{"type":"agent_message","message":"**Inspecting project structure**"}}
+{"timestamp":"2025-10-01T12:05:01.000Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"Can you summarize the repo?"}]}}
+{"timestamp":"2025-10-01T12:05:02.000Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":100,"output_tokens":20}}}}
+{"timestamp":"2025-10-01T12:05:03.000Z","type":"response_item","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"The repository contains a Python package with chat parsing utilities."}]}}

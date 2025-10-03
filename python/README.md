@@ -1,22 +1,57 @@
-# Cligent Python Package
+# Cligent (Python)
 
-This directory contains the installable Python package for Cligent.
+Unified SDK for parsing CLI agent chats in Python. Ships a lightweight
+trial/debugging CLI (`cligent`) and a small API for listing, parsing,
+selecting, and composing messages across supported providers.
 
-## Documentation
+## Install
 
-See the main [README.md](../README.md) for complete documentation, usage examples, and API reference.
+```bash
+pip install cligent
+```
+
+## CLI
+
+After installation, the `cligent` command is available:
+
+```bash
+# List recent logs for a provider
+cligent --agent codex list
+
+# Parse a specific log URI
+cligent --agent codex parse 2025/10/01/rollout-...jsonl
+
+# Parse the most recent (live) log
+cligent --agent codex live
+
+# Interactive REPL
+cligent interactive
+```
+
+Providers: `claude`, `gemini`, `qwen`, `codex`.
+
+## Python API
+
+```python
+from cligent import create
+
+agent = create("codex")
+logs = agent.list_logs()
+chat = agent.parse()  # most recent
+agent.select(logs[0][0], [0, 2])
+yaml_text = agent.compose()
+loaded = agent.decompose(yaml_text)
+```
 
 ## Development
 
-This package can be installed in development mode:
-
 ```bash
-cd python
-pip install -e .
+pip install -e .[dev]
+pytest -q
 ```
 
 ## Package Structure
 
-- `src/` - Main package source code
-- `tests/` - Test suite
-- `pyproject.toml` - Package configuration
+- src/ – library sources
+- tests/ – test suite
+- pyproject.toml – packaging config
