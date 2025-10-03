@@ -11,6 +11,7 @@ import sys
 from typing import List, Optional
 
 from . import create  # re-exported factory from package
+from .core.models import Chat
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -26,13 +27,19 @@ def _build_parser() -> argparse.ArgumentParser:
     )
 
     sub = parser.add_subparsers(dest="cmd", required=False)
-    sub.add_parser("interactive", help="Run interactive REPL (default)")
     sub.add_parser("list", help="List available logs for the agent")
 
     p_parse = sub.add_parser("parse", help="Parse a specific log URI/ID")
     p_parse.add_argument("log_uri", help="Log URI/ID to parse")
 
-    sub.add_parser("live", help="Parse most recent (live) log")
+    p_live = sub.add_parser("live", help="Parse most recent (live) log")
+    p_live.add_argument(
+        "-n",
+        "--num",
+        type=int,
+        default=10,
+        help="Number of latest messages to show (default: 10)",
+    )
 
     return parser
 
@@ -56,39 +63,21 @@ def _cmd_parse(agent, log_uri: str) -> int:
     return 0
 
 
-def _cmd_live(agent) -> int:
+def _cmd_live(agent, num: int) -> int:
     chat = agent.parse()
     if chat is None:
         print("No live log found", file=sys.stderr)
         return 1
-    print(f"Parsed {len(chat.messages)} messages (live)")
+    total = len(chat.messages)
+    k = max(0, min(num, total))
+    # Build a Chat and use compose() for YAML formatting
+    recent = Chat(messages=chat.messages[-k:])
+    yaml_text = agent.compose(recent)
+    print(yaml_text)
     return 0
 
 
-def _interactive(agent) -> int:
-    print("Cligent Chat Parser - Interactive CLI")
-    print("Type 'list', 'parse <uri>', 'live', or 'quit'.")
-    while True:
-        try:
-            raw = input(f"[{agent.name}]> ").strip()
-            if not raw:
-                continue
-            if raw in {"quit", "exit", "q"}:
-                return 0
-            if raw == "list":
-                _cmd_list(agent)
-                continue
-            if raw == "live":
-                _cmd_live(agent)
-                continue
-            if raw.startswith("parse "):
-                _, uri = raw.split(" ", 1)
-                _cmd_parse(agent, uri)
-                continue
-            print("Unknown command. Try: list | parse <uri> | live | quit")
-        except KeyboardInterrupt:
-            print()
-            return 130
+    # Interactive mode removed to keep CLI simple and explicit
 
 
 def main(argv: Optional[List[str]] = None) -> int:
@@ -97,19 +86,19 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     agent = create(args.agent)
 
-    # Default to interactive if no subcommand
-    cmd = args.cmd or "interactive"
+    # If no subcommand provided, show help and exit
+    cmd = args.cmd
 
     if cmd == "list":
         return _cmd_list(agent)
     if cmd == "parse":
         return _cmd_parse(agent, args.log_uri)
     if cmd == "live":
-        return _cmd_live(agent)
+        return _cmd_live(agent, getattr(args, "num", 10))
 
-    return _interactive(agent)
+    parser.print_help()
+    return 2
 
 
 if __name__ == "__main__":  # pragma: no cover
     raise SystemExit(main())
-

@@ -1,35 +1,54 @@
 # Cligent
 
-Unified SDK for CLI agents (Claude Code, Gemini CLI, Qwen Coder). Parse, select, and compose messages from AI agent session logs with support for YAML export/import.
+Unified SDK for CLI agents (Claude Code, Gemini CLI, Qwen Coder, Codex CLI). Parse, select, and compose messages from AI agent session logs with support for YAML export/import.
 
 ## Features
 
-- **Multi-Agent Support**: Works with Claude Code, Gemini CLI, and Qwen Coder
+- **Multi-Agent Support**: Works with Claude Code, Gemini CLI, Qwen Coder, and Codex CLI
 - **Session Log Parsing**: Extract conversations from JSONL log files
 - **Message Selection**: Select specific messages from conversations
 - **YAML Export/Import**: Convert messages to/from Tigs YAML format
-- **Interactive CLI**: Built-in command-line interface for testing
 - **Project-Aware**: Automatically finds logs for current project directory
 
-## Quick Start
+## Installation
 
-### Installation
+See per-language installation guides:
 
-```bash
-# Clone the repository
-git clone https://github.com/your-repo/cligent.git
-cd cligent
-
-# Install dependencies
-pip install -r requirements.txt
-```
+- Python: python/README.md
 
 ## Language Implementations
 
 - Python: see python/README.md
 
-### Python API
+## Supported Agents
 
+| Agent | Description | Log Location                             |
+|-------|-------------|------------------------------------------|
+| **claude** | Claude Code sessions | `~/.claude/projects/` (project-specific) |
+| **gemini** | Gemini CLI conversations | `~/.gemini/logs/`                        |
+| **qwen** | Qwen Coder sessions | `~/.qwen/sessions/`                      |
+| **codex** | Codex CLI sessions | `~/.codex/sessions/`                     |
+
+## API Reference
+
+### Core Classes
+
+- **`Cligent`**: Abstract base class for all agents
+- **`Chat`**: Collection of messages representing a conversation
+- **`Message`**: Individual message with role, content, and metadata
+- **`Role`**: Enum for message roles (USER, ASSISTANT, SYSTEM)
+
+### Key Methods
+
+- **`create(agent_type)`**: Factory function to create agent instances
+- **`parse(log_uri=None)`**: Parse conversation from log (None = most recent)
+- **`list_logs()`**: List available conversation logs with metadata
+- **`select(log_uri, indices=None)`**: Select messages for composition
+- **`compose(*args)`**: Export messages to Tigs YAML format
+- **`decompose(yaml_string)`**: Import messages from Tigs YAML format
+- **`clear_selection()`**: Clear currently selected messages
+
+Example:
 ```python
 from src import create
 
@@ -56,48 +75,6 @@ with open("conversation.yaml", "r") as f:
 loaded_chat = agent.decompose(yaml_content)
 print(f"Loaded {len(loaded_chat.messages)} messages from YAML")
 ```
-
-### Interactive CLI
-
-```bash
-python example_usage.py
-```
-
-The CLI provides commands for:
-- **list**: Show available conversation logs
-- **parse**: Parse a specific conversation
-- **live**: Parse the most recent conversation
-- **select**: Select messages for composition
-- **compose**: Export selected messages to YAML
-- **decompose**: Load messages from YAML file
-- **clear**: Clear message selection
-
-## Supported Agents
-
-| Agent | Description | Log Location |
-|-------|-------------|--------------|
-| **claude** | Claude Code sessions | `~/.claude/tmp/` (project-specific) |
-| **gemini** | Gemini CLI conversations | `~/.gemini/logs/` |
-| **qwen** | Qwen Coder sessions | `~/.qwen/sessions/` |
-
-## API Reference
-
-### Core Classes
-
-- **`Cligent`**: Abstract base class for all agents
-- **`Chat`**: Collection of messages representing a conversation
-- **`Message`**: Individual message with role, content, and metadata
-- **`Role`**: Enum for message roles (USER, ASSISTANT, SYSTEM)
-
-### Key Methods
-
-- **`create(agent_type)`**: Factory function to create agent instances
-- **`parse(log_uri=None)`**: Parse conversation from log (None = most recent)
-- **`list_logs()`**: List available conversation logs with metadata
-- **`select(log_uri, indices=None)`**: Select messages for composition
-- **`compose(*args)`**: Export messages to Tigs YAML format
-- **`decompose(yaml_string)`**: Import messages from Tigs YAML format
-- **`clear_selection()`**: Clear currently selected messages
 
 ### YAML Format
 

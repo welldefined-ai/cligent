@@ -10,26 +10,6 @@ selecting, and composing messages across supported providers.
 pip install cligent
 ```
 
-## CLI
-
-After installation, the `cligent` command is available:
-
-```bash
-# List recent logs for a provider
-cligent --agent codex list
-
-# Parse a specific log URI
-cligent --agent codex parse 2025/10/01/rollout-...jsonl
-
-# Parse the most recent (live) log
-cligent --agent codex live
-
-# Interactive REPL
-cligent interactive
-```
-
-Providers: `claude`, `gemini`, `qwen`, `codex`.
-
 ## Python API
 
 ```python
@@ -49,6 +29,26 @@ loaded = agent.decompose(yaml_text)
 pip install -e .[dev]
 pytest -q
 ```
+
+### CLI
+
+After installation, the `cligent` command is available:
+
+```bash
+# List recent logs for a provider
+cligent --agent codex list
+
+# Parse a specific log URI
+cligent --agent codex parse 2025/10/01/rollout-...jsonl
+
+# Show the last N messages (e.g., 5) from the live (most recent) log
+cligent --agent codex live -n 5
+
+# Help
+cligent --help
+```
+
+Providers: `claude`, `gemini`, `qwen`, `codex`.
 
 ## Package Structure
 
