@@ -154,7 +154,7 @@ class GeminiCligent(Cligent):
     def _create_store(self) -> LogStore:
         return GeminiLogStore()
 
-    def parse_content(self, content: str, log_uri: str) -> Chat:
+    def _parse_from_store(self, log_uri: str) -> Chat:
         # Handle new <uuid>/<file_name> format
         if "/" in log_uri and not log_uri.startswith("/"):
             # Format: <uuid>/<file_name>
@@ -175,4 +175,3 @@ class GeminiCligent(Cligent):
         log_file = GeminiLogFile(file_path=file_path)
         log_file.load()
         return log_file.to_chat(log_uri=log_uri)
-

@@ -136,7 +136,7 @@ class CodexCligent(Cligent):
     def _create_store(self) -> LogStore:
         return CodexLogStore()
 
-    def parse_content(self, content: str, log_uri: str) -> Chat:
+    def _parse_from_store(self, log_uri: str) -> Chat:
         path_hint = Path(log_uri)
         if path_hint.is_absolute():
             file_path = path_hint

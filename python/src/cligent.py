@@ -38,8 +38,8 @@ class Cligent(ABC):
         pass
 
     @abstractmethod
-    def parse_content(self, content: str, log_uri: str) -> 'Chat':
-        """Parse raw log content into Chat object."""
+    def _parse_from_store(self, log_uri: str) -> 'Chat':
+        """Load and parse a chat from persisted logs."""
         pass
 
 
@@ -71,14 +71,12 @@ class Cligent(ABC):
             Parsed Chat object
         """
         if log_uri:
-            content = self.store.get(log_uri)
-            return self.parse_content(content, log_uri)
-        else:
-            live_uri = self.store.live()
-            if live_uri is None:
-                return None
-            content = self.store.get(live_uri)
-            return self.parse_content(content, live_uri)
+            return self._parse_from_store(log_uri)
+
+        live_uri = self.store.live()
+        if live_uri is None:
+            return None
+        return self._parse_from_store(live_uri)
 
     def compose(self, *args) -> str:
         """Create Tigs text output from selected content.

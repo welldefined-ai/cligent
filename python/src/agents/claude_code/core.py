@@ -289,8 +289,7 @@ class ClaudeCligent(Cligent):
     def _create_store(self) -> LogStore:
         return ClaudeLogStore()
 
-    def parse_content(self, content: str, log_uri: str) -> Chat:
-        # Resolve via store to support both session IDs and relative paths
+    def _parse_from_store(self, log_uri: str) -> Chat:
         file_path = self.store._resolve_log_path(log_uri)
 
         log_file = ClaudeLogFile(file_path=file_path)
