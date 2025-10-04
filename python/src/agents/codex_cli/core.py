@@ -82,7 +82,7 @@ class CodexLogStore(LogStore):
         sessions_dir = Path.home() / ".codex" / "sessions"
         self._logs_dir = sessions_dir
 
-    def list(self) -> List[Tuple[str, Dict[str, Any]]]:
+    def list(self, recursive: bool = True) -> List[Tuple[str, Dict[str, Any]]]:
         logs: List[Tuple[str, Dict[str, Any]]] = []
         if not self._logs_dir.exists():
             return logs
@@ -136,7 +136,7 @@ class CodexCligent(Cligent):
     def _create_store(self) -> LogStore:
         return CodexLogStore()
 
-    def parse_content(self, content: str, log_uri: str) -> Chat:
+    def _parse_from_store(self, log_uri: str) -> Chat:
         path_hint = Path(log_uri)
         if path_hint.is_absolute():
             file_path = path_hint

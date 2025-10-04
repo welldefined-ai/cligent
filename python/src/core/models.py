@@ -399,8 +399,19 @@ class LogStore:
         # Default to logs directory
         return base_dir / "logs"
 
-    def list(self) -> List[Tuple[str, Dict[str, Any]]]:
-        """Show available session logs."""
+    def list(self, recursive: bool = True) -> List[Tuple[str, Dict[str, Any]]]:
+        """Show available session logs.
+
+        Args:
+            recursive: Hint for providers that support hierarchical or
+                project-scoped layouts. If True (default), providers may
+                include logs from sub-scopes related to the current
+                workspace. If False, providers should restrict results to
+                the most specific scope (e.g., exact project directory).
+
+        Returns:
+            List of (log_uri, metadata) tuples.
+        """
         logs = []
 
         try:
@@ -416,7 +427,7 @@ class LogStore:
             for pattern in self.config.log_patterns:
                 for log_file in self._logs_dir.glob(pattern):
                     if log_file.is_file():
-                        logs.append(self._create_log_entry(log_file, log_file.stem))
+                        logs.append(self._create_log_entry(log_file))
 
         except (OSError, PermissionError):
             pass
@@ -441,14 +452,14 @@ class LogStore:
 
         return logs
 
-    def _create_log_entry(self, log_file: Path, session_id: str) -> Tuple[str, Dict[str, Any]]:
+    def _create_log_entry(self, log_file: Path) -> Tuple[str, Dict[str, Any]]:
         """Create a log entry tuple."""
         metadata = self._create_file_metadata(log_file)
         metadata.update({
             "file_name": log_file.name,
-            "session_id": session_id
+            "session_id": log_file.stem
         })
-        return (session_id, metadata)
+        return (log_file.name, metadata)
 
     def _create_file_metadata(self, file_path: Path) -> Dict[str, Any]:
         """Create metadata dict for a file."""

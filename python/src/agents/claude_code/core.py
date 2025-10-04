@@ -179,28 +179,62 @@ class ClaudeLogStore(LogStore):
         working_dir = Path.cwd()
         project_folder_name = str(working_dir.absolute()).replace("/", "-")
         claude_base = Path.home() / ".claude" / "projects"
+        self._projects_root = claude_base
         self._project_dir = claude_base / project_folder_name
 
         # Override the default logs directory for Claude's structure
         self._logs_dir = self._project_dir
         self.project_folder_name = project_folder_name
 
-    def list(self) -> List[Tuple[str, Dict[str, Any]]]:
-        """Show available session logs for the current project."""
+    def list(self, recursive: bool = True) -> List[Tuple[str, Dict[str, Any]]]:
+        """Show available session logs.
+
+        When recursive is True (default), include logs from any Claude
+        project directories whose names start with this project's
+        prefix. URIs in recursive mode are relative paths under the
+        projects root (e.g., "Users-me-proj-python/log.jsonl"). In
+        non-recursive mode, URIs are session IDs (filename stems).
+        """
         logs = []
 
         try:
-            if not self._project_dir.exists():
-                return logs
+            if recursive:
+                # Aggregate across all project dirs that start with this prefix
+                root = getattr(self, "_projects_root", None)
+                if root and root.exists():
+                    base = self.project_folder_name
+                    for proj_dir in root.iterdir():
+                        if not proj_dir.is_dir():
+                            continue
+                        name = str(proj_dir.name)
+                        if not name.startswith(base):
+                            continue
+                        # Derive URI prefix from suffix after base ('-sub' -> 'sub')
+                        suffix = name[len(base):]
+                        if suffix.startswith('-'):
+                            suffix = suffix[1:]
+                        else:
+                            suffix = ''
+                        uri_prefix = suffix.replace('-', '/') if suffix else ''
+                        for log_file in proj_dir.glob("*.jsonl"):
+                            if not log_file.is_file():
+                                continue
+                            metadata = self._create_file_metadata(log_file)
+                            metadata["project"] = proj_dir.name
+                            uri = f"{uri_prefix}/{log_file.name}" if uri_prefix else log_file.name
+                            logs.append((uri, metadata))
+                else:
+                    # Fallback to non-recursive if root missing
+                    recursive = False
 
-            # Scan for JSONL files in this project's directory only
-            for log_file in self._project_dir.glob("*.jsonl"):
-                if log_file.is_file():
-                    metadata = self._create_file_metadata(log_file)
-                    metadata["project"] = self.project_folder_name
-                    # Use session ID (filename without path) as URI
-                    session_id = log_file.stem
-                    logs.append((session_id, metadata))
+            if not recursive:
+                if not self._project_dir.exists():
+                    return logs
+                for log_file in self._project_dir.glob("*.jsonl"):
+                    if log_file.is_file():
+                        metadata = self._create_file_metadata(log_file)
+                        metadata["project"] = self.project_folder_name
+                        logs.append((log_file.name, metadata))
 
         except (OSError, PermissionError):
             pass
@@ -209,13 +243,32 @@ class ClaudeLogStore(LogStore):
 
     def _resolve_log_path(self, log_uri: str) -> Path:
         """Resolve log URI to file path for Claude's structure."""
-        # Handle both session IDs and full paths for compatibility
+        # Handle URIs: either file name (no path sep) or relative
+        # paths under projects root based on the base project prefix.
         if "/" in log_uri or "\\" in log_uri:
-            # Full path provided (backwards compatibility)
-            return Path(log_uri)
-        else:
-            # Session ID provided - construct full path
-            return self._project_dir / f"{log_uri}.jsonl"
+            uri_path = Path(log_uri)
+            if uri_path.is_absolute():
+                raise FileNotFoundError(f"Session log file not found: {log_uri}")
+
+            parts = uri_path.parts
+            if not parts:
+                raise FileNotFoundError(f"Invalid session log URI: {log_uri}")
+            if any(part in {"", ".", ".."} for part in parts):
+                raise FileNotFoundError(f"Invalid session log URI: {log_uri}")
+
+            filename = parts[-1]
+            suffix_parts = list(parts[:-1])
+
+            if not suffix_parts:
+                project_dir = self._project_dir
+            else:
+                suffix = "-".join(suffix_parts)
+                project_dir = self._projects_root / f"{self.project_folder_name}-{suffix}"
+
+            return project_dir / filename
+
+        # File name provided - resolve in current project dir
+        return self._project_dir / log_uri
 
 
 class ClaudeCligent(Cligent):
@@ -236,16 +289,9 @@ class ClaudeCligent(Cligent):
     def _create_store(self) -> LogStore:
         return ClaudeLogStore()
 
-    def parse_content(self, content: str, log_uri: str) -> Chat:
-        # 使用现有的LogFile逻辑
-        if "/" in log_uri or "\\" in log_uri:
-            file_path = Path(log_uri)
-        else:
-            file_path = self.store._project_dir / f"{log_uri}.jsonl"
+    def _parse_from_store(self, log_uri: str) -> Chat:
+        file_path = self.store._resolve_log_path(log_uri)
 
         log_file = ClaudeLogFile(file_path=file_path)
         log_file.load()
         return log_file.to_chat(log_uri=log_uri)
-
-
-

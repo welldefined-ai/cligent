@@ -122,6 +122,13 @@ class QwenLogStore(LogStore):
 
     def _resolve_log_path(self, log_uri: str) -> Path:
         """Resolve log URI to file path for Qwen's structure."""
+        # Treat filenames with extensions directly within logs dir
+        candidate = Path(log_uri)
+        if candidate.suffix in {".json", ".jsonl"} and not log_uri.startswith("/") and "\\" not in log_uri and "/" not in log_uri:
+            resolved = self._logs_dir / candidate
+            if resolved.exists():
+                return resolved
+
         # Handle new <uuid>/<file_name> format
         if "/" in log_uri and not log_uri.startswith("/"):
             # Format: <uuid>/<file_name>
@@ -167,7 +174,7 @@ class QwenCligent(Cligent):
     def _create_store(self) -> LogStore:
         return QwenLogStore()
 
-    def parse_content(self, content: str, log_uri: str) -> Chat:
+    def _parse_from_store(self, log_uri: str) -> Chat:
         # Handle new <uuid>/<file_name> format
         if "/" in log_uri and not log_uri.startswith("/"):
             # Format: <uuid>/<file_name>
@@ -196,6 +203,4 @@ class QwenCligent(Cligent):
         log_file = QwenLogFile(file_path=file_path)
         log_file.load()
         return log_file.to_chat(log_uri=log_uri)
-
-
 
