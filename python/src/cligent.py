@@ -53,13 +53,13 @@ class Cligent(ABC):
         return self._store
 
     # Log Parsing Methods
-    def list_logs(self) -> List[Tuple[str, Dict[str, Any]]]:
+    def list_logs(self, recursive: bool = True) -> List[Tuple[str, Dict[str, Any]]]:
         """Show available logs for the agent.
 
         Returns:
             List of (log_uri, metadata) tuples
         """
-        return self.store.list()
+        return self.store.list(recursive=recursive)
 
     def parse(self, log_uri: str = None) -> Chat:
         """Extract chat from specific or live session log.

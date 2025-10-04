@@ -177,4 +177,3 @@ class GeminiCligent(Cligent):
         return log_file.to_chat(log_uri=log_uri)
 
 
-

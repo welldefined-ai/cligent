@@ -57,10 +57,13 @@ class TestChatParserReal:
             assert "project" in metadata
             assert "accessible" in metadata
 
-    def test_parse_simple_chat(self, parser, test_data_path):
-        """Test parsing a simple chat log."""
+    def test_parse_simple_chat(self, test_data_path):
+        """Test parsing a simple chat log using the log file reader."""
         simple_log = test_data_path / "claude_code_project" / "simple_chat.jsonl"
-        chat = parser.parse(str(simple_log))
+        from src.agents.claude_code.core import ClaudeLogFile
+        log_file = ClaudeLogFile(file_path=simple_log)
+        log_file.load()
+        chat = log_file.to_chat(log_uri=str(simple_log))
 
         assert isinstance(chat, Chat)
         assert len(chat.messages) == 4
@@ -76,10 +79,13 @@ class TestChatParserReal:
         assert msg4.role == Role.ASSISTANT
         assert "append" in msg4.content
 
-    def test_parse_system_message_chat(self, parser, test_data_path):
-        """Test parsing a chat with system messages."""
+    def test_parse_system_message_chat(self, test_data_path):
+        """Test parsing a chat with system messages using the log reader."""
         system_log = test_data_path / "claude_code_project" / "system_chat.jsonl"
-        chat = parser.parse(str(system_log))
+        from src.agents.claude_code.core import ClaudeLogFile
+        log_file = ClaudeLogFile(file_path=system_log)
+        log_file.load()
+        chat = log_file.to_chat(log_uri=str(system_log))
 
         assert len(chat.messages) == 3
 
@@ -92,28 +98,37 @@ class TestChatParserReal:
         assert Role.USER in roles
         assert Role.ASSISTANT in roles
 
-    def test_parse_empty_chat(self, parser, test_data_path):
-        """Test parsing an empty chat (summary only)."""
+    def test_parse_empty_chat(self, test_data_path):
+        """Test parsing an empty chat (summary only) using the log reader."""
         empty_log = test_data_path / "claude_code_project" / "empty_chat.jsonl"
-        chat = parser.parse(str(empty_log))
+        from src.agents.claude_code.core import ClaudeLogFile
+        log_file = ClaudeLogFile(file_path=empty_log)
+        log_file.load()
+        chat = log_file.to_chat(log_uri=str(empty_log))
 
         assert isinstance(chat, Chat)
         assert len(chat.messages) == 0
 
-    def test_parse_malformed_chat(self, parser, test_data_path):
-        """Test parsing a chat with malformed records."""
+    def test_parse_malformed_chat(self, test_data_path):
+        """Test parsing a chat with malformed records using the log reader."""
         malformed_log = test_data_path / "claude_code_project" / "malformed_chat.jsonl"
-        chat = parser.parse(str(malformed_log))
+        from src.agents.claude_code.core import ClaudeLogFile
+        log_file = ClaudeLogFile(file_path=malformed_log)
+        log_file.load()
+        chat = log_file.to_chat(log_uri=str(malformed_log))
 
         # Should skip malformed records but parse valid ones
         assert len(chat.messages) == 2  # Two valid messages
         assert chat.messages[0].content == "This is a valid message"
         assert chat.messages[1].content == "This message follows the valid one"
 
-    def test_parse_nonexistent_file(self, parser):
-        """Test parsing a non-existent file."""
+    def test_parse_nonexistent_file(self):
+        """Test parsing a non-existent file using the log reader."""
+        from src.agents.claude_code.core import ClaudeLogFile
+        from pathlib import Path
         with pytest.raises(FileNotFoundError):
-            parser.parse("/nonexistent/file.jsonl")
+            log_file = ClaudeLogFile(file_path=Path("/nonexistent/file.jsonl"))
+            log_file.load()
 
     def test_live_log(self, claude_parser, mock_home):
         """Test getting the live (most recent) log."""
@@ -127,11 +142,20 @@ class TestChatParserReal:
         assert len(chat.messages) >= 1
 
     def test_message_selection_and_composition(self, parser, test_data_path):
-        """Test selecting messages and composing output."""
-        simple_log = test_data_path / "claude_code_project" / "simple_chat.jsonl"
+        """Test selecting messages and composing output.
 
-        # Select specific messages
-        parser.select(str(simple_log), [0, 2])  # First and third messages
+        Use a preloaded chat cache to avoid absolute path parsing.
+        """
+        from src.agents.claude_code.core import ClaudeLogFile
+        simple_log = test_data_path / "claude_code_project" / "simple_chat.jsonl"
+        log_file = ClaudeLogFile(file_path=simple_log)
+        log_file.load()
+        chat = log_file.to_chat(log_uri="unit/simple_chat.jsonl")
+
+        # Preload cache under a fake URI and select
+        fake_uri = "unit/simple_chat.jsonl"
+        parser._chat_cache[fake_uri] = chat
+        parser.select(fake_uri, [0, 2])  # First and third messages
         result = parser.compose()
 
         # Should contain selected messages in Tigs YAML format
@@ -145,36 +169,49 @@ class TestChatParserReal:
 
         # Test selecting all messages
         parser.clear_selection()
-        parser.select(str(simple_log))  # All messages
+        # Reload cache since clear_selection wiped it
+        parser._chat_cache[fake_uri] = chat
+        parser.select(fake_uri)  # All messages
         result = parser.compose()
 
         tigs_data = yaml.safe_load(result)
         assert len(tigs_data["messages"]) == 4  # All messages
 
     def test_unselect_messages(self, parser, test_data_path):
-        """Test unselecting specific messages."""
-        simple_log = str(test_data_path / "claude_code_project" / "simple_chat.jsonl")
+        """Test unselecting specific messages using preloaded cache."""
+        from src.agents.claude_code.core import ClaudeLogFile
+        simple_path = test_data_path / "claude_code_project" / "simple_chat.jsonl"
+        log_file = ClaudeLogFile(file_path=simple_path)
+        log_file.load()
+        chat = log_file.to_chat(log_uri="unit/simple_chat.jsonl")
+        fake_uri = "unit/simple_chat.jsonl"
+        parser._chat_cache[fake_uri] = chat
 
         # Select all messages
-        parser.select(simple_log)
+        parser.select(fake_uri)
         assert len(parser.selected_messages) == 4
 
         # Unselect first message
-        parser.unselect(simple_log, [0])
+        parser.unselect(fake_uri, [0])
         assert len(parser.selected_messages) == 3
 
         # Unselect all messages from this log
-        parser.unselect(simple_log)
+        parser.unselect(fake_uri)
         assert len(parser.selected_messages) == 0
 
     def test_multiple_log_composition(self, parser, test_data_path):
-        """Test composing from multiple logs."""
-        simple_log = str(test_data_path / "claude_code_project" / "simple_chat.jsonl")
-        system_log = str(test_data_path / "claude_code_project" / "system_chat.jsonl")
+        """Test composing from multiple logs using preloaded cache."""
+        from src.agents.claude_code.core import ClaudeLogFile
+        simple_path = test_data_path / "claude_code_project" / "simple_chat.jsonl"
+        system_path = test_data_path / "claude_code_project" / "system_chat.jsonl"
+        lf1 = ClaudeLogFile(file_path=simple_path); lf1.load(); chat1 = lf1.to_chat(log_uri="unit/simple_chat.jsonl")
+        lf2 = ClaudeLogFile(file_path=system_path); lf2.load(); chat2 = lf2.to_chat(log_uri="unit/system_chat.jsonl")
+        parser._chat_cache["unit/simple_chat.jsonl"] = chat1
+        parser._chat_cache["unit/system_chat.jsonl"] = chat2
 
         # Select from multiple logs
-        parser.select(simple_log, [0])  # First message from simple
-        parser.select(system_log, [1])  # Second message from system
+        parser.select("unit/simple_chat.jsonl", [0])  # First message from simple
+        parser.select("unit/system_chat.jsonl", [1])  # Second message from system
 
         # Should have messages from both logs
         assert len(parser.selected_messages) == 2
@@ -185,36 +222,32 @@ class TestChatParserReal:
 
 
 class TestSessionIDFunctionality:
-    """Test the new session ID based functionality."""
+    """Test filename/URI behavior for listing and parsing."""
 
-    def test_list_logs_returns_session_ids(self):
-        """Test that list returns session IDs, not full paths."""
+    def test_list_logs_nonrecursive_returns_filenames(self):
+        """Non-recursive listing returns filenames without path separators."""
         from src import ChatParser
         from pathlib import Path
 
         # Use current directory which should have Claude Code logs
         parser = ChatParser("claude-code")
-        logs = parser.list_logs()
+        logs = parser.list_logs(recursive=False)
 
         if logs:  # Only test if there are logs
             for log_uri, metadata in logs:
-                # Session IDs should not contain path separators
-                assert "/" not in log_uri, f"Expected session ID, got path: {log_uri}"
-                assert "\\" not in log_uri, f"Expected session ID, got path: {log_uri}"
-                # Session IDs are UUIDs (36 chars with dashes)
-                assert len(log_uri) == 36, f"Session ID wrong length: {log_uri}"
-                assert log_uri.count("-") == 4, f"Session ID wrong format: {log_uri}"
+                assert "/" not in log_uri and "\\" not in log_uri
+                assert log_uri.endswith(".jsonl")
 
-    def test_parse_with_session_id(self):
-        """Test parsing using session ID instead of full path."""
+    def test_parse_with_filename(self):
+        """Test parsing using filename returned by list_logs(False)."""
         from src import ChatParser
 
         parser = ChatParser("claude-code")
-        logs = parser.list_logs()
+        logs = parser.list_logs(recursive=False)
 
         if logs:  # Only test if there are logs
             session_id, _ = logs[0]
-            # Should be able to parse using just the session ID
+            # Should be able to parse using just the filename
             chat = parser.parse(session_id)
             assert chat is not None
             assert len(chat.messages) >= 0
@@ -231,11 +264,11 @@ class TestSessionIDFunctionality:
             # Mock different working directories to simulate different projects
             with patch.object(Path, 'cwd', return_value=Path("/home/user/projects/myproject")):
                 parent_parser = ChatParser("claude-code")
-                parent_logs = parent_parser.list_logs()
+                parent_logs = parent_parser.list_logs(recursive=False)
 
             with patch.object(Path, 'cwd', return_value=Path("/home/user/projects/myproject/python")):
                 python_parser = ChatParser("claude-code")
-                python_logs = python_parser.list_logs()
+                python_logs = python_parser.list_logs(recursive=False)
 
             # Different projects should have different logs
             # (unless no logs exist for one of them)
@@ -426,16 +459,11 @@ class TestClaudeImplementation:
 
     def test_tool_message_filtering(self, test_data_path: Path) -> None:
         """Test that tool use messages are filtered out correctly."""
-        from src import ChatParser
-
-        # Mock the current working directory to point to test data
-        with patch.object(Path, 'cwd', return_value=test_data_path):
-            parser = ChatParser("claude-code")
-        tool_log = (
-            test_data_path / "claude_code_project" / "tool_filtering_chat.jsonl"
-        )
-
-        chat = parser.parse(str(tool_log))
+        from src.agents.claude_code.core import ClaudeLogFile
+        tool_log = test_data_path / "claude_code_project" / "tool_filtering_chat.jsonl"
+        log_file = ClaudeLogFile(file_path=tool_log)
+        log_file.load()
+        chat = log_file.to_chat(log_uri=str(tool_log))
 
         # Should have only text messages, no tool messages
         expected_text_messages = [

@@ -82,7 +82,7 @@ class CodexLogStore(LogStore):
         sessions_dir = Path.home() / ".codex" / "sessions"
         self._logs_dir = sessions_dir
 
-    def list(self) -> List[Tuple[str, Dict[str, Any]]]:
+    def list(self, recursive: bool = True) -> List[Tuple[str, Dict[str, Any]]]:
         logs: List[Tuple[str, Dict[str, Any]]] = []
         if not self._logs_dir.exists():
             return logs

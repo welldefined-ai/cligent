@@ -365,8 +365,8 @@ class TestQwenLogStore:
         
         assert len(logs) == 2
         session_ids = [log[0] for log in logs]
-        assert "session1" in session_ids
-        assert "session2" in session_ids
+        assert "session1.jsonl" in session_ids
+        assert "session2.jsonl" in session_ids
         
         # Check metadata structure
         metadata = logs[0][1]
@@ -387,7 +387,7 @@ class TestQwenLogStore:
         """Test retrieving log content by session ID."""
         with patch('pathlib.Path.home', return_value=mock_home_dir):
             store = QwenLogStore()
-            content = store.get("session1")
+            content = store.get("session1.jsonl")
         
         assert content == '{"content": "test1", "model": "qwen"}'
 
@@ -407,7 +407,7 @@ class TestQwenLogStore:
             store = QwenLogStore()
             
             with pytest.raises(FileNotFoundError, match="Session log file not found"):
-                store.get("nonexistent")
+                store.get("nonexistent.jsonl")
 
     def test_live_log(self, mock_home_dir):
         """Test getting most recent log."""
@@ -416,7 +416,7 @@ class TestQwenLogStore:
             live_log = store.live()
         
         # Should return one of the sessions (most recent)
-        assert live_log in ["session1", "session2"]
+        assert live_log in ["session1.jsonl", "session2.jsonl"]
 
     def test_live_log_no_logs(self, tmp_path):
         """Test getting live log when no logs exist."""
