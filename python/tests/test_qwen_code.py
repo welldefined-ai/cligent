@@ -4,7 +4,6 @@ import json
 import pytest
 from pathlib import Path
 from unittest.mock import patch
-from datetime import datetime
 
 from src.agents.qwen_code.core import (
     QwenRecord,
@@ -12,7 +11,7 @@ from src.agents.qwen_code.core import (
     QwenLogStore,
     QwenCligent
 )
-from src.core.models import Role, Chat
+from src.core.models import Role
 
 
 class TestQwenRecord:
@@ -445,9 +444,9 @@ class TestQwenLogStore:
         logs_dir = qwen_base / "logs"
         logs_dir.mkdir(parents=True)
         (logs_dir / "log.jsonl").write_text('{"logs": "data"}')
-        
+
         with patch('pathlib.Path.home', return_value=home_dir):
-            store = QwenLogStore()
+            _store = QwenLogStore()
 
     def test_checkpoint_files_handling(self, tmp_path):
         """Test that checkpoint files are listed and accessible."""

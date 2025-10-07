@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional, List, Tuple, TYPE_CHECKING
 import yaml
 from datetime import datetime
-from pathlib import Path
 from .core.models import Chat, Message
 from .core.errors import ErrorCollector
 

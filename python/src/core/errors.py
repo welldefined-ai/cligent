@@ -1,6 +1,6 @@
 """Error handling for the chat parser."""
 
-from typing import Optional, List, Any
+from typing import List
 
 
 class ChatParserError(Exception):
@@ -62,7 +62,7 @@ class LogCorruptionError(ParseError):
             log_path: Path to corrupted log
             details: Additional details about corruption
         """
-        message = f"Log file corrupted"
+        message = "Log file corrupted"
         if details:
             message += f": {details}"
         super().__init__(message, log_path=log_path, recoverable=False)

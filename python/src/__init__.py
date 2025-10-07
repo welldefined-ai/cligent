@@ -5,10 +5,10 @@ while the actual implementation is in the flattened core/ and agents/ structure.
 """
 
 # Re-export everything from core for the public API
-from .core import *
+from .core import *  # noqa: F403
 
 # Import and expose agent framework from cligent.py
-from .cligent import Cligent, create
+from .cligent import Cligent as Cligent, create
 
 # Backwards compatibility
 ChatParser = create

@@ -1,13 +1,10 @@
 """Gemini CLI specific implementation for parsing session logs."""
 
-import json
-import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Any, List, Optional, Tuple
-from datetime import datetime
+from typing import Dict, Any, List, Optional
 
-from ...core.models import Message, Chat, ErrorReport, Role, LogStore, Record, LogFile, ProviderConfig
+from ...core.models import Message, Chat, Role, LogStore, Record, LogFile, ProviderConfig
 from ...cligent import Cligent
 
 

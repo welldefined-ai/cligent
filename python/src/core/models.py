@@ -122,7 +122,6 @@ class Chat:
     
     def export(self) -> str:
         """Output as Tigs YAML format with human-readable content blocks."""
-        from datetime import datetime
         
         # Build the YAML manually for better control over formatting
         lines = []

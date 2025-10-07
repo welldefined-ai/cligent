@@ -7,7 +7,7 @@ from datetime import datetime
 
 import pytest
 
-from src.agents.codex_cli.core import CodexRecord, CodexLogFile, CodexLogStore, CodexCligent
+from src.agents.codex_cli.core import CodexRecord, CodexLogFile, CodexLogStore
 from src.core.models import Role, Chat
 from src import ChatParser
 

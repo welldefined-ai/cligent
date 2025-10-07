@@ -11,7 +11,6 @@ def test_core_imports():
 
 def test_main_package_imports():
     """Test that main package imports work."""
-    import src
     from src import create, Cligent
     assert callable(create)  # Main factory function
     assert Cligent is not None
@@ -26,8 +25,7 @@ def test_main_package_imports():
 
 def test_direct_imports():
     """Test that direct imports work through main package."""
-    import src
-    from src import Chat, Message, Role, LogStore, Cligent, create
+    from src import Chat, Message, Role, create
     
     # Verify classes can be instantiated
     msg = Message(role=Role.USER, content="test", provider="test", log_uri="/test/path")
@@ -78,9 +76,7 @@ def test_error_imports():
     from src.core import (
         ChatParserError,
         ParseError,
-        LogAccessError,
-        LogCorruptionError,
-        InvalidFormatError
+        LogAccessError
     )
     
     # All should be proper exception classes

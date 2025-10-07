@@ -2,13 +2,11 @@
 
 import pytest
 from pathlib import Path
-import sys
-import os
 from unittest.mock import patch
 
-from src.core import Chat, Message, Role, ChatParserError
+from src.core import Chat, Message, Role
 from src import ChatParser
-from src.agents.claude_code.core import ClaudeLogStore, ClaudeLogFile, ClaudeRecord
+from src.agents.claude_code.core import ClaudeLogStore, ClaudeLogFile
 
 
 @pytest.fixture
@@ -169,7 +167,6 @@ class TestSessionIDFunctionality:
     def test_list_logs_nonrecursive_returns_filenames(self):
         """Non-recursive listing returns filenames without path separators."""
         from src import ChatParser
-        from pathlib import Path
 
         # Use current directory which should have Claude Code logs
         parser = ChatParser("claude-code")
@@ -366,7 +363,7 @@ class TestClaudeImplementation:
 
         # Verify session information exists in the messages
         messages = [r.extract_message() for r in log_file.records if r.extract_message()]
-        session_ids = {msg.session_id for msg in messages if msg.session_id}
+        _session_ids = {msg.session_id for msg in messages if msg.session_id}
         # Note: Claude doesn't currently set session_id on messages, but structure is in place
         # Verify summary record exists
         summary_records = [r for r in log_file.records if hasattr(r, 'type') and r.type == 'summary']
