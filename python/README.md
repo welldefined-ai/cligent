@@ -3,6 +3,12 @@
 Unified SDK for parsing CLI agent chats in Python. Ships a lightweight
 trial/debugging CLI (`cligent`) and a small API for listing, parsing,
 selecting, and composing messages across supported providers.
+| Agent | Description | Log Location                             |
+|-------|-------------|------------------------------------------|
+| **claude** | Claude Code sessions | `~/.claude/projects/` (project-specific) |
+| **gemini** | Gemini CLI conversations | `~/.gemini/logs/`      |
+| **qwen** | Qwen Coder sessions | `~/.qwen/sessions/`           |
+| **codex** | Codex CLI sessions | `~/.codex/sessions/`          |
 
 ## Install
 
@@ -15,7 +21,7 @@ pip install cligent
 ```python
 from cligent import create
 
-agent = create("codex")
+agent = create("claude")
 logs = agent.list_logs()
 chat = agent.parse()  # most recent
 agent.select(logs[0][0], [0, 2])
