@@ -6,21 +6,10 @@ on:
   pull_request:
 
 jobs:
-  lint:
-    name: PyCharm Lint
+  lint-python:
+    name: Lint Python
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Qodana Scan
-        uses: JetBrains/qodana-action@v2024.2
-        with:
-          cache-default-branch-only: true
-          args: "-l,jetbrains/qodana-python-community:2024.2,-i,python,-n,Project Default"
-
-  tests:
-    name: Python Tests
-    runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -28,6 +17,29 @@ jobs:
         uses: astral-sh/setup-uv@v1
         with:
           python-version: "3.11"
+          enable-cache: true
+      - name: Sync dependencies
+        run: uv sync --extra dev --directory python
+      - name: Run Ruff
+        run: uv run --directory python --extra dev ruff check .
+      - name: Run mypy
+        run: uv run --directory python --extra dev mypy src
+
+  test-python:
+    name: Python Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v1
+        with:
+          python-version: ${{ matrix.python-version }}
+          enable-cache: true
       - name: Sync dependencies
         run: uv sync --extra dev --directory python
       - name: Run tests
