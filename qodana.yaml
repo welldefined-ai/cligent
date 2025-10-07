@@ -1,5 +1,0 @@
-version: "1.0"
-linter: jetbrains/qodana-python:2024.2
-project-dir: python
-profile:
-  name: Project Default

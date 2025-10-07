@@ -16,6 +16,7 @@ jobs:
         uses: JetBrains/qodana-action@v2024.2
         with:
           cache-default-branch-only: true
+          args: "-l,jetbrains/qodana-python-community:2024.2,-i,python,-n,Project Default"
 
   tests:
     name: Python Tests
