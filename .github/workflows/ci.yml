@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+jobs:
+  lint:
+    name: PyCharm Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Qodana Scan
+        uses: JetBrains/qodana-action@v2024.2
+        with:
+          cache-default-branch-only: true
+
+  tests:
+    name: Python Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v1
+        with:
+          python-version: "3.11"
+      - name: Sync dependencies
+        run: uv sync --extra dev --directory python
+      - name: Run tests
+        run: uv run --directory python --extra dev pytest

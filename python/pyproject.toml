@@ -3,7 +3,7 @@ name = "cligent"
 version = "0.1.5"
 description = "Unified SDK for CLI agents (Claude Code, Gemini CLI, Qwen Coder)"
 readme = "README.md"
-license = { text = "AGPL-3.0" }
+license = { text = "Apache-2.0" }
 authors = [
     { name = "Jinglei Ren", email = "jinglei@merico.ai" }
 ]
@@ -15,7 +15,7 @@ keywords = ["cli", "agent", "orchestrator", "ai", "claude", "gemini", "qwen", "t
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: GNU Affero General Public License v3",
+    "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
