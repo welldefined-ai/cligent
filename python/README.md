@@ -1,9 +1,5 @@
 # Cligent (Python)
 
-[![CI](https://github.com/welldefined-ai/cligent/actions/workflows/ci.yml/badge.svg)](https://github.com/welldefined-ai/cligent/actions/workflows/ci.yml)
-[![Discord Chat](https://img.shields.io/discord/1382712250598690947?logo=discord)](https://discord.gg/Tv4EcTu5YX)
-[![PyPI version](https://img.shields.io/pypi/v/cligent.svg)](https://pypi.org/project/cligent/)
-
 Unified SDK for parsing CLI agent chats in Python. Ships a lightweight
 trial/debugging CLI (`cligent`) and a small API for listing, parsing,
 selecting, and composing messages across supported providers.
