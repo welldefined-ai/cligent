@@ -1,5 +1,9 @@
 # Cligent
 
+[![CI](https://github.com/welldefined-ai/cligent/actions/workflows/ci.yml/badge.svg)](https://github.com/welldefined-ai/cligent/actions/workflows/ci.yml)
+[![Discord Chat](https://img.shields.io/discord/1382712250598690947?logo=discord)](https://discord.gg/Tv4EcTu5YX)
+[![PyPI version](https://img.shields.io/pypi/v/cligent.svg)](https://pypi.org/project/cligent/)
+
 Unified SDK for CLI agents (Claude Code, Gemini CLI, Qwen Coder, Codex CLI). Parse, select, and compose messages from AI agent session logs with support for YAML export/import.
 
 ## Features
