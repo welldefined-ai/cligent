@@ -1,6 +1,6 @@
 [project]
 name = "cligent"
-version = "0.1.5"
+version = "0.1.6"
 description = "Unified SDK for CLI agents (Claude Code, Gemini CLI, Qwen Coder)"
 readme = "README.md"
 license = { text = "Apache-2.0" }

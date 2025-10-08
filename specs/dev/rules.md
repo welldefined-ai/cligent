@@ -7,12 +7,17 @@
 - Subject: imperative, ≤50 chars, no period. Example: `feat(auth): add OAuth login`.
 - Body: explain **what/why** (not how), wrap at 72 chars, use bullets if clearer.
 - Signature (if co-authored by AI), e.g.:
-
+  ```
   🤖 Generated with [Codex CLI](https://github.com/openai/codex)
 
   Co-authored-by: Codex CLI <cligent@welldefined.ai>
-
+  ```
 - Optionally add `!` for breaking changes.
+
+## Style
+
+- End files with newline.
+- No trailing whitespace.
 
 ## Python Implementation
 
@@ -21,4 +26,6 @@
 - Package manager: `uv`
 - Registry: PyPI
 - Source layout: `python/src/` (no nested `src/cligent/` directory)
-
+- Style:
+  - Follow PEP 8.
+  - Include type hints.
