@@ -246,7 +246,7 @@ class Record(ABC):
             role.lower() not in self.config.skip_roles
         )
 
-        return valid_role and has_content
+        return bool(valid_role and has_content)
 
     def _process_content(self, content: Any) -> str:
         """Process content from various formats to text."""
@@ -265,7 +265,8 @@ class Record(ABC):
 
             return '\n'.join(content_parts)
         elif isinstance(content, dict):
-            return content.get('text', content.get('content', str(content)))
+            text_content = content.get('text', content.get('content', str(content)))
+            return str(text_content)
 
         return str(content).strip() if content else ""
 
@@ -411,7 +412,7 @@ class LogStore:
         Returns:
             List of (log_uri, metadata) tuples.
         """
-        logs = []
+        logs: List[Tuple[str, Dict[str, Any]]] = []
 
         try:
             if not self._logs_dir.exists():

@@ -36,9 +36,9 @@ class QwenRecord(Record):
     session_id: Optional[str] = None
 
     @classmethod
-    def load(cls, json_string: str) -> 'QwenRecord':
+    def load(cls, json_string: str, config: ProviderConfig = QWEN_CONFIG) -> 'QwenRecord':
         """Parse a JSON string into a QwenRecord."""
-        return super().load(json_string, QWEN_CONFIG)
+        return super().load(json_string, config)  # type: ignore[return-value]
 
     def _post_load(self, data: Dict[str, Any]) -> None:
         """Extract Qwen-specific fields."""

@@ -32,9 +32,9 @@ class ClaudeRecord(Record):
     timestamp: Optional[str] = None
 
     @classmethod
-    def load(cls, json_string: str) -> 'ClaudeRecord':
+    def load(cls, json_string: str, config: ProviderConfig = CLAUDE_CONFIG) -> 'ClaudeRecord':
         """Parse a JSON string into a ClaudeRecord."""
-        return super().load(json_string, CLAUDE_CONFIG)
+        return super().load(json_string, config)  # type: ignore[return-value]
 
     def _post_load(self, data: Dict[str, Any]) -> None:
         """Extract Claude-specific fields."""

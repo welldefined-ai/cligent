@@ -60,7 +60,7 @@ class Cligent(ABC):
         """
         return self.store.list(recursive=recursive)
 
-    def parse(self, log_uri: str = None) -> Chat:
+    def parse(self, log_uri: Optional[str] = None) -> Optional[Chat]:
         """Extract chat from specific or live session log.
 
         Args:
@@ -194,7 +194,7 @@ class Cligent(ABC):
 
         return Chat(messages=messages)
 
-    def select(self, log_uri: str, indices: List[int] = None) -> None:
+    def select(self, log_uri: str, indices: Optional[List[int]] = None) -> None:
         """Select messages for composition.
 
         Args:
@@ -203,7 +203,10 @@ class Cligent(ABC):
         """
         # Get or cache the chat
         if log_uri not in self._chat_cache:
-            self._chat_cache[log_uri] = self.parse(log_uri)
+            parsed_chat = self.parse(log_uri)
+            if parsed_chat is None:
+                return
+            self._chat_cache[log_uri] = parsed_chat
 
         chat = self._chat_cache[log_uri]
 
@@ -216,7 +219,7 @@ class Cligent(ABC):
                 if 0 <= i < len(chat.messages):
                     self.selected_messages.append(chat.messages[i])
 
-    def unselect(self, log_uri: str, indices: List[int] = None) -> None:
+    def unselect(self, log_uri: str, indices: Optional[List[int]] = None) -> None:
         """Remove messages from selection.
 
         Args:
@@ -225,7 +228,10 @@ class Cligent(ABC):
         """
         # Get or cache the chat
         if log_uri not in self._chat_cache:
-            self._chat_cache[log_uri] = self.parse(log_uri)
+            parsed_chat = self.parse(log_uri)
+            if parsed_chat is None:
+                return
+            self._chat_cache[log_uri] = parsed_chat
 
         chat = self._chat_cache[log_uri]
 

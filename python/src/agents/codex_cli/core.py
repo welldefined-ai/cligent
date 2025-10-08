@@ -32,16 +32,17 @@ class CodexRecord(Record):
     _content: Any = field(default=None, repr=False)
 
     @classmethod
-    def load(cls, json_string: str) -> "CodexRecord":
+    def load(cls, json_string: str, config: ProviderConfig = CODEX_CONFIG) -> "CodexRecord":
         """Parse a JSON string into a CodexRecord."""
-        return super().load(json_string, CODEX_CONFIG)
+        return super().load(json_string, config)  # type: ignore[return-value]
 
     def _post_load(self, data: Dict[str, Any]) -> None:
         """Extract Codex-specific fields."""
         self.entry_type = data.get("type", "")
         self.timestamp = data.get("timestamp")
 
-        payload = data.get("payload") if isinstance(data.get("payload"), dict) else {}
+        payload_data = data.get("payload")
+        payload = payload_data if isinstance(payload_data, dict) else {}
         self.payload_type = payload.get("type")
         self.role = payload.get("role", "")
         self._content = payload.get("content")

@@ -1,6 +1,6 @@
 """Error handling for the chat parser."""
 
-from typing import List
+from typing import List, Optional
 
 
 class ChatParserError(Exception):
@@ -11,8 +11,8 @@ class ChatParserError(Exception):
 class ParseError(ChatParserError):
     """Error during parsing of session logs or records."""
     
-    def __init__(self, message: str, log_path: str = None, 
-                 line_number: int = None, recoverable: bool = True):
+    def __init__(self, message: str, log_path: Optional[str] = None,
+                 line_number: Optional[int] = None, recoverable: bool = True):
         """Initialize parse error.
         
         Args:
@@ -55,7 +55,7 @@ class LogAccessError(ChatParserError):
 class LogCorruptionError(ParseError):
     """Error when log file is corrupted."""
     
-    def __init__(self, log_path: str, details: str = None):
+    def __init__(self, log_path: str, details: Optional[str] = None):
         """Initialize corruption error.
         
         Args:
@@ -71,7 +71,7 @@ class LogCorruptionError(ParseError):
 class InvalidFormatError(ParseError):
     """Error when log format is not recognized."""
     
-    def __init__(self, log_path: str, expected: str = None, found: str = None):
+    def __init__(self, log_path: str, expected: Optional[str] = None, found: Optional[str] = None):
         """Initialize format error.
         
         Args:
@@ -134,10 +134,10 @@ class ErrorCollector:
         for i, error in enumerate(self.errors, 1):
             status = "✓ Recovered" if error.recoverable else "✗ Fatal"
             lines.append(f"{i}. {status}: {error.message}")
-            if error.location:
-                lines.append(f"   Location: {error.location}")
-            if error.context:
-                lines.append(f"   Context: {error.context}")
+            if error.log_path:
+                lines.append(f"   Location: {error.log_path}")
+            if error.line_number:
+                lines.append(f"   Line: {error.line_number}")
             lines.append("")
         
         return "\n".join(lines)
@@ -156,8 +156,8 @@ class ErrorCollector:
             "errors": [
                 {
                     "message": error.message,
-                    "location": error.location,
-                    "context": error.context,
+                    "log_path": error.log_path,
+                    "line_number": error.line_number,
                     "recoverable": error.recoverable
                 }
                 for error in self.errors

@@ -35,9 +35,9 @@ class GeminiRecord(Record):
     session_id: Optional[str] = None
 
     @classmethod
-    def load(cls, json_string: str) -> 'GeminiRecord':
+    def load(cls, json_string: str, config: ProviderConfig = GEMINI_CONFIG) -> 'GeminiRecord':
         """Parse a JSON string into a GeminiRecord."""
-        return super().load(json_string, GEMINI_CONFIG)
+        return super().load(json_string, config)  # type: ignore[return-value]
 
     def _post_load(self, data: Dict[str, Any]) -> None:
         """Extract Gemini-specific fields."""
