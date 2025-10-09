@@ -5,16 +5,22 @@ from typing import List, Optional
 
 class ChatParserError(Exception):
     """Base exception for chat parser errors."""
+
     pass
 
 
 class ParseError(ChatParserError):
     """Error during parsing of session logs or records."""
-    
-    def __init__(self, message: str, log_path: Optional[str] = None,
-                 line_number: Optional[int] = None, recoverable: bool = True):
+
+    def __init__(
+        self,
+        message: str,
+        log_path: Optional[str] = None,
+        line_number: Optional[int] = None,
+        recoverable: bool = True,
+    ):
         """Initialize parse error.
-        
+
         Args:
             message: Error description
             log_path: Path to the problematic log file
@@ -26,7 +32,7 @@ class ParseError(ChatParserError):
         self.line_number = line_number
         self.recoverable = recoverable
         super().__init__(self.format_message())
-    
+
     def format_message(self) -> str:
         """Format error message with context."""
         msg = self.message
@@ -39,10 +45,10 @@ class ParseError(ChatParserError):
 
 class LogAccessError(ChatParserError):
     """Error accessing log files."""
-    
+
     def __init__(self, path: str, reason: str = "Permission denied"):
         """Initialize access error.
-        
+
         Args:
             path: Path that couldn't be accessed
             reason: Reason for access failure
@@ -54,10 +60,10 @@ class LogAccessError(ChatParserError):
 
 class LogCorruptionError(ParseError):
     """Error when log file is corrupted."""
-    
+
     def __init__(self, log_path: str, details: Optional[str] = None):
         """Initialize corruption error.
-        
+
         Args:
             log_path: Path to corrupted log
             details: Additional details about corruption
@@ -70,10 +76,12 @@ class LogCorruptionError(ParseError):
 
 class InvalidFormatError(ParseError):
     """Error when log format is not recognized."""
-    
-    def __init__(self, log_path: str, expected: Optional[str] = None, found: Optional[str] = None):
+
+    def __init__(
+        self, log_path: str, expected: Optional[str] = None, found: Optional[str] = None
+    ):
         """Initialize format error.
-        
+
         Args:
             log_path: Path to log with invalid format
             expected: Expected format description
@@ -89,16 +97,16 @@ class InvalidFormatError(ParseError):
 
 class ErrorCollector:
     """Collects errors during parsing for reporting."""
-    
+
     def __init__(self):
         """Initialize error collector."""
         self.errors: List[ParseError] = []
         self.recovered_count = 0
         self.lost_count = 0
-    
+
     def add_error(self, error: ParseError) -> None:
         """Add an error to the collection.
-        
+
         Args:
             error: Error to add
         """
@@ -107,30 +115,30 @@ class ErrorCollector:
             self.recovered_count += 1
         else:
             self.lost_count += 1
-    
+
     def has_errors(self) -> bool:
         """Check if any errors were collected."""
         return len(self.errors) > 0
-    
+
     def has_fatal_errors(self) -> bool:
         """Check if any non-recoverable errors occurred."""
         return any(not e.recoverable for e in self.errors)
-    
+
     def generate_report(self) -> str:
         """Generate a summary report of all errors.
-        
+
         Returns:
             Formatted error report
         """
         if not self.errors:
             return "No errors occurred."
-        
+
         lines = []
         lines.append(f"Error Summary: {len(self.errors)} total errors")
         lines.append(f"  - Recovered: {self.recovered_count}")
         lines.append(f"  - Fatal: {self.lost_count}")
         lines.append("")
-        
+
         for i, error in enumerate(self.errors, 1):
             status = "✓ Recovered" if error.recoverable else "✗ Fatal"
             lines.append(f"{i}. {status}: {error.message}")
@@ -139,12 +147,12 @@ class ErrorCollector:
             if error.line_number:
                 lines.append(f"   Line: {error.line_number}")
             lines.append("")
-        
+
         return "\n".join(lines)
-    
+
     def to_dict(self) -> dict:
         """Convert error collection to dictionary.
-        
+
         Returns:
             Dictionary with error statistics and details
         """
@@ -158,8 +166,8 @@ class ErrorCollector:
                     "message": error.message,
                     "log_path": error.log_path,
                     "line_number": error.line_number,
-                    "recoverable": error.recoverable
+                    "recoverable": error.recoverable,
                 }
                 for error in self.errors
-            ]
+            ],
         }

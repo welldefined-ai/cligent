@@ -8,6 +8,7 @@ from .core.errors import ErrorCollector
 if TYPE_CHECKING:
     from .core.models import LogStore
 
+
 class Cligent(ABC):
     """Abstract base class for all agent implementations."""
 
@@ -17,14 +18,14 @@ class Cligent(ABC):
         self.selected_messages: List[Message] = []
         self._chat_cache: Dict[str, Chat] = {}
         # Automatically create store during initialization
-        self._store: 'LogStore' = self._create_store()
+        self._store: "LogStore" = self._create_store()
 
     @property
-    @abstractmethod 
+    @abstractmethod
     def name(self) -> str:
         """Agent name identifier."""
         pass
-        
+
     @property
     @abstractmethod
     def display_name(self) -> str:
@@ -32,22 +33,18 @@ class Cligent(ABC):
         pass
 
     @abstractmethod
-    def _create_store(self) -> 'LogStore':
+    def _create_store(self) -> "LogStore":
         """Create appropriate log store for this agent."""
         pass
 
     @abstractmethod
-    def _parse_from_store(self, log_uri: str) -> 'Chat':
+    def _parse_from_store(self, log_uri: str) -> "Chat":
         """Load and parse a chat from persisted logs."""
         pass
 
-
-
-
-
     # Log Store Management
     @property
-    def store(self) -> 'LogStore':
+    def store(self) -> "LogStore":
         """Get log store for this agent."""
         return self._store
 
@@ -124,38 +121,40 @@ class Cligent(ABC):
         if not isinstance(data, dict):
             raise ValueError("YAML must contain a dictionary")
 
-        if data.get('schema') != 'tigs.chat/v1':
-            raise ValueError(f"Expected schema 'tigs.chat/v1', got '{data.get('schema')}'")
+        if data.get("schema") != "tigs.chat/v1":
+            raise ValueError(
+                f"Expected schema 'tigs.chat/v1', got '{data.get('schema')}'"
+            )
 
-        if 'messages' not in data:
+        if "messages" not in data:
             raise ValueError("YAML must contain 'messages' field")
 
-        if not isinstance(data['messages'], list):
+        if not isinstance(data["messages"], list):
             raise ValueError("'messages' field must be a list")
 
         # Parse messages
         messages = []
         from .core.models import Role
 
-        for i, msg_data in enumerate(data['messages']):
+        for i, msg_data in enumerate(data["messages"]):
             if not isinstance(msg_data, dict):
                 raise ValueError(f"Message {i} must be a dictionary")
 
-            if 'role' not in msg_data:
+            if "role" not in msg_data:
                 raise ValueError(f"Message {i} must have 'role' field")
 
-            if 'content' not in msg_data:
+            if "content" not in msg_data:
                 raise ValueError(f"Message {i} must have 'content' field")
 
             # Parse role
-            role_str = msg_data['role'].lower()
+            role_str = msg_data["role"].lower()
             try:
                 role = Role(role_str)
             except ValueError:
                 raise ValueError(f"Message {i} has invalid role '{role_str}'")
 
             # Parse content (handle both string and multiline formats)
-            content = msg_data['content']
+            content = msg_data["content"]
             if isinstance(content, str):
                 content = content.strip()
             else:
@@ -163,14 +162,16 @@ class Cligent(ABC):
 
             # Parse timestamp if present
             timestamp = None
-            if 'timestamp' in msg_data:
-                timestamp_str = msg_data['timestamp']
+            if "timestamp" in msg_data:
+                timestamp_str = msg_data["timestamp"]
                 if timestamp_str:
                     try:
                         # Handle ISO format timestamps
-                        if timestamp_str.endswith('Z'):
-                            timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
-                        elif '+' in timestamp_str or '-' in timestamp_str[-6:]:
+                        if timestamp_str.endswith("Z"):
+                            timestamp = datetime.fromisoformat(
+                                timestamp_str.replace("Z", "+00:00")
+                            )
+                        elif "+" in timestamp_str or "-" in timestamp_str[-6:]:
                             timestamp = datetime.fromisoformat(timestamp_str)
                         else:
                             timestamp = datetime.fromisoformat(timestamp_str)
@@ -179,7 +180,7 @@ class Cligent(ABC):
                         pass
 
             # Parse log_uri if present
-            log_uri = msg_data.get('log_uri', '')
+            log_uri = msg_data.get("log_uri", "")
 
             # Create message
             message = Message(
@@ -188,7 +189,7 @@ class Cligent(ABC):
                 provider=self.name,
                 log_uri=log_uri,
                 timestamp=timestamp,
-                raw_data=msg_data
+                raw_data=msg_data,
             )
             messages.append(message)
 
@@ -237,8 +238,9 @@ class Cligent(ABC):
 
         if indices is None:
             # Remove all messages from this chat
-            self.selected_messages = [msg for msg in self.selected_messages
-                                    if msg not in chat.messages]
+            self.selected_messages = [
+                msg for msg in self.selected_messages if msg not in chat.messages
+            ]
         else:
             # Remove specific messages
             messages_to_remove = []
@@ -246,8 +248,9 @@ class Cligent(ABC):
                 if 0 <= i < len(chat.messages):
                     messages_to_remove.append(chat.messages[i])
 
-            self.selected_messages = [msg for msg in self.selected_messages
-                                    if msg not in messages_to_remove]
+            self.selected_messages = [
+                msg for msg in self.selected_messages if msg not in messages_to_remove
+            ]
 
     def clear_selection(self) -> None:
         """Clear current selection."""
@@ -294,7 +297,6 @@ class Cligent(ABC):
             "display_name": self.display_name,
         }
 
-
     def __repr__(self) -> str:
         """String representation of agent."""
         return f"{self.__class__.__name__}(name='{self.name}')"
@@ -303,28 +305,43 @@ class Cligent(ABC):
 # Factory function for creating agent instances
 def create(agent_type: str = "claude"):
     """Create an agent for the specified type.
-    
+
     Args:
         agent_type: Agent type ("claude", "gemini", "qwen")
-        
+
     Returns:
         Appropriate agent instance
-        
+
     Raises:
         ValueError: If agent_type is not supported
     """
     if agent_type in ["claude", "claude-code"]:
         from .agents.claude_code import ClaudeCligent
+
         return ClaudeCligent()
     elif agent_type in ["gemini", "gemini-cli"]:
         from .agents.gemini_cli import GeminiCligent
+
         return GeminiCligent()
     elif agent_type in ["qwen", "qwen-code"]:
         from .agents.qwen_code import QwenCligent
+
         return QwenCligent()
     elif agent_type in ["codex", "codex-cli"]:
         from .agents.codex_cli import CodexCligent
+
         return CodexCligent()
     else:
-        supported_types = ["claude", "claude-code", "gemini", "gemini-cli", "qwen", "qwen-code", "codex", "codex-cli"]
-        raise ValueError(f"Unsupported agent type: {agent_type}. Supported: {supported_types}")
+        supported_types = [
+            "claude",
+            "claude-code",
+            "gemini",
+            "gemini-cli",
+            "qwen",
+            "qwen-code",
+            "codex",
+            "codex-cli",
+        ]
+        raise ValueError(
+            f"Unsupported agent type: {agent_type}. Supported: {supported_types}"
+        )

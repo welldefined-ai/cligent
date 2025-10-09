@@ -4,7 +4,15 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 
-from ...core.models import Message, Chat, Role, LogStore, Record, LogFile, ProviderConfig
+from ...core.models import (
+    Message,
+    Chat,
+    Role,
+    LogStore,
+    Record,
+    LogFile,
+    ProviderConfig,
+)
 from ...cligent import Cligent
 
 
@@ -14,14 +22,14 @@ GEMINI_CONFIG = ProviderConfig(
     display_name="Gemini CLI",
     home_dir=".gemini",
     role_mappings={
-        'user': Role.USER,
-        'assistant': Role.ASSISTANT,
-        'model': Role.ASSISTANT,
-        'system': Role.SYSTEM,
-        'human': Role.USER,
-        'ai': Role.ASSISTANT,
+        "user": Role.USER,
+        "assistant": Role.ASSISTANT,
+        "model": Role.ASSISTANT,
+        "system": Role.SYSTEM,
+        "human": Role.USER,
+        "ai": Role.ASSISTANT,
     },
-    log_patterns=["*.json"]
+    log_patterns=["*.json"],
 )
 
 
@@ -35,25 +43,35 @@ class GeminiRecord(Record):
     session_id: Optional[str] = None
 
     @classmethod
-    def load(cls, json_string: str, config: ProviderConfig = GEMINI_CONFIG) -> 'GeminiRecord':
+    def load(
+        cls, json_string: str, config: ProviderConfig = GEMINI_CONFIG
+    ) -> "GeminiRecord":
         """Parse a JSON string into a GeminiRecord."""
         return super().load(json_string, config)  # type: ignore[return-value]
 
     def _post_load(self, data: Dict[str, Any]) -> None:
         """Extract Gemini-specific fields."""
         # Handle Google conversation format (checkpoint files)
-        if 'role' in data and 'parts' in data:
+        if "role" in data and "parts" in data:
             # Google format: {"role": "user", "parts": [{"text": "..."}]}
-            self.role = data.get('role', '')
-            self.content = self._extract_parts_content(data.get('parts', []))
-            self.timestamp = ''  # No timestamp in Google format
-            self.session_id = ''
+            self.role = data.get("role", "")
+            self.content = self._extract_parts_content(data.get("parts", []))
+            self.timestamp = ""  # No timestamp in Google format
+            self.session_id = ""
         else:
             # Legacy format for main logs.json - type field becomes role
-            self.role = data.get('type', data.get('role', data.get('sender', 'unknown')))
-            self.content = data.get('content', data.get('text', data.get('message', '')))
-            self.timestamp = data.get('timestamp', data.get('time', data.get('created_at', '')))
-            self.session_id = data.get('session_id', data.get('sessionId', data.get('conversation_id', '')))
+            self.role = data.get(
+                "type", data.get("role", data.get("sender", "unknown"))
+            )
+            self.content = data.get(
+                "content", data.get("text", data.get("message", ""))
+            )
+            self.timestamp = data.get(
+                "timestamp", data.get("time", data.get("created_at", ""))
+            )
+            self.session_id = data.get(
+                "session_id", data.get("sessionId", data.get("conversation_id", ""))
+            )
 
     def get_role(self) -> str:
         return self.role
@@ -70,13 +88,13 @@ class GeminiRecord(Record):
         for part in parts:
             if isinstance(part, dict):
                 # Extract text from parts
-                if 'text' in part:
-                    text = part['text'].strip()
+                if "text" in part:
+                    text = part["text"].strip()
                     if text:
                         content_parts.append(text)
                 # Skip function calls and other non-text parts for now
 
-        return '\n'.join(content_parts)
+        return "\n".join(content_parts)
 
     def extract_message(self, log_uri: str = "") -> Optional[Message]:
         """Get a Message from this record, if applicable."""
@@ -86,7 +104,6 @@ class GeminiRecord(Record):
             # Add Gemini-specific session_id
             message.session_id = self.session_id
         return message
-
 
 
 @dataclass
@@ -111,7 +128,6 @@ class GeminiLogStore(LogStore):
         """
         super().__init__(GEMINI_CONFIG)
 
-
     def _resolve_log_path(self, log_uri: str) -> Path:
         """Resolve log URI to file path for Gemini's structure."""
         # Handle new <uuid>/<file_name> format
@@ -132,7 +148,6 @@ class GeminiLogStore(LogStore):
             return self._logs_dir / log_uri / "logs.json"
 
 
-
 class GeminiCligent(Cligent):
     """Gemini CLI agent implementation."""
 
@@ -143,7 +158,7 @@ class GeminiCligent(Cligent):
     @property
     def name(self) -> str:
         return "gemini-cli"
-        
+
     @property
     def display_name(self) -> str:
         return "Gemini CLI"

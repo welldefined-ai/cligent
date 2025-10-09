@@ -76,7 +76,6 @@ def _cmd_live(agent, num: int) -> int:
     print(yaml_text)
     return 0
 
-
     # Interactive mode removed to keep CLI simple and explicit
 
 

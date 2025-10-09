@@ -5,7 +5,15 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime
 
-from ...core.models import Message, Chat, Role, LogStore, Record, LogFile, ProviderConfig
+from ...core.models import (
+    Message,
+    Chat,
+    Role,
+    LogStore,
+    Record,
+    LogFile,
+    ProviderConfig,
+)
 
 from ...cligent import Cligent
 
@@ -16,11 +24,11 @@ CLAUDE_CONFIG = ProviderConfig(
     display_name="Claude Code",
     home_dir=".claude",
     role_mappings={
-        'user': Role.USER,
-        'assistant': Role.ASSISTANT,
-        'system': Role.SYSTEM
+        "user": Role.USER,
+        "assistant": Role.ASSISTANT,
+        "system": Role.SYSTEM,
     },
-    log_patterns=["*.jsonl"]
+    log_patterns=["*.jsonl"],
 )
 
 
@@ -32,21 +40,23 @@ class ClaudeRecord(Record):
     timestamp: Optional[str] = None
 
     @classmethod
-    def load(cls, json_string: str, config: ProviderConfig = CLAUDE_CONFIG) -> 'ClaudeRecord':
+    def load(
+        cls, json_string: str, config: ProviderConfig = CLAUDE_CONFIG
+    ) -> "ClaudeRecord":
         """Parse a JSON string into a ClaudeRecord."""
         return super().load(json_string, config)  # type: ignore[return-value]
 
     def _post_load(self, data: Dict[str, Any]) -> None:
         """Extract Claude-specific fields."""
-        self.type = data.get('type', 'unknown')
-        self.timestamp = data.get('timestamp')
+        self.type = data.get("type", "unknown")
+        self.timestamp = data.get("timestamp")
 
     def get_role(self) -> str:
         return self.type
 
     def get_content(self) -> str:
-        message_data = self.raw_data.get('message', {})
-        return message_data.get('content', '')
+        message_data = self.raw_data.get("message", {})
+        return message_data.get("content", "")
 
     def get_timestamp(self) -> Optional[str]:
         return self.timestamp
@@ -68,8 +78,8 @@ class ClaudeRecord(Record):
             # Extract only text blocks - ignore everything else
             content_parts = []
             for block in content:
-                if isinstance(block, dict) and block.get('type') == 'text':
-                    text = block.get('text', '').strip()
+                if isinstance(block, dict) and block.get("type") == "text":
+                    text = block.get("text", "").strip()
                     if text:  # Only include non-empty text
                         content_parts.append(text)
 
@@ -77,7 +87,7 @@ class ClaudeRecord(Record):
             if not content_parts:
                 return ""
 
-            return '\n'.join(content_parts)
+            return "\n".join(content_parts)
 
         return super()._process_content(content)
 
@@ -90,27 +100,29 @@ class ClaudeRecord(Record):
 
     def is_exit_plan_mode(self) -> bool:
         """Check if this record is an ExitPlanMode tool use."""
-        if self.type != 'assistant':
+        if self.type != "assistant":
             return False
-        
-        message_data = self.raw_data.get('message', {})
-        content = message_data.get('content', [])
-        
+
+        message_data = self.raw_data.get("message", {})
+        content = message_data.get("content", [])
+
         if not isinstance(content, list):
             return False
-            
+
         # Look for ExitPlanMode tool use
         for block in content:
-            if (isinstance(block, dict) and 
-                block.get('type') == 'tool_use' and 
-                block.get('name') == 'ExitPlanMode'):
+            if (
+                isinstance(block, dict)
+                and block.get("type") == "tool_use"
+                and block.get("name") == "ExitPlanMode"
+            ):
                 return True
         return False
 
     def _extract_plan_message(self, log_uri: str = "") -> Optional[Message]:
         """Extract plan content from ExitPlanMode tool use."""
-        message_data = self.raw_data.get('message', {})
-        content = message_data.get('content', [])
+        message_data = self.raw_data.get("message", {})
+        content = message_data.get("content", [])
 
         if not isinstance(content, list):
             return None
@@ -118,11 +130,13 @@ class ClaudeRecord(Record):
         # Find the ExitPlanMode tool use
         plan_content = None
         for block in content:
-            if (isinstance(block, dict) and
-                block.get('type') == 'tool_use' and
-                block.get('name') == 'ExitPlanMode'):
-                plan_input = block.get('input', {})
-                plan_content = plan_input.get('plan', '')
+            if (
+                isinstance(block, dict)
+                and block.get("type") == "tool_use"
+                and block.get("name") == "ExitPlanMode"
+            ):
+                plan_input = block.get("input", {})
+                plan_content = plan_input.get("plan", "")
                 break
 
         if not plan_content:
@@ -135,7 +149,9 @@ class ClaudeRecord(Record):
         timestamp = None
         if self.timestamp:
             try:
-                timestamp = datetime.fromisoformat(self.timestamp.replace('Z', '+00:00'))
+                timestamp = datetime.fromisoformat(
+                    self.timestamp.replace("Z", "+00:00")
+                )
             except (ValueError, AttributeError):
                 pass
 
@@ -145,9 +161,8 @@ class ClaudeRecord(Record):
             provider=self.config.name,
             log_uri=log_uri,
             timestamp=timestamp,
-            raw_data=self.raw_data
+            raw_data=self.raw_data,
         )
-
 
 
 @dataclass
@@ -160,7 +175,6 @@ class ClaudeLogFile(LogFile):
     def _create_record(self, json_string: str) -> Record:
         """Create a Claude Record instance."""
         return ClaudeRecord.load(json_string)
-
 
 
 class ClaudeLogStore(LogStore):
@@ -206,13 +220,6 @@ class ClaudeLogStore(LogStore):
                         name = str(proj_dir.name)
                         if not name.startswith(base):
                             continue
-                        # Derive URI prefix from suffix after base ('-sub' -> 'sub')
-                        suffix = name[len(base):]
-                        if suffix.startswith('-'):
-                            suffix = suffix[1:]
-                        else:
-                            suffix = ''
-                        uri_prefix = suffix.replace('-', '/') if suffix else ''
                         for log_file in proj_dir.glob("*.jsonl"):
                             if not log_file.is_file():
                                 continue
@@ -261,7 +268,9 @@ class ClaudeLogStore(LogStore):
                 project_dir = self._project_dir
             else:
                 suffix = "-".join(suffix_parts)
-                project_dir = self._projects_root / f"{self.project_folder_name}-{suffix}"
+                project_dir = (
+                    self._projects_root / f"{self.project_folder_name}-{suffix}"
+                )
 
             return project_dir / filename
 
@@ -279,7 +288,7 @@ class ClaudeCligent(Cligent):
     @property
     def name(self) -> str:
         return "claude-code"
-        
+
     @property
     def display_name(self) -> str:
         return "Claude Code"

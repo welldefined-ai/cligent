@@ -32,7 +32,9 @@ class CodexRecord(Record):
     _content: Any = field(default=None, repr=False)
 
     @classmethod
-    def load(cls, json_string: str, config: ProviderConfig = CODEX_CONFIG) -> "CodexRecord":
+    def load(
+        cls, json_string: str, config: ProviderConfig = CODEX_CONFIG
+    ) -> "CodexRecord":
         """Parse a JSON string into a CodexRecord."""
         return super().load(json_string, config)  # type: ignore[return-value]
 

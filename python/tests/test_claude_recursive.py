@@ -42,8 +42,10 @@ def test_claude_recursive_listing(tmp_path: Path) -> None:
     _write_jsonl(f2)
 
     # When recursive=True (default), both logs are listed using filenames only
-    with patch.object(Path, "home", return_value=tmp_path), \
-         patch.object(Path, "cwd", return_value=cwd_python):
+    with (
+        patch.object(Path, "home", return_value=tmp_path),
+        patch.object(Path, "cwd", return_value=cwd_python),
+    ):
         store = ClaudeLogStore()
         logs = store.list()  # default recursive
 
@@ -66,8 +68,10 @@ def test_claude_nonrecursive_listing(tmp_path: Path) -> None:
     f1 = proj_python / "only.jsonl"
     _write_jsonl(f1)
 
-    with patch.object(Path, "home", return_value=tmp_path), \
-         patch.object(Path, "cwd", return_value=cwd_python):
+    with (
+        patch.object(Path, "home", return_value=tmp_path),
+        patch.object(Path, "cwd", return_value=cwd_python),
+    ):
         store = ClaudeLogStore()
         logs = store.list(recursive=False)
 
