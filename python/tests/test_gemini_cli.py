@@ -10,7 +10,7 @@ from src.agents.gemini_cli.core import (
     GeminiRecord,
     GeminiLogFile,
     GeminiLogStore,
-    GeminiCligent
+    GeminiCligent,
 )
 from src.core.models import Role, Chat
 
@@ -25,12 +25,12 @@ class TestGeminiRecord:
             "role": "user",
             "content": "Hello, Gemini!",
             "timestamp": "2024-01-01T10:00:00Z",
-            "session_id": "test-session-123"
+            "session_id": "test-session-123",
         }
         json_string = json.dumps(json_data)
-        
+
         record = GeminiRecord.load(json_string)
-        
+
         assert record.role == "user"  # type becomes role
         assert record.content == "Hello, Gemini!"
         assert record.timestamp == "2024-01-01T10:00:00Z"
@@ -44,12 +44,12 @@ class TestGeminiRecord:
             "sender": "model",
             "text": "Hello, human!",
             "time": "1704103200",
-            "conversation_id": "conv-456"
+            "conversation_id": "conv-456",
         }
         json_string = json.dumps(json_data)
-        
+
         record = GeminiRecord.load(json_string)
-        
+
         assert record.role == "assistant"  # type becomes role
         assert record.content == "Hello, human!"
         assert record.timestamp == "1704103200"
@@ -61,12 +61,12 @@ class TestGeminiRecord:
             "type": "system",
             "role": "system",
             "message": "System initialized",
-            "created_at": "2024-01-01T12:00:00+00:00"
+            "created_at": "2024-01-01T12:00:00+00:00",
         }
         json_string = json.dumps(json_data)
-        
+
         record = GeminiRecord.load(json_string)
-        
+
         assert record.content == "System initialized"
         assert record.timestamp == "2024-01-01T12:00:00+00:00"
 
@@ -78,13 +78,11 @@ class TestGeminiRecord:
     def test_extract_message_user_role(self):
         """Test extracting message from user record."""
         record = GeminiRecord(
-            role="user",
-            content="Test message",
-            timestamp="2024-01-01T10:00:00Z"
+            role="user", content="Test message", timestamp="2024-01-01T10:00:00Z"
         )
-        
+
         message = record.extract_message()
-        
+
         assert message is not None
         assert message.role == Role.USER
         assert message.content == "Test message"
@@ -95,11 +93,11 @@ class TestGeminiRecord:
         record = GeminiRecord(
             role="model",
             content="Assistant response",
-            timestamp="1704103200"  # Unix timestamp
+            timestamp="1704103200",  # Unix timestamp
         )
-        
+
         message = record.extract_message()
-        
+
         assert message is not None
         assert message.role == Role.ASSISTANT
         assert message.content == "Assistant response"
@@ -109,61 +107,57 @@ class TestGeminiRecord:
         """Test extracting message with list content."""
         record = GeminiRecord(
             role="assistant",
-            content=[
-                {"text": "First part"},
-                "Second part",
-                {"content": "Third part"}
-            ]
+            content=[{"text": "First part"}, "Second part", {"content": "Third part"}],
         )
-        
+
         message = record.extract_message()
-        
+
         assert message is not None
         assert message.content == "First part\nSecond part\nThird part"
 
     def test_extract_message_dict_content(self):
         """Test extracting message with dict content."""
-        record = GeminiRecord(
-            role="user",
-            content={"text": "Message from dict"}
-        )
-        
+        record = GeminiRecord(role="user", content={"text": "Message from dict"})
+
         message = record.extract_message()
-        
+
         assert message is not None
         assert message.content == "Message from dict"
 
     def test_extract_message_empty_content(self):
         """Test extracting message with empty content returns None."""
-        record = GeminiRecord(
-            role="user",
-            content=""
-        )
-        
+        record = GeminiRecord(role="user", content="")
+
         message = record.extract_message()
         assert message is None
 
     def test_extract_message_invalid_timestamp(self):
         """Test extracting message with invalid timestamp."""
         record = GeminiRecord(
-            role="user",
-            content="Test",
-            timestamp="invalid-timestamp"
+            role="user", content="Test", timestamp="invalid-timestamp"
         )
-        
+
         message = record.extract_message()
-        
+
         assert message is not None
         assert message.timestamp is None
 
     def test_is_message_by_role(self):
         """Test is_message detection by record role."""
-        message_roles = ['user', 'assistant', 'system', 'human', 'ai', 'model', 'message']
-        
+        message_roles = [
+            "user",
+            "assistant",
+            "system",
+            "human",
+            "ai",
+            "model",
+            "message",
+        ]
+
         for role in message_roles:
             record = GeminiRecord(role=role, content="test")
             assert record.is_message()
-        
+
         record = GeminiRecord(role="tool_use", content="test")
         assert not record.is_message()
 
@@ -172,7 +166,7 @@ class TestGeminiRecord:
         # Valid role but empty content should return False
         record = GeminiRecord(role="user", content="")
         assert not record.is_message()
-        
+
         # Valid role with content should return True
         record = GeminiRecord(role="user", content="test")
         assert record.is_message()
@@ -188,7 +182,7 @@ class TestGeminiRecord:
             ("system", Role.SYSTEM),
             ("unknown", Role.ASSISTANT),  # Default fallback
         ]
-        
+
         for gemini_role, expected_role in role_tests:
             record = GeminiRecord(role=gemini_role, content="test")
             message = record.extract_message()
@@ -204,13 +198,13 @@ class TestGeminiRecord:
                 }
             ]
         }"""
-        
+
         record = GeminiRecord.load(google_format_json)
-        
+
         assert record.role == "user"
         assert record.content == "Hello, how are you?"
         # Google format records directly map role field
-        
+
         message = record.extract_message()
         assert message is not None
         assert message.role == Role.USER
@@ -226,10 +220,10 @@ class TestGeminiRecord:
                 }
             ]
         }"""
-        
+
         record = GeminiRecord.load(google_format_json)
         message = record.extract_message()
-        
+
         assert message.role == Role.ASSISTANT
         assert message.content == "I'm doing well, thank you!"
 
@@ -246,10 +240,10 @@ class TestGeminiRecord:
                 }
             ]
         }"""
-        
+
         record = GeminiRecord.load(google_format_json)
         message = record.extract_message()
-        
+
         assert message.content == "First part.\nSecond part."
 
     def test_google_parts_with_function_calls(self):
@@ -271,10 +265,10 @@ class TestGeminiRecord:
                 }
             ]
         }"""
-        
+
         record = GeminiRecord.load(google_format_json)
         message = record.extract_message()
-        
+
         # Should only extract text parts, skip function calls
         assert message.content == "Let me help you with that.\nHere's the result."
 
@@ -288,18 +282,18 @@ class TestGeminiLogFile:
         session_dir = tmp_path / "test_session"
         session_dir.mkdir()
         file_path = session_dir / "logs.json"
-        
+
         records = [
             {"type": "user", "content": "Hello", "session_id": "test-123"},
             {"type": "model", "content": "Hi there!"},
             {"type": "user", "content": "How are you?"},
-            {"type": "model", "content": "I'm doing well!"}
+            {"type": "model", "content": "I'm doing well!"},
         ]
-        
+
         # Write records as JSON array instead of JSONL
-        with open(file_path, 'w') as f:
+        with open(file_path, "w") as f:
             json.dump(records, f, indent=2)
-        
+
         return file_path
 
     @pytest.fixture
@@ -308,11 +302,11 @@ class TestGeminiLogFile:
         session_dir = tmp_path / "malformed_session"
         session_dir.mkdir()
         file_path = session_dir / "logs.json"
-        
+
         # Write malformed JSON content
-        with open(file_path, 'w') as f:
-            f.write('invalid json content')
-        
+        with open(file_path, "w") as f:
+            f.write("invalid json content")
+
         return file_path
 
     def test_load_valid_file(self, temp_jsonl_file):
@@ -322,7 +316,9 @@ class TestGeminiLogFile:
 
         assert len(log_file.records) == 4
         # Verify session information exists in the messages (records have session_id, not LogFile)
-        messages = [r.extract_message() for r in log_file.records if r.extract_message()]
+        messages = [
+            r.extract_message() for r in log_file.records if r.extract_message()
+        ]
         session_ids = {msg.session_id for msg in messages if msg.session_id}
         assert "test-123" in session_ids
         assert log_file.records[0].content == "Hello"
@@ -347,9 +343,9 @@ class TestGeminiLogFile:
         """Test converting session to Chat object."""
         log_file = GeminiLogFile(file_path=temp_jsonl_file)
         log_file.load()
-        
+
         chat = log_file.to_chat()
-        
+
         assert isinstance(chat, Chat)
         assert len(chat.messages) == 4
         assert chat.messages[0].role == Role.USER
@@ -362,10 +358,10 @@ class TestGeminiLogFile:
         session_dir.mkdir()
         empty_file = session_dir / "logs.json"
         empty_file.touch()
-        
+
         log_file = GeminiLogFile(file_path=empty_file)
         log_file.load()
-        
+
         assert len(log_file.records) == 0
         chat = log_file.to_chat()
         assert len(chat.messages) == 0
@@ -380,16 +376,16 @@ class TestGeminiLogStore:
         home_dir = tmp_path / "home"
         gemini_dir = home_dir / ".gemini" / "tmp"
         gemini_dir.mkdir(parents=True)
-        
+
         # Create some test session directories with logs.json files
         session1_dir = gemini_dir / "session1"
         session1_dir.mkdir()
         (session1_dir / "logs.json").write_text('{"content": "test1"}')
-        
+
         session2_dir = gemini_dir / "session2"
         session2_dir.mkdir()
         (session2_dir / "logs.json").write_text('{"content": "test2"}')
-        
+
         return home_dir
 
     def test_init_with_default_location(self):
@@ -404,15 +400,15 @@ class TestGeminiLogStore:
 
     def test_list_logs(self, mock_home_dir):
         """Test listing available logs."""
-        with patch('pathlib.Path.home', return_value=mock_home_dir):
+        with patch("pathlib.Path.home", return_value=mock_home_dir):
             store = GeminiLogStore()
             logs = store.list()
-        
+
         assert len(logs) == 2
         log_uris = [log[0] for log in logs]
         assert "session1/logs.json" in log_uris
         assert "session2/logs.json" in log_uris
-        
+
         # Check metadata structure
         metadata = logs[0][1]
         assert "size" in metadata
@@ -424,68 +420,68 @@ class TestGeminiLogStore:
     def test_list_logs_no_directory(self, tmp_path):
         """Test listing logs when directory doesn't exist."""
         fake_home = tmp_path / "fake_home"
-        with patch('pathlib.Path.home', return_value=fake_home):
+        with patch("pathlib.Path.home", return_value=fake_home):
             store = GeminiLogStore()
             logs = store.list()
-        
+
         assert logs == []
 
     def test_get_log_by_session_id(self, mock_home_dir):
         """Test retrieving log content by session ID."""
-        with patch('pathlib.Path.home', return_value=mock_home_dir):
+        with patch("pathlib.Path.home", return_value=mock_home_dir):
             store = GeminiLogStore()
             content = store.get("session1")
-        
+
         assert content == '{"content": "test1"}'
 
     def test_get_log_by_full_path(self, mock_home_dir):
         """Test retrieving log content by full path."""
         log_path = mock_home_dir / ".gemini" / "tmp" / "session1" / "logs.json"
-        
-        with patch('pathlib.Path.home', return_value=mock_home_dir):
+
+        with patch("pathlib.Path.home", return_value=mock_home_dir):
             store = GeminiLogStore()
             content = store.get(str(log_path))
-        
+
         assert content == '{"content": "test1"}'
 
     def test_get_nonexistent_log(self, mock_home_dir):
         """Test retrieving non-existent log raises FileNotFoundError."""
-        with patch('pathlib.Path.home', return_value=mock_home_dir):
+        with patch("pathlib.Path.home", return_value=mock_home_dir):
             store = GeminiLogStore()
-            
+
             with pytest.raises(FileNotFoundError, match="Session log file not found"):
                 store.get("nonexistent")
 
     def test_live_log(self, mock_home_dir):
         """Test getting most recent log."""
-        with patch('pathlib.Path.home', return_value=mock_home_dir):
+        with patch("pathlib.Path.home", return_value=mock_home_dir):
             store = GeminiLogStore()
             live_log = store.live()
-        
+
         # Should return one of the sessions with new URI format
         assert live_log in ["session1/logs.json", "session2/logs.json"]
 
     def test_live_log_no_logs(self, tmp_path):
         """Test getting live log when no logs exist."""
         fake_home = tmp_path / "fake_home"
-        with patch('pathlib.Path.home', return_value=fake_home):
+        with patch("pathlib.Path.home", return_value=fake_home):
             store = GeminiLogStore()
             live_log = store.live()
-        
+
         assert live_log is None
 
     def test_fallback_directories(self, tmp_path):
         """Test fallback to different log directories."""
         home_dir = tmp_path / "home"
-        
+
         # Test fallback to logs directory when tmp doesn't exist
         logs_dir = home_dir / ".gemini" / "logs"
         logs_dir.mkdir(parents=True)
         test_session_dir = logs_dir / "test_session"
         test_session_dir.mkdir()
         (test_session_dir / "logs.json").write_text('{"test": "data"}')
-        
-        with patch('pathlib.Path.home', return_value=home_dir):
+
+        with patch("pathlib.Path.home", return_value=home_dir):
             store = GeminiLogStore()
             assert store._logs_dir == logs_dir
             logs = store.list()
@@ -495,15 +491,15 @@ class TestGeminiLogStore:
         """Test directory selection follows expected priority."""
         home_dir = tmp_path / "home"
         gemini_base = home_dir / ".gemini"
-        
+
         # Test that when logs directory exists, it's selected over sessions
         logs_dir = gemini_base / "logs"
         logs_dir.mkdir(parents=True)
         test_session_dir = logs_dir / "test_session"
         test_session_dir.mkdir()
         (test_session_dir / "logs.json").write_text('{"test": "data"}')
-        
-        with patch('pathlib.Path.home', return_value=home_dir):
+
+        with patch("pathlib.Path.home", return_value=home_dir):
             store = GeminiLogStore()
             assert store._logs_dir == logs_dir
             logs = store.list()
@@ -514,35 +510,39 @@ class TestGeminiLogStore:
         home_dir = tmp_path / "home"
         gemini_dir = home_dir / ".gemini" / "tmp"
         gemini_dir.mkdir(parents=True)
-        
+
         # Create session with multiple files
         session_dir = gemini_dir / "session-123"
         session_dir.mkdir()
-        
+
         # Main logs.json
         (session_dir / "logs.json").write_text('[{"type": "user", "content": "Hello"}]')
         # Checkpoint files
-        (session_dir / "checkpoint-python-basics.json").write_text('[{"type": "user", "content": "Python help"}]')
-        (session_dir / "checkpoint-final.json").write_text('[{"type": "model", "content": "Summary"}]')
-        
-        with patch('pathlib.Path.home', return_value=home_dir):
+        (session_dir / "checkpoint-python-basics.json").write_text(
+            '[{"type": "user", "content": "Python help"}]'
+        )
+        (session_dir / "checkpoint-final.json").write_text(
+            '[{"type": "model", "content": "Summary"}]'
+        )
+
+        with patch("pathlib.Path.home", return_value=home_dir):
             store = GeminiLogStore()
             logs = store.list()
-        
+
         # Should find all JSON files
         assert len(logs) == 3
-        
+
         # Check that URIs use <uuid>/<filename> format
         log_uris = [log[0] for log in logs]
         expected_uris = [
             "session-123/logs.json",
-            "session-123/checkpoint-python-basics.json", 
-            "session-123/checkpoint-final.json"
+            "session-123/checkpoint-python-basics.json",
+            "session-123/checkpoint-final.json",
         ]
-        
+
         for expected_uri in expected_uris:
             assert expected_uri in log_uris
-        
+
         # Check metadata includes file information
         for uri, metadata in logs:
             assert "file_name" in metadata
@@ -554,20 +554,20 @@ class TestGeminiLogStore:
         home_dir = tmp_path / "home"
         gemini_dir = home_dir / ".gemini" / "tmp"
         gemini_dir.mkdir(parents=True)
-        
+
         session_dir = gemini_dir / "session-456"
         session_dir.mkdir()
-        
+
         checkpoint_content = '[{"type": "user", "content": "Checkpoint test"}]'
         (session_dir / "checkpoint-test.json").write_text(checkpoint_content)
-        
-        with patch('pathlib.Path.home', return_value=home_dir):
+
+        with patch("pathlib.Path.home", return_value=home_dir):
             store = GeminiLogStore()
-            
+
             # Test new URI format
             content = store.get("session-456/checkpoint-test.json")
             assert content == checkpoint_content
-            
+
             # Test that old format still works (backward compatibility)
             main_content = '[{"type": "user", "content": "Main conversation"}]'
             (session_dir / "logs.json").write_text(main_content)
@@ -579,22 +579,24 @@ class TestGeminiLogStore:
         home_dir = tmp_path / "home"
         gemini_dir = home_dir / ".gemini" / "tmp"
         gemini_dir.mkdir(parents=True)
-        
+
         session_dir = gemini_dir / "session-789"
         session_dir.mkdir()
-        
+
         checkpoint_data = [
             {"type": "user", "content": "Checkpoint message 1"},
-            {"type": "model", "content": "Checkpoint response 1"}
+            {"type": "model", "content": "Checkpoint response 1"},
         ]
-        (session_dir / "checkpoint-conversation.json").write_text(json.dumps(checkpoint_data))
-        
-        with patch('pathlib.Path.home', return_value=home_dir):
+        (session_dir / "checkpoint-conversation.json").write_text(
+            json.dumps(checkpoint_data)
+        )
+
+        with patch("pathlib.Path.home", return_value=home_dir):
             agent = GeminiCligent()
-            
+
             # Parse using the new URI format
             chat = agent.parse("session-789/checkpoint-conversation.json")
-            
+
             assert len(chat.messages) == 2
             assert chat.messages[0].content == "Checkpoint message 1"
             assert chat.messages[1].content == "Checkpoint response 1"
@@ -606,13 +608,13 @@ class TestGeminiCligent:
     def test_agent_properties(self):
         """Test agent properties."""
         agent = GeminiCligent()
-        
+
         assert agent.name == "gemini-cli"
         assert agent.display_name == "Gemini CLI"
-        
+
     def test_store_creation(self):
         """Test that agent has a store."""
         agent = GeminiCligent()
-        
+
         assert agent.store is not None
         assert isinstance(agent.store, GeminiLogStore)

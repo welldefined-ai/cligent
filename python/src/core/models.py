@@ -13,20 +13,21 @@ from enum import Enum
 
 def _strip_ansi_codes(text: str) -> str:
     """Strip ANSI escape codes from text to ensure YAML compatibility.
-    
+
     Args:
         text: Text that may contain ANSI escape codes
-        
+
     Returns:
         Text with ANSI escape codes removed
     """
     # ANSI escape sequence pattern: ESC[ followed by parameter bytes and final byte
-    ansi_pattern = re.compile(r'\x1b\[[0-9;]*[A-Za-z]')
-    return ansi_pattern.sub('', text)
+    ansi_pattern = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
+    return ansi_pattern.sub("", text)
 
 
 class Role(Enum):
     """Message participant roles."""
+
     SYSTEM = "system"
     USER = "user"
     ASSISTANT = "assistant"
@@ -48,21 +49,28 @@ class ProviderConfig:
         """Set default values if not provided."""
         if not self.role_mappings:
             self.role_mappings = {
-                'user': Role.USER,
-                'assistant': Role.ASSISTANT,
-                'model': Role.ASSISTANT,
-                'system': Role.SYSTEM,
-                'human': Role.USER,
-                'ai': Role.ASSISTANT,
+                "user": Role.USER,
+                "assistant": Role.ASSISTANT,
+                "model": Role.ASSISTANT,
+                "system": Role.SYSTEM,
+                "human": Role.USER,
+                "ai": Role.ASSISTANT,
             }
 
         if not self.message_roles:
             self.message_roles = {
-                'user', 'assistant', 'system', 'human', 'ai', 'model', 'message', 'unknown'
+                "user",
+                "assistant",
+                "system",
+                "human",
+                "ai",
+                "model",
+                "message",
+                "unknown",
             }
 
         if not self.skip_roles:
-            self.skip_roles = {'tool_use', 'tool_result', 'checkpoint'}
+            self.skip_roles = {"tool_use", "tool_result", "checkpoint"}
 
         if not self.log_patterns:
             self.log_patterns = ["*.json", "*.jsonl"]
@@ -79,7 +87,7 @@ class Message:
     raw_data: Dict[str, Any] = field(default_factory=dict)
     timestamp: Optional[datetime] = None
     session_id: Optional[str] = None
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert message to dictionary representation."""
         return {
@@ -89,48 +97,50 @@ class Message:
             "provider": self.provider,
             "raw_data": self.raw_data,
             "session_id": self.session_id,
-            "log_uri": self.log_uri
+            "log_uri": self.log_uri,
         }
-    
+
     def __str__(self) -> str:
         """String representation for display."""
-        timestamp_str = f" [{self.timestamp.strftime('%H:%M:%S')}]" if self.timestamp else ""
+        timestamp_str = (
+            f" [{self.timestamp.strftime('%H:%M:%S')}]" if self.timestamp else ""
+        )
         return f"{self.role.value.upper()}{timestamp_str}: {self.content}"
 
 
 @dataclass
 class Chat:
     """A collection of messages."""
-    
+
     messages: List[Message] = field(default_factory=list)
-    
+
     def add(self, message: Message) -> None:
         """Include a message in the chat."""
         self.messages.append(message)
-    
+
     def remove(self, message: Message) -> None:
         """Exclude a message from the chat."""
         if message in self.messages:
             self.messages.remove(message)
-    
-    def merge(self, other: 'Chat') -> 'Chat':
+
+    def merge(self, other: "Chat") -> "Chat":
         """Combine with another chat."""
         merged_messages = self.messages + other.messages
         # Sort by timestamp if available
         merged_messages.sort(key=lambda m: m.timestamp or datetime.min)
         return Chat(messages=merged_messages)
-    
+
     def export(self) -> str:
         """Output as Tigs YAML format with human-readable content blocks."""
-        
+
         # Build the YAML manually for better control over formatting
         lines = []
         lines.append("schema: tigs.chat/v1")
         lines.append("messages:")
-        
+
         for message in self.messages:
             lines.append(f"- role: {message.role.value}")
-            
+
             # Always use literal block style for content
             lines.append("  content: |")
             # Strip ANSI codes to ensure YAML compatibility
@@ -143,32 +153,35 @@ class Chat:
             else:
                 # Handle empty content
                 lines.append(f"    {clean_content}")
-            
+
             # Add timestamp if available
             if message.timestamp:
-                lines.append(f"  timestamp: '{message.timestamp.strftime('%Y-%m-%dT%H:%M:%SZ')}'")
+                lines.append(
+                    f"  timestamp: '{message.timestamp.strftime('%Y-%m-%dT%H:%M:%SZ')}'"
+                )
 
             # Add log_uri
             lines.append(f"  log_uri: '{message.log_uri}'")
 
-
-        return '\n'.join(lines)
+        return "\n".join(lines)
 
 
 @dataclass
 class ErrorReport:
     """Information on a parsing failure."""
-    
+
     error: str
     log: str
     location: Optional[str] = None
     recoverable: bool = True
-    
+
     def __str__(self) -> str:
         """Format error for display."""
         location_str = f" at {self.location}" if self.location else ""
         recovery_str = " (recoverable)" if self.recoverable else " (fatal)"
-        return f"Error{location_str}: {self.error}{recovery_str}\nLog snippet: {self.log}"
+        return (
+            f"Error{location_str}: {self.error}{recovery_str}\nLog snippet: {self.log}"
+        )
 
 
 @dataclass
@@ -176,10 +189,12 @@ class Record(ABC):
     """Base class for provider-specific records."""
 
     raw_data: Dict[str, Any] = field(default_factory=dict)
-    config: ProviderConfig = field(default_factory=lambda: ProviderConfig("base", "Base", ".base"))
+    config: ProviderConfig = field(
+        default_factory=lambda: ProviderConfig("base", "Base", ".base")
+    )
 
     @classmethod
-    def load(cls, json_string: str, config: ProviderConfig) -> 'Record':
+    def load(cls, json_string: str, config: ProviderConfig) -> "Record":
         """Parse a JSON string into a Record."""
         try:
             data = json.loads(json_string)
@@ -215,8 +230,7 @@ class Record(ABC):
             return None
 
         role = self.config.role_mappings.get(
-            self.get_role().lower() if self.get_role() else '',
-            Role.ASSISTANT
+            self.get_role().lower() if self.get_role() else "", Role.ASSISTANT
         )
 
         content = self._process_content(self.get_content())
@@ -231,7 +245,7 @@ class Record(ABC):
             provider=self.config.name,
             log_uri=log_uri,
             timestamp=timestamp,
-            raw_data=self.raw_data
+            raw_data=self.raw_data,
         )
 
     def is_message(self) -> bool:
@@ -241,9 +255,9 @@ class Record(ABC):
 
         has_content = bool(str(content).strip()) if content else False
         valid_role = (
-            role and
-            role.lower() in self.config.message_roles and
-            role.lower() not in self.config.skip_roles
+            role
+            and role.lower() in self.config.message_roles
+            and role.lower() not in self.config.skip_roles
         )
 
         return bool(valid_role and has_content)
@@ -254,7 +268,7 @@ class Record(ABC):
             content_parts = []
             for item in content:
                 if isinstance(item, dict):
-                    text = item.get('text', item.get('content', ''))
+                    text = item.get("text", item.get("content", ""))
                 elif isinstance(item, str):
                     text = item
                 else:
@@ -263,9 +277,9 @@ class Record(ABC):
                 if text and text.strip():
                     content_parts.append(text.strip())
 
-            return '\n'.join(content_parts)
+            return "\n".join(content_parts)
         elif isinstance(content, dict):
-            text_content = content.get('text', content.get('content', str(content)))
+            text_content = content.get("text", content.get("content", str(content)))
             return str(text_content)
 
         return str(content).strip() if content else ""
@@ -277,16 +291,15 @@ class Record(ABC):
 
         try:
             # Handle various timestamp formats
-            if timestamp_str.endswith('Z'):
-                return datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
-            elif '+' in timestamp_str or '-' in timestamp_str[-6:]:
+            if timestamp_str.endswith("Z"):
+                return datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
+            elif "+" in timestamp_str or "-" in timestamp_str[-6:]:
                 return datetime.fromisoformat(timestamp_str)
             else:
                 # Try parsing as Unix timestamp
                 return datetime.fromtimestamp(float(timestamp_str))
         except (ValueError, AttributeError):
             return None
-
 
 
 @dataclass
@@ -304,7 +317,7 @@ class LogFile:
 
         self.records.clear()
         try:
-            with open(self.file_path, 'r', encoding='utf-8') as f:
+            with open(self.file_path, "r", encoding="utf-8") as f:
                 content = f.read().strip()
                 if not content:
                     return
@@ -342,7 +355,7 @@ class LogFile:
 
     def _load_jsonl(self, content: str) -> None:
         """Load JSONL format."""
-        for line_num, line in enumerate(content.split('\n'), 1):
+        for line_num, line in enumerate(content.split("\n"), 1):
             line = line.strip()
             if not line:
                 continue
@@ -357,7 +370,6 @@ class LogFile:
     def _create_record(self, json_string: str) -> Record:
         """Create a record instance - implemented by subclasses."""
         pass
-
 
     def to_chat(self, log_uri: str = "") -> Chat:
         """Convert session records to a Chat object."""
@@ -389,7 +401,7 @@ class LogStore:
             base_dir / "logs",
             base_dir / "sessions",
             base_dir / "conversations",
-            base_dir
+            base_dir,
         ]
 
         for dir_path in possible_dirs:
@@ -434,7 +446,9 @@ class LogStore:
 
         return logs
 
-    def _scan_session_directory(self, session_dir: Path) -> List[Tuple[str, Dict[str, Any]]]:
+    def _scan_session_directory(
+        self, session_dir: Path
+    ) -> List[Tuple[str, Dict[str, Any]]]:
         """Scan a session directory for log files."""
         logs = []
         session_id = session_dir.name
@@ -444,10 +458,9 @@ class LogStore:
                 if log_file.is_file():
                     uri = f"{session_id}/{log_file.name}"
                     metadata = self._create_file_metadata(log_file)
-                    metadata.update({
-                        "file_name": log_file.name,
-                        "session_id": session_id
-                    })
+                    metadata.update(
+                        {"file_name": log_file.name, "session_id": session_id}
+                    )
                     logs.append((uri, metadata))
 
         return logs
@@ -455,10 +468,7 @@ class LogStore:
     def _create_log_entry(self, log_file: Path) -> Tuple[str, Dict[str, Any]]:
         """Create a log entry tuple."""
         metadata = self._create_file_metadata(log_file)
-        metadata.update({
-            "file_name": log_file.name,
-            "session_id": log_file.stem
-        })
+        metadata.update({"file_name": log_file.name, "session_id": log_file.stem})
         return (log_file.name, metadata)
 
     def _create_file_metadata(self, file_path: Path) -> Dict[str, Any]:
@@ -467,7 +477,7 @@ class LogStore:
         return {
             "size": stat.st_size,
             "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
-            "accessible": file_path.is_file() and os.access(file_path, os.R_OK)
+            "accessible": file_path.is_file() and os.access(file_path, os.R_OK),
         }
 
     def get(self, log_uri: str) -> str:
@@ -478,7 +488,7 @@ class LogStore:
             if not log_path.exists():
                 raise FileNotFoundError(f"Session log file not found: {log_uri}")
 
-            with open(log_path, 'r', encoding='utf-8') as f:
+            with open(log_path, "r", encoding="utf-8") as f:
                 return f.read()
 
         except (OSError, PermissionError, UnicodeDecodeError) as e:
@@ -516,5 +526,5 @@ class LogStore:
         if not logs:
             return None
 
-        sorted_logs = sorted(logs, key=lambda x: x[1].get('modified', ''), reverse=True)
+        sorted_logs = sorted(logs, key=lambda x: x[1].get("modified", ""), reverse=True)
         return sorted_logs[0][0] if sorted_logs else None

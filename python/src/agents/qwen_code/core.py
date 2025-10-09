@@ -4,7 +4,15 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 
-from ...core.models import Message, Chat, Role, LogStore, Record, LogFile, ProviderConfig
+from ...core.models import (
+    Message,
+    Chat,
+    Role,
+    LogStore,
+    Record,
+    LogFile,
+    ProviderConfig,
+)
 from ...cligent import Cligent
 
 
@@ -14,15 +22,15 @@ QWEN_CONFIG = ProviderConfig(
     display_name="Qwen Code",
     home_dir=".qwen",
     role_mappings={
-        'user': Role.USER,
-        'assistant': Role.ASSISTANT,
-        'model': Role.ASSISTANT,
-        'qwen': Role.ASSISTANT,
-        'system': Role.SYSTEM,
-        'human': Role.USER,
-        'ai': Role.ASSISTANT,
+        "user": Role.USER,
+        "assistant": Role.ASSISTANT,
+        "model": Role.ASSISTANT,
+        "qwen": Role.ASSISTANT,
+        "system": Role.SYSTEM,
+        "human": Role.USER,
+        "ai": Role.ASSISTANT,
     },
-    log_patterns=["*.json", "*.jsonl"]
+    log_patterns=["*.json", "*.jsonl"],
 )
 
 
@@ -36,25 +44,39 @@ class QwenRecord(Record):
     session_id: Optional[str] = None
 
     @classmethod
-    def load(cls, json_string: str, config: ProviderConfig = QWEN_CONFIG) -> 'QwenRecord':
+    def load(
+        cls, json_string: str, config: ProviderConfig = QWEN_CONFIG
+    ) -> "QwenRecord":
         """Parse a JSON string into a QwenRecord."""
         return super().load(json_string, config)  # type: ignore[return-value]
 
     def _post_load(self, data: Dict[str, Any]) -> None:
         """Extract Qwen-specific fields."""
         # Handle Google conversation format (checkpoint files)
-        if 'role' in data and 'parts' in data:
+        if "role" in data and "parts" in data:
             # Google format: {"role": "user", "parts": [{"text": "..."}]}
-            self.role = data.get('role', '')
-            self.content = self._extract_parts_content(data.get('parts', []))
-            self.timestamp = ''  # No timestamp in Google format
-            self.session_id = ''
+            self.role = data.get("role", "")
+            self.content = self._extract_parts_content(data.get("parts", []))
+            self.timestamp = ""  # No timestamp in Google format
+            self.session_id = ""
         else:
             # Legacy JSONL format - prioritize type/messageType fields for role
-            self.role = data.get('type', data.get('messageType', data.get('role', data.get('sender', data.get('from', 'unknown')))))
-            self.content = data.get('content', data.get('text', data.get('message', '')))
-            self.timestamp = data.get('timestamp', data.get('time', data.get('created_at', '')))
-            self.session_id = data.get('session_id', data.get('sessionId', data.get('conversationId', '')))
+            self.role = data.get(
+                "type",
+                data.get(
+                    "messageType",
+                    data.get("role", data.get("sender", data.get("from", "unknown"))),
+                ),
+            )
+            self.content = data.get(
+                "content", data.get("text", data.get("message", ""))
+            )
+            self.timestamp = data.get(
+                "timestamp", data.get("time", data.get("created_at", ""))
+            )
+            self.session_id = data.get(
+                "session_id", data.get("sessionId", data.get("conversationId", ""))
+            )
 
     def get_role(self) -> str:
         return self.role
@@ -71,13 +93,15 @@ class QwenRecord(Record):
         for part in parts:
             if isinstance(part, dict):
                 # Extract text from parts
-                if 'text' in part:
-                    text = part['text'].strip()
+                if "text" in part:
+                    text = part["text"].strip()
                     if text:
                         content_parts.append(text)
                 # Skip function calls and other non-text parts for now
 
-        return ''.join(content_parts)  # Join without separator for Qwen (parts are often single chars)
+        return "".join(
+            content_parts
+        )  # Join without separator for Qwen (parts are often single chars)
 
     def extract_message(self, log_uri: str = "") -> Optional[Message]:
         """Get a Message from this record, if applicable."""
@@ -89,11 +113,9 @@ class QwenRecord(Record):
         return message
 
 
-
 @dataclass
 class QwenLogFile(LogFile):
     """A complete JSONL log file representing a Qwen Code chat."""
-
 
     def __init__(self, file_path: Path):
         super().__init__(file_path, QWEN_CONFIG)
@@ -101,9 +123,6 @@ class QwenLogFile(LogFile):
     def _create_record(self, json_string: str) -> Record:
         """Create a Qwen Record instance."""
         return QwenRecord.load(json_string)
-
-
-
 
 
 class QwenLogStore(LogStore):
@@ -116,12 +135,16 @@ class QwenLogStore(LogStore):
         """
         super().__init__(QWEN_CONFIG)
 
-
     def _resolve_log_path(self, log_uri: str) -> Path:
         """Resolve log URI to file path for Qwen's structure."""
         # Treat filenames with extensions directly within logs dir
         candidate = Path(log_uri)
-        if candidate.suffix in {".json", ".jsonl"} and not log_uri.startswith("/") and "\\" not in log_uri and "/" not in log_uri:
+        if (
+            candidate.suffix in {".json", ".jsonl"}
+            and not log_uri.startswith("/")
+            and "\\" not in log_uri
+            and "/" not in log_uri
+        ):
             resolved = self._logs_dir / candidate
             if resolved.exists():
                 return resolved
@@ -152,7 +175,6 @@ class QwenLogStore(LogStore):
                 return json_path  # Will fail with proper error message
 
 
-
 class QwenCligent(Cligent):
     """Qwen Code agent implementation."""
 
@@ -163,7 +185,7 @@ class QwenCligent(Cligent):
     @property
     def name(self) -> str:
         return "qwen-code"
-        
+
     @property
     def display_name(self) -> str:
         return "Qwen Code"
@@ -189,7 +211,7 @@ class QwenCligent(Cligent):
             # Legacy: just session ID, try JSON first, then JSONL
             json_path = self.store._logs_dir / log_uri / "logs.json"
             jsonl_path = self.store._logs_dir / f"{log_uri}.jsonl"
-            
+
             if json_path.exists():
                 file_path = json_path
             elif jsonl_path.exists():
@@ -200,4 +222,3 @@ class QwenCligent(Cligent):
         log_file = QwenLogFile(file_path=file_path)
         log_file.load()
         return log_file.to_chat(log_uri=log_uri)
-

@@ -24,10 +24,10 @@ def mock_home():
 @pytest.fixture
 def parser(mock_home):
     """ChatParser configured with mock Claude environment."""
-    mock_cwd = Path('/home/user/projects/myproject/python')
-    with patch.object(Path, 'home', return_value=mock_home), \
-         patch.object(Path, 'cwd', return_value=mock_cwd):
-        yield ChatParser('claude-code')
+    mock_cwd = Path("/home/user/projects/myproject/python")
+    with patch.object(Path, "home", return_value=mock_home), \
+         patch.object(Path, "cwd", return_value=mock_cwd):
+        yield ChatParser("claude-code")
 
 
 class TestChatParserReal:
@@ -124,6 +124,7 @@ class TestChatParserReal:
         assert "role: user" in result
         # Should have 2 selected messages
         import yaml
+
         tigs_data = yaml.safe_load(result)
         assert len(tigs_data["messages"]) == 2
 
@@ -158,7 +159,7 @@ class TestChatParserReal:
 
         result = parser.compose()
         assert "create a list in Python" in result  # From simple_log
-        assert "hello world program" in result      # From system_log
+        assert "hello world program" in result  # From system_log
 
 
 class TestSessionIDFunctionality:
@@ -197,15 +198,19 @@ class TestSessionIDFunctionality:
         from pathlib import Path
 
         mock_home = Path(__file__).parent / "mock_claude_home"
-        
+
         # Test with different project directories
-        with patch.object(Path, 'home', return_value=mock_home):
+        with patch.object(Path, "home", return_value=mock_home):
             # Mock different working directories to simulate different projects
-            with patch.object(Path, 'cwd', return_value=Path("/home/user/projects/myproject")):
+            with patch.object(
+                Path, "cwd", return_value=Path("/home/user/projects/myproject")
+            ):
                 parent_parser = ChatParser("claude-code")
                 parent_logs = parent_parser.list_logs(recursive=False)
 
-            with patch.object(Path, 'cwd', return_value=Path("/home/user/projects/myproject/python")):
+            with patch.object(
+                Path, "cwd", return_value=Path("/home/user/projects/myproject/python")
+            ):
                 python_parser = ChatParser("claude-code")
                 python_logs = python_parser.list_logs(recursive=False)
 
@@ -224,7 +229,7 @@ class TestPlanHandling:
     def test_exit_plan_mode_detection(self):
         """Test that ExitPlanMode tool use is correctly detected."""
         from src.agents.claude_code.core import ClaudeRecord as Record
-        
+
         # Mock ExitPlanMode record
         exit_plan_data = {
             "type": "assistant",
@@ -232,32 +237,27 @@ class TestPlanHandling:
             "message": {
                 "role": "assistant",
                 "content": [
-                    {
-                        "type": "text", 
-                        "text": "Let me create a plan:"
-                    },
+                    {"type": "text", "text": "Let me create a plan:"},
                     {
                         "type": "tool_use",
                         "id": "tool-id",
                         "name": "ExitPlanMode",
                         "input": {
                             "plan": "## Test Plan\n\n1. Do something\n2. Do something else"
-                        }
-                    }
-                ]
+                        },
+                    },
+                ],
             },
-            "timestamp": "2024-01-01T12:00:00Z"
+            "timestamp": "2024-01-01T12:00:00Z",
         }
-        
+
         record = Record(
-            type="assistant",
-            raw_data=exit_plan_data,
-            timestamp="2024-01-01T12:00:00Z"
+            type="assistant", raw_data=exit_plan_data, timestamp="2024-01-01T12:00:00Z"
         )
-        
+
         # Test detection
         assert record.is_exit_plan_mode()
-        
+
         # Test message extraction
         message = record.extract_message()
         assert message is not None
@@ -265,11 +265,10 @@ class TestPlanHandling:
         assert "📋 **Plan Proposal**" in message.content
         assert "## Test Plan" in message.content
 
-
     def test_regular_assistant_message_with_plan_present(self):
         """Test that assistant messages with ExitPlanMode are converted to plan messages."""
         from src.agents.claude_code.core import ClaudeRecord as Record
-        
+
         # Mock assistant message that contains both text and ExitPlanMode
         mixed_data = {
             "type": "assistant",
@@ -277,24 +276,19 @@ class TestPlanHandling:
             "message": {
                 "role": "assistant",
                 "content": [
+                    {"type": "text", "text": "I'll create a plan for this task:"},
                     {
-                        "type": "text",
-                        "text": "I'll create a plan for this task:"
-                    },
-                    {
-                        "type": "tool_use", 
+                        "type": "tool_use",
                         "name": "ExitPlanMode",
-                        "input": {
-                            "plan": "## My Plan\nStep 1\nStep 2"
-                        }
-                    }
-                ]
-            }
+                        "input": {"plan": "## My Plan\nStep 1\nStep 2"},
+                    },
+                ],
+            },
         }
-        
+
         record = Record(type="assistant", raw_data=mixed_data)
         message = record.extract_message()
-        
+
         # Should extract as plan message, not regular text message
         assert message is not None
         assert "📋 **Plan Proposal**" in message.content
@@ -303,28 +297,30 @@ class TestPlanHandling:
     def test_regular_message_without_plan_tools(self):
         """Test that regular messages without plan tools are processed normally."""
         from src.agents.claude_code.core import ClaudeRecord as Record
-        
+
         # Mock regular assistant message
         regular_data = {
-            "type": "assistant", 
+            "type": "assistant",
             "uuid": "test-uuid",
             "message": {
                 "role": "assistant",
                 "content": [
                     {
                         "type": "text",
-                        "text": "This is a regular message without any planning tools."
+                        "text": "This is a regular message without any planning tools.",
                     }
-                ]
-            }
+                ],
+            },
         }
-        
+
         record = Record(type="assistant", raw_data=regular_data)
         message = record.extract_message()
-        
+
         assert message is not None
         assert message.role == Role.ASSISTANT
-        assert message.content == "This is a regular message without any planning tools."
+        assert (
+            message.content == "This is a regular message without any planning tools."
+        )
 
 
 class TestClaudeImplementation:
@@ -362,13 +358,17 @@ class TestClaudeImplementation:
         log_file.load()
 
         # Verify session information exists in the messages
-        messages = [r.extract_message() for r in log_file.records if r.extract_message()]
+        messages = [
+            r.extract_message() for r in log_file.records if r.extract_message()
+        ]
         _session_ids = {msg.session_id for msg in messages if msg.session_id}
         # Note: Claude doesn't currently set session_id on messages, but structure is in place
         # Verify summary record exists
-        summary_records = [r for r in log_file.records if hasattr(r, 'type') and r.type == 'summary']
+        summary_records = [
+            r for r in log_file.records if hasattr(r, "type") and r.type == "summary"
+        ]
         assert len(summary_records) == 1
-        assert "Simple test chat" in summary_records[0].raw_data.get('summary', '')
+        assert "Simple test chat" in summary_records[0].raw_data.get("summary", "")
         assert len(log_file.records) == 5  # 4 messages + 1 summary
 
         chat = log_file.to_chat()
@@ -377,8 +377,8 @@ class TestClaudeImplementation:
     def test_claude_store_operations(self, mock_home):
         """Test ClaudeStore file operations."""
         mock_cwd = Path("/home/user/projects/myproject/python")
-        with patch.object(Path, 'home', return_value=mock_home), \
-             patch.object(Path, 'cwd', return_value=mock_cwd):
+        with patch.object(Path, "home", return_value=mock_home), \
+             patch.object(Path, "cwd", return_value=mock_cwd):
             store = ClaudeLogStore()
 
             # Test listing
@@ -389,7 +389,7 @@ class TestClaudeImplementation:
             first_log_uri, metadata = logs[0]
             content = store.get(first_log_uri)
             assert len(content) > 0
-            assert content.count('\n') >= 0  # Should have newlines
+            assert content.count("\n") >= 0  # Should have newlines
 
             # Test live log
             live_uri = store.live()
@@ -414,7 +414,7 @@ class TestClaudeImplementation:
         for i, expected_content in enumerate(expected_text_messages):
             assert expected_content in chat.messages[i].content
             # Ensure no tool JSON artifacts remain
-            assert not chat.messages[i].content.strip().startswith('[{')
+            assert not chat.messages[i].content.strip().startswith("[{")
 
     def test_mixed_content_messages(self) -> None:
         """Test messages with both text and tool content extract only text."""
@@ -422,23 +422,23 @@ class TestClaudeImplementation:
 
         # Simulate a message with both text and tool_use blocks
         mixed_data = {
-            'type': 'assistant',
-            'message': {
-                'content': [
-                    {'type': 'text', 'text': 'Let me help you with that.'},
-                    {'type': 'tool_use', 'id': 'test', 'name': 'Bash'},
+            "type": "assistant",
+            "message": {
+                "content": [
+                    {"type": "text", "text": "Let me help you with that."},
+                    {"type": "tool_use", "id": "test", "name": "Bash"},
                 ]
             },
-            'uuid': 'test',
+            "uuid": "test",
         }
 
-        record = Record(type='assistant', raw_data=mixed_data)
+        record = Record(type="assistant", raw_data=mixed_data)
         message = record.extract_message()
 
         # Should extract only the text part
         assert message is not None
         assert message.content == "Let me help you with that."
-        assert 'tool_use' not in message.content
+        assert "tool_use" not in message.content
 
 
 class TestErrorHandling:
@@ -474,7 +474,7 @@ class TestErrorHandling:
     def test_file_permission_errors(self):
         """Test handling file access errors."""
         # Mock current working directory to nonexistent path
-        with patch.object(Path, 'cwd', return_value=Path("/nonexistent/directory")):
+        with patch.object(Path, "cwd", return_value=Path("/nonexistent/directory")):
             store = ClaudeLogStore()
 
         # Should return empty list, not raise error
@@ -500,7 +500,7 @@ class TestMessageAndChatMethods:
             log_uri="/test/path",
             timestamp=datetime(2024, 1, 1, 12, 0, 0),
             raw_data={"test": "value"},
-            session_id="test_session"
+            session_id="test_session",
         )
 
         # Test string formatting
@@ -520,9 +520,24 @@ class TestMessageAndChatMethods:
 
     def test_chat_operations(self):
         """Test Chat add, remove, merge operations."""
-        msg1 = Message(role=Role.USER, content="First message", provider="test", log_uri="/test/path1")
-        msg2 = Message(role=Role.ASSISTANT, content="Second message", provider="test", log_uri="/test/path2")
-        msg3 = Message(role=Role.USER, content="Third message", provider="test", log_uri="/test/path3")
+        msg1 = Message(
+            role=Role.USER,
+            content="First message",
+            provider="test",
+            log_uri="/test/path1",
+        )
+        msg2 = Message(
+            role=Role.ASSISTANT,
+            content="Second message",
+            provider="test",
+            log_uri="/test/path2",
+        )
+        msg3 = Message(
+            role=Role.USER,
+            content="Third message",
+            provider="test",
+            log_uri="/test/path3",
+        )
 
         # Test adding messages
         chat1 = Chat()
@@ -545,9 +560,24 @@ class TestMessageAndChatMethods:
     def test_tigs_export_format(self):
         """Test Tigs YAML format export."""
         messages = [
-            Message(role=Role.SYSTEM, content="System prompt", provider="test", log_uri="/test/sys"),
-            Message(role=Role.USER, content="User question", provider="test", log_uri="/test/user"),
-            Message(role=Role.ASSISTANT, content="Assistant response", provider="test", log_uri="/test/assistant")
+            Message(
+                role=Role.SYSTEM,
+                content="System prompt",
+                provider="test",
+                log_uri="/test/sys",
+            ),
+            Message(
+                role=Role.USER,
+                content="User question",
+                provider="test",
+                log_uri="/test/user",
+            ),
+            Message(
+                role=Role.ASSISTANT,
+                content="Assistant response",
+                provider="test",
+                log_uri="/test/assistant",
+            ),
         ]
 
         chat = Chat(messages=messages)
@@ -555,6 +585,7 @@ class TestMessageAndChatMethods:
 
         # Should be valid YAML with proper Tigs structure
         import yaml
+
         tigs_data = yaml.safe_load(tigs_output)
 
         assert tigs_data["schema"] == "tigs.chat/v1"

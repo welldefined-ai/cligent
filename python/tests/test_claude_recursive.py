@@ -3,6 +3,9 @@
 These tests verify that when treating CWD as a prefix, list(recursive=True)
 aggregates logs from all project folders whose names start with the current
 project prefix, and that recursive=False restricts to the exact project.
+
+Both modes use filenames only (no relative paths) for log URIs to maintain
+consistency.
 """
 
 from pathlib import Path
@@ -38,17 +41,19 @@ def test_claude_recursive_listing(tmp_path: Path) -> None:
     _write_jsonl(f1)
     _write_jsonl(f2)
 
-    # When recursive=True (default), both logs are listed relative to root
+    # When recursive=True (default), both logs are listed using filenames only
     with patch.object(Path, "home", return_value=tmp_path), \
          patch.object(Path, "cwd", return_value=cwd_python):
         store = ClaudeLogStore()
         logs = store.list()  # default recursive
 
     uris = {uri for uri, _ in logs}
-    # Base project file should be just the filename
+    # Both files should be listed with filename only (no relative path)
     assert "log1.jsonl" in uris
-    # Subproject should appear with path prefix derived from suffix
-    assert "utils/log2.jsonl" in uris
+    assert "log2.jsonl" in uris
+    # Verify no path separators in URIs (consistent with non-recursive mode)
+    for uri, _ in logs:
+        assert "/" not in uri and "\\" not in uri
 
 
 def test_claude_nonrecursive_listing(tmp_path: Path) -> None:
