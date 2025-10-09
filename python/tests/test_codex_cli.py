@@ -114,10 +114,8 @@ class TestCodexCligent:
 
     def test_parse_with_relative_uri(self, mock_home):
         mock_cwd = Path("/workspace/sample/project")
-        with (
-            patch.object(Path, "home", return_value=mock_home),
-            patch.object(Path, "cwd", return_value=mock_cwd),
-        ):
+        with patch.object(Path, "home", return_value=mock_home), \
+         patch.object(Path, "cwd", return_value=mock_cwd):
             parser = ChatParser("codex")
             uri = "2025/10/01/rollout-2025-10-01T12-00-00-abcdef.jsonl"
             chat = parser.parse(uri)
@@ -129,10 +127,8 @@ class TestCodexCligent:
 
     def test_live_log_returns_latest(self, mock_home):
         mock_cwd = Path("/workspace/sample/project")
-        with (
-            patch.object(Path, "home", return_value=mock_home),
-            patch.object(Path, "cwd", return_value=mock_cwd),
-        ):
+        with patch.object(Path, "home", return_value=mock_home), \
+         patch.object(Path, "cwd", return_value=mock_cwd):
             parser = ChatParser("codex")
             chat = parser.parse()
 

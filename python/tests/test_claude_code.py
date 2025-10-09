@@ -25,10 +25,8 @@ def mock_home():
 def parser(mock_home):
     """ChatParser configured with mock Claude environment."""
     mock_cwd = Path("/home/user/projects/myproject/python")
-    with (
-        patch.object(Path, "home", return_value=mock_home),
-        patch.object(Path, "cwd", return_value=mock_cwd),
-    ):
+    with patch.object(Path, "home", return_value=mock_home), \
+         patch.object(Path, "cwd", return_value=mock_cwd):
         yield ChatParser("claude-code")
 
 
@@ -379,10 +377,8 @@ class TestClaudeImplementation:
     def test_claude_store_operations(self, mock_home):
         """Test ClaudeStore file operations."""
         mock_cwd = Path("/home/user/projects/myproject/python")
-        with (
-            patch.object(Path, "home", return_value=mock_home),
-            patch.object(Path, "cwd", return_value=mock_cwd),
-        ):
+        with patch.object(Path, "home", return_value=mock_home), \
+             patch.object(Path, "cwd", return_value=mock_cwd):
             store = ClaudeLogStore()
 
             # Test listing
