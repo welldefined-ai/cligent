@@ -219,7 +219,8 @@ class ClaudeLogStore(LogStore):
                                 continue
                             metadata = self._create_file_metadata(log_file)
                             metadata["project"] = proj_dir.name
-                            uri = f"{uri_prefix}/{log_file.name}" if uri_prefix else log_file.name
+                            # Use only filename as log URI for consistency (no relative path)
+                            uri = log_file.name
                             logs.append((uri, metadata))
                 else:
                     # Fallback to non-recursive if root missing
