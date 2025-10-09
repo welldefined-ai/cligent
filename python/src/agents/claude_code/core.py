@@ -189,9 +189,8 @@ class ClaudeLogStore(LogStore):
 
         When recursive is True (default), include logs from any Claude
         project directories whose names start with this project's
-        prefix. URIs in recursive mode are relative paths under the
-        projects root (e.g., "Users-me-proj-python/log.jsonl"). In
-        non-recursive mode, URIs are session IDs (filename stems).
+        prefix. URIs are filenames only (e.g., "log.jsonl") for both
+        recursive and non-recursive modes to maintain consistency.
         """
         logs = []
 
